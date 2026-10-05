@@ -142,11 +142,11 @@ class SettingsScreen extends StatelessWidget {
               Center(
                 child: Column(
                   children: const [
-                    HakkiriLogo(variant: HakkiriLogoVariant.compactMark, size: 18),
-                    SizedBox(height: 8),
+                    HakkiriLogo(variant: HakkiriLogoVariant.fullImage, size: 96),
+                    SizedBox(height: 12),
                     Text(
                       'Version 1.0.0 (Build 42) • Hakkiri Gym',
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 11, fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
