@@ -1,0 +1,31 @@
+{
+  "name": "hakkiri-app",
+  "version": "1.0.0",
+  "description": "Hakkiri - Daily Communication Gym for Real-Life Professional Agility",
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "ts-node scripts/demo-scoring.ts",
+    "demo": "ts-node scripts/demo-scoring.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "keywords": [
+    "communication",
+    "speech-training",
+    "executive-presence",
+    "react-native",
+    "ai-speech",
+    "public-speaking"
+  ],
+  "author": "Hakkiri Team",
+  "license": "MIT",
+  "dependencies": {
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "@types/react": "^19.3.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
