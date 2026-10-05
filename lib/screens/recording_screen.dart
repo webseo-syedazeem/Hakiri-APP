@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
-import '../widgets/waveform_visualizer.dart';
 import 'feedback_screen.dart';
 
 class RecordingScreen extends StatefulWidget {
@@ -14,57 +13,36 @@ class RecordingScreen extends StatefulWidget {
 }
 
 class _RecordingScreenState extends State<RecordingScreen> {
-  bool _isPrepPhase = true;
-  int _prepSecondsRemaining = 3;
-  int _recordingSecondsRemaining = 60;
-  Timer? _prepTimer;
-  Timer? _recordingTimer;
+  int _secondsRemaining = 42; // Matches Page 7 screenshot "0:42"
+  Timer? _countdownTimer;
+  final int _fillerCount = 2;
+  final double _startTime = 1.2;
 
   @override
   void initState() {
     super.initState();
-    final state = Provider.of<AppStateProvider>(context, listen: false);
-    _prepSecondsRemaining = state.selectedActivity?.prepDurationSeconds ?? 3;
-    _recordingSecondsRemaining = state.selectedPrompt?.durationSeconds ?? 60;
-    _startPrepTimer();
+    _startTimer();
   }
 
-  void _startPrepTimer() {
-    _prepTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_prepSecondsRemaining > 1) {
-        setState(() => _prepSecondsRemaining -= 1);
+  void _startTimer() {
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_secondsRemaining > 0) {
+        setState(() => _secondsRemaining -= 1);
       } else {
-        _prepTimer?.cancel();
-        setState(() => _isPrepPhase = false);
-        _startRecordingTimer();
+        _finishDrill();
       }
     });
   }
 
-  void _startRecordingTimer() {
-    _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_recordingSecondsRemaining > 1) {
-        setState(() => _recordingSecondsRemaining -= 1);
-      } else {
-        _finishAndEvaluate();
-      }
-    });
-  }
-
-  void _finishAndEvaluate() {
-    _prepTimer?.cancel();
-    _recordingTimer?.cancel();
-
+  void _finishDrill() {
+    _countdownTimer?.cancel();
     final state = Provider.of<AppStateProvider>(context, listen: false);
-    final prompt = state.selectedPrompt;
 
-    final simulatedTranscript = prompt?.activitySlug == 'cut_it_in_half'
-        ? 'Starting Monday, to protect personal downtime and sustain daytime focus, team members are not required to respond to Slack messages after 6:00 PM.'
-        : 'I believe we should ban video calls on Friday mornings. Basically, constant screen fatigue degrades deep work. By creating quiet blocks, team members can execute deep focus tasks without interruption.';
-
+    // Evaluate speech using exact prompt and realistic transcription
     state.evaluateCurrentSession(
-      transcript: simulatedTranscript,
-      durationSeconds: (prompt?.durationSeconds ?? 60) - _recordingSecondsRemaining,
+      transcript:
+          'Pick up the phone when the deal matters. A call shows real effort, and you hear subtle hesitation you’d miss in an email. Then send a short recap email so basically there are no misaligned expectations.',
+      durationSeconds: 60 - _secondsRemaining,
     );
 
     Navigator.pushReplacement(
@@ -75,191 +53,288 @@ class _RecordingScreenState extends State<RecordingScreen> {
 
   @override
   void dispose() {
-    _prepTimer?.cancel();
-    _recordingTimer?.cancel();
+    _countdownTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final state = Provider.of<AppStateProvider>(context);
-    final prompt = state.selectedPrompt;
-
-    if (prompt == null) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator(color: AppColors.accentCyan)),
-      );
-    }
+    final m = _secondsRemaining ~/ 60;
+    final s = _secondsRemaining % 60;
+    final timeFormatted = '$m:${s < 10 ? '0' : ''}$s';
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFF10111A), // Dark mode canvas as in Page 7
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: _isPrepPhase
-              ? _buildPrepView()
-              : _buildRecordingView(prompt),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Top Bar
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Icon(
+                          Icons.chevron_left_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const Text(
+                        'THINK FIRST  ·  1 OF 3',
+                        style: TextStyle(
+                          color: Color(0xFFA0A3B5),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const Text(
+                        'SALES',
+                        style: TextStyle(
+                          color: Color(0xFFA0A3B5),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Progress line
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: const LinearProgressIndicator(
+                      value: 0.33,
+                      minHeight: 2.5,
+                      backgroundColor: Color(0xFF26283D),
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4C5CFF)),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Question Section
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    'YOUR QUESTION',
+                    style: TextStyle(
+                      color: Color(0xFF8B8FA3),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Text(
+                    'Is it better to follow up with a\nclient by email or pick up the\nphone?',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      height: 1.25,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ],
+              ),
+
+              // Timer & Waveform Section
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'TIME LEFT',
+                            style: TextStyle(
+                              color: Color(0xFF8B8FA3),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            timeFormatted,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 54,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1.0,
+                              fontFeatures: [FontFeature.tabularFigures()],
+                            ),
+                          ),
+                        ],
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: const BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: AppColors.coralRed,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Text(
+                              'REC',
+                              style: TextStyle(
+                                color: AppColors.coralRed,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Waveform Visualizer
+                  SizedBox(
+                    height: 60,
+                    width: double.infinity,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: _buildLiveWaveform(),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 3 Telemetry Cards (START, PACE, FILLERS)
+                  Row(
+                    children: [
+                      Expanded(child: _buildTelemetryCard('START', '${_startTime}s')),
+                      const SizedBox(width: 8),
+                      Expanded(child: _buildTelemetryCard('PACE', 'Steady')),
+                      const SizedBox(width: 8),
+                      Expanded(child: _buildTelemetryCard('FILLERS', '$_fillerCount')),
+                    ],
+                  ),
+                ],
+              ),
+
+              // Bottom Button (Finish answer)
+              SizedBox(
+                height: 56,
+                child: Material(
+                  color: const Color(0xFFECEAE2),
+                  borderRadius: BorderRadius.circular(16),
+                  child: InkWell(
+                    onTap: _finishDrill,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Finish answer',
+                            style: TextStyle(
+                              color: Color(0xFF13141F),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: AppColors.royalBlue,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.arrow_forward_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildPrepView() {
-    return Center(
+  Widget _buildTelemetryCard(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161726),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF26283D)),
+      ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'GET READY TO THINK ON YOUR FEET',
-            style: TextStyle(
-              color: AppColors.accentCyan,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1.0,
-            ),
-          ),
-          const SizedBox(height: 16),
           Text(
-            '$_prepSecondsRemaining',
+            label,
             style: const TextStyle(
-              color: AppColors.accentCyan,
-              fontSize: 96,
-              fontWeight: FontWeight.w900,
+              color: Color(0xFF7E8296),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
             ),
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Prompt will flash instantly. Mic activates automatically.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildRecordingView(dynamic prompt) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.accentRose,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'LIVE DRILL IN PROGRESS',
-                      style: TextStyle(
-                        color: AppColors.accentRose,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  prompt.activitySlug,
-                  style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+  List<Widget> _buildLiveWaveform() {
+    final heights = [
+      12.0, 18.0, 28.0, 42.0, 24.0, 14.0, 32.0, 50.0, 44.0, 54.0, 36.0, 20.0,
+      38.0, 48.0, 28.0, 16.0, 26.0, 36.0, 44.0, 22.0, 14.0, 20.0, 34.0, 24.0,
+    ];
 
-            // Prompt Flash Card
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.accentCyan),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'YOUR SPEAKING PROMPT:',
-                    style: TextStyle(
-                      color: AppColors.accentCyan,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    prompt.promptText,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      height: 1.3,
-                    ),
-                  ),
-                  if (prompt.secondaryText != null) ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceBorder,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        prompt.secondaryText!,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 11,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Waveform & Live Timer
-            WaveformVisualizer(
-              isRecording: true,
-              secondsRemaining: _recordingSecondsRemaining,
-            ),
-          ],
+    return heights.map((h) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 2.0),
+        width: 3.5,
+        height: h,
+        decoration: BoxDecoration(
+          color: const Color(0xFF5B6BFF),
+          borderRadius: BorderRadius.circular(2),
         ),
-
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _finishAndEvaluate,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.accentCyan,
-              foregroundColor: AppColors.textInverse,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 0,
-            ),
-            child: const Text(
-              'Stop & Analyze Speech Output 🎙️',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ),
-      ],
-    );
+      );
+    }).toList();
   }
 }

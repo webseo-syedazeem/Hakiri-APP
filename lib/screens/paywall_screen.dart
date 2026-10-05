@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
+import '../widgets/hakkiri_logo.dart';
 import 'home_screen.dart';
 
 class PaywallScreen extends StatefulWidget {
@@ -14,7 +15,7 @@ class PaywallScreen extends StatefulWidget {
 class _PaywallScreenState extends State<PaywallScreen> {
   String _selectedTier = 'annual_pro';
 
-  void _onSubscribe() {
+  void _onContinue() {
     final state = Provider.of<AppStateProvider>(context, listen: false);
     state.selectSubscription(_selectedTier);
     Navigator.pushReplacement(
@@ -26,133 +27,271 @@ class _PaywallScreenState extends State<PaywallScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFF10111A), // Dark mode background as in Page 4
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Align(
-                alignment: Alignment.topRight,
-                child: TextButton(
-                  onPressed: _onSubscribe,
-                  child: const Text('Skip for now', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                ),
-              ),
-
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // Top Bar
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.accentCyan.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      'HAKKIRI PRO MEMBERSHIP',
-                      style: TextStyle(
-                        color: AppColors.accentCyan,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.0,
-                      ),
-                    ),
+                  const HakkiriLogo(
+                    variant: HakkiriLogoVariant.compactMark,
+                    size: 20,
+                    isDark: true,
                   ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Elevate Your Speaking Daily.',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Practice high-stakes impromptu drills, executive presence metrics, and real-time AI speech coaching.',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Annual Plan Card
-                  _buildPlanOption(
-                    id: 'annual_pro',
-                    title: 'Annual Pro Membership',
-                    price: '£69.99',
-                    interval: '/ year',
-                    subtext: 'Billed annually (£5.83/mo equivalent)',
-                    badge: 'SAVE 42% • 7-DAY FREE TRIAL',
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Monthly Plan Card
-                  _buildPlanOption(
-                    id: 'monthly_pro',
-                    title: 'Monthly Pro Membership',
-                    price: '£9.99',
-                    interval: '/ month',
-                    subtext: 'Flexible recurring • Cancel anytime',
-                    badge: null,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Features list
-                  ...[
-                    'Unlimited daily communication gym drills',
-                    'Full access to all 7 MVP unscripted exercises',
-                    'Real-time 1–5 scoring with 4-pillar analysis',
-                    'Free streak protection and freeze passes',
-                  ].map(
-                    (f) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.check_circle_outline, color: AppColors.accentEmerald, size: 16),
-                          const SizedBox(width: 8),
-                          Text(f, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-                        ],
-                      ),
+                  GestureDetector(
+                    onTap: _onContinue,
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 22,
                     ),
                   ),
                 ],
               ),
 
+              // Content Area
               Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _onSubscribe,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accentCyan,
-                        foregroundColor: AppColors.textInverse,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
+                  const SizedBox(height: 12),
+                  // Title
+                  RichText(
+                    text: const TextSpan(
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        color: Colors.white,
+                        fontSize: 38,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -1.0,
+                        height: 1.15,
                       ),
-                      child: Text(
-                        _selectedTier == 'annual_pro'
-                            ? 'Start 7-Day Free Trial (£69.99/yr)'
-                            : 'Subscribe Now (£9.99/mo)',
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                      children: [
+                        TextSpan(text: 'Go all in on\n'),
+                        TextSpan(
+                          text: 'clarity.',
+                          style: TextStyle(color: Color(0xFF5B6BFF)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Feature Points (01, 02, 03, 04)
+                  _buildBenefitRow('01', 'Prompts written for Sales & Marketing'),
+                  const SizedBox(height: 14),
+                  _buildBenefitRow('02', 'Detailed feedback on every answer'),
+                  const SizedBox(height: 14),
+                  _buildBenefitRow('03', 'A plan that adapts each week'),
+                  const SizedBox(height: 14),
+                  _buildBenefitRow('04', 'Progress tracking and streaks'),
+
+                  const SizedBox(height: 28),
+
+                  // Pricing Options
+                  // 1. Yearly Card (Selected)
+                  GestureDetector(
+                    onTap: () => setState(() => _selectedTier = 'annual_pro'),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF161726),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: _selectedTier == 'annual_pro'
+                              ? const Color(0xFF4C5CFF)
+                              : const Color(0xFF26283D),
+                          width: _selectedTier == 'annual_pro' ? 2 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: const [
+                              Text(
+                                'Yearly',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              SizedBox(height: 3),
+                              Text(
+                                '3 days free, then £69.99/yr',
+                                style: TextStyle(
+                                  color: Color(0xFFA0A3B5),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AppColors.coralBadge,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'SAVE 41%',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  const Center(
-                    child: Text(
-                      'No commitment. Cancel anytime before trial ends.',
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 10),
+                  const SizedBox(height: 12),
+
+                  // 2. Monthly Card
+                  GestureDetector(
+                    onTap: () => setState(() => _selectedTier = 'monthly_pro'),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF161726),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: _selectedTier == 'monthly_pro'
+                              ? const Color(0xFF4C5CFF)
+                              : const Color(0xFF26283D),
+                          width: _selectedTier == 'monthly_pro' ? 2 : 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: const [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Monthly',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              SizedBox(height: 3),
+                              Text(
+                                '£9.99/mo, cancel anytime',
+                                style: TextStyle(
+                                  color: Color(0xFFA0A3B5),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
+                  ),
+
+                  const SizedBox(height: 18),
+                  const Text(
+                    'TRIAL INCLUDES 3 ACTIVITIES  ·  CANCEL BEFORE DAY 3',
+                    style: TextStyle(
+                      color: Color(0xFF787B8E),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ],
+              ),
+
+              // Bottom Actions
+              Column(
+                children: [
+                  // Light Button with Blue Arrow
+                  SizedBox(
+                    height: 56,
+                    child: Material(
+                      color: const Color(0xFFECEAE2),
+                      borderRadius: BorderRadius.circular(16),
+                      child: InkWell(
+                        onTap: _onContinue,
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text(
+                                'Start free trial',
+                                style: TextStyle(
+                                  color: Color(0xFF13141F),
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Container(
+                                width: 38,
+                                height: 38,
+                                decoration: BoxDecoration(
+                                  color: AppColors.royalBlue,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                alignment: Alignment.center,
+                                child: const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'No charge today',
+                        style: TextStyle(color: Color(0xFF888B9E), fontSize: 12),
+                      ),
+                      const SizedBox(width: 14),
+                      GestureDetector(
+                        onTap: () {},
+                        child: const Text(
+                          'Restore purchase',
+                          style: TextStyle(
+                            color: Color(0xFFA5A9BF),
+                            fontSize: 12,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      GestureDetector(
+                        onTap: () {},
+                        child: const Text(
+                          'Terms',
+                          style: TextStyle(
+                            color: Color(0xFFA5A9BF),
+                            fontSize: 12,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -163,100 +302,30 @@ class _PaywallScreenState extends State<PaywallScreen> {
     );
   }
 
-  Widget _buildPlanOption({
-    required String id,
-    required String title,
-    required String price,
-    required String interval,
-    required String subtext,
-    String? badge,
-  }) {
-    final isSelected = _selectedTier == id;
-
-    return InkWell(
-      onTap: () => setState(() => _selectedTier = id),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.accentCyan : AppColors.surfaceBorder,
-            width: isSelected ? 2 : 1,
+  Widget _buildBenefitRow(String num, String text) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 28,
+          child: Text(
+            num,
+            style: const TextStyle(
+              color: Color(0xFF5B6BFF),
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (badge != null) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.accentCyan,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  badge,
-                  style: const TextStyle(
-                    color: AppColors.textInverse,
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 6),
-            ],
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtext,
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-                RichText(
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: price,
-                        style: TextStyle(
-                          color: isSelected ? AppColors.accentCyan : AppColors.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      TextSpan(
-                        text: interval,
-                        style: const TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 15,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-      ),
+      ],
     );
   }
 }

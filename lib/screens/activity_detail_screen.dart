@@ -2,113 +2,169 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
+import '../widgets/action_pill_button.dart';
 import 'recording_screen.dart';
 
-class ActivityDetailScreen extends StatelessWidget {
+class ActivityDetailScreen extends StatefulWidget {
   const ActivityDetailScreen({super.key});
+
+  @override
+  State<ActivityDetailScreen> createState() => _ActivityDetailScreenState();
+}
+
+class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
+  String _selectedLevel = 'beginner';
 
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
-    final activity = state.selectedActivity;
-
-    if (activity == null) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator(color: AppColors.accentCyan)),
-      );
-    }
-
-    final diffs = [
-      {'id': 'beginner', 'label': 'Beginner', 'desc': 'Survive the clock, fill the silence, steady pace.'},
-      {'id': 'intermediary', 'label': 'Intermediary', 'desc': 'Use a clear structure, eliminate panic, active verbs.'},
-      {'id': 'professional', 'label': 'Professional', 'desc': 'Executive presence, power pauses, high-impact BLUF.'},
-      {'id': 'i_dont_know', 'label': "I don't know", 'desc': 'AI evaluates your baseline with a balanced diagnostic prompt.'},
-    ];
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.accentCyan),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Expanded(
                 child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.accentCyan.withOpacity(0.12),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '⏱️ ${activity.defaultDurationSeconds}S DRILL • ${activity.prepDurationSeconds}S PREP',
-                          style: const TextStyle(
-                            color: AppColors.accentCyan,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
+                      // Back Chevron
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Icon(
+                          Icons.chevron_left_rounded,
+                          color: AppColors.textPrimary,
+                          size: 30,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      Text(
-                        activity.name,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
+                      const SizedBox(height: 16),
+
+                      // Category Tag
+                      const Text(
+                        'SPONTANEOUS AGILITY',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5,
                         ),
                       ),
                       const SizedBox(height: 6),
-                      Text(
-                        activity.description,
-                        style: const TextStyle(
+
+                      // Heading with Royal Blue Accent
+                      RichText(
+                        text: const TextSpan(
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            color: AppColors.textPrimary,
+                            fontSize: 34,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -1.0,
+                            height: 1.15,
+                          ),
+                          children: [
+                            TextSpan(text: 'Think First\n'),
+                            TextSpan(
+                              text: 'Three seconds. Then\nspeak.',
+                              style: TextStyle(color: AppColors.royalBlue),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+
+                      // Badges Row (3S PREP, 60S SPEAK)
+                      Row(
+                        children: [
+                          _buildTimingBadge('3S PREP'),
+                          const SizedBox(width: 8),
+                          _buildTimingBadge('60S SPEAK'),
+                        ],
+                      ),
+                      const SizedBox(height: 28),
+
+                      // Choose Your Level
+                      const Text(
+                        'CHOOSE YOUR LEVEL',
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // 2x2 Level Grid
+                      Row(
+                        children: [
+                          Expanded(child: _buildLevelCard('beginner', 'Beginner')),
+                          const SizedBox(width: 10),
+                          Expanded(child: _buildLevelCard('intermediary', 'Intermediary')),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(child: _buildLevelCard('pro', 'Pro')),
+                          const SizedBox(width: 10),
+                          Expanded(child: _buildLevelCard('i_dont_know', 'I don’t know')),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      const Text(
+                        'Not sure? Pick “I don’t know” for a general question, and we’ll suggest a level.',
+                        style: TextStyle(
                           color: AppColors.textSecondary,
-                          fontSize: 13,
+                          fontSize: 12,
                           height: 1.4,
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 24),
 
-                      // Benefits
+                      // QUICK TIP Card
                       Container(
-                        padding: const EdgeInsets.all(14),
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(12),
+                          color: AppColors.surfaceWhite,
+                          borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: AppColors.surfaceBorder),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'CORE NEUROMUSCULAR BENEFITS',
+                          children: const [
+                            Text(
+                              'QUICK TIP',
                               style: TextStyle(
-                                color: AppColors.accentCyan,
+                                color: AppColors.textMuted,
                                 fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.2,
                               ),
                             ),
-                            const SizedBox(height: 8),
-                            ...activity.benefits.map(
-                              (b) => Padding(
-                                padding: const EdgeInsets.only(bottom: 4),
-                                child: Text('• $b', style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
+                            SizedBox(height: 6),
+                            Text(
+                              'Answer → Reason → Example',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Say your answer first. A short pause is fine.',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 13,
                               ),
                             ),
                           ],
@@ -116,93 +172,85 @@ class ActivityDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
 
-                      // Difficulty Selection
-                      const Text(
-                        'SELECT DIFFICULTY LEVEL',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
+                      const Center(
+                        child: Text(
+                          'We’ll ask for your microphone next. Recording starts after the countdown.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 12,
+                            height: 1.4,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 10),
-
-                      ...diffs.map((d) {
-                        final isSelected = state.selectedDifficulty == d['id'];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: InkWell(
-                            onTap: () => state.setDifficulty(d['id']!),
-                            borderRadius: BorderRadius.circular(10),
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: isSelected ? AppColors.accentCyan.withOpacity(0.08) : AppColors.surface,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isSelected ? AppColors.accentCyan : AppColors.surfaceBorder,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        d['label']!,
-                                        style: TextStyle(
-                                          color: isSelected ? AppColors.accentCyan : AppColors.textPrimary,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        d['desc']!,
-                                        style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
-                                      ),
-                                    ],
-                                  ),
-                                  if (isSelected)
-                                    const Icon(Icons.check_circle, color: AppColors.accentCyan, size: 18),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }),
+                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
               ),
 
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const RecordingScreen()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.accentCyan,
-                    foregroundColor: AppColors.textInverse,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    'Begin Drill (${activity.prepDurationSeconds}s Countdown) →',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
-                ),
+              // Bottom Button
+              ActionPillButton(
+                label: 'I’m ready',
+                onPressed: () {
+                  state.setDifficulty(_selectedLevel);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RecordingScreen()),
+                  );
+                },
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimingBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceWhite,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.surfaceBorder),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: AppColors.textPrimary,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLevelCard(String id, String label) {
+    final isSelected = _selectedLevel == id;
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedLevel = id),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF141522) : AppColors.surfaceWhite,
+          borderRadius: BorderRadius.circular(12),
+          border: isSelected
+              ? null
+              : Border.all(
+                  color: const Color(0xFFD8D6CC),
+                  width: 1.2,
+                ),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppColors.textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
           ),
         ),
       ),

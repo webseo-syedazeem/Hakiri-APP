@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
-import '../models/assessment_model.dart';
 import '../providers/app_state_provider.dart';
+import '../widgets/action_pill_button.dart';
 import 'personalized_plan_screen.dart';
 
 class AssessmentScreen extends StatefulWidget {
@@ -13,171 +13,178 @@ class AssessmentScreen extends StatefulWidget {
 }
 
 class _AssessmentScreenState extends State<AssessmentScreen> {
-  int _currentIndex = 0;
+  int _currentStepIndex = 4; // Starts on Step 5 (05/06) as featured on Page 2, or 0
+  String _selectedOptionId = 'blank_on_spot';
 
-  final List<AssessmentQuestion> _questions = const [
-    AssessmentQuestion(
-      id: 'voiceProfile',
-      title: 'Voice Profile & Biological Resonance',
-      subtitle: 'Which voice profile best aligns with your biological vocal structure and personalized training goals?',
-      options: [
-        AssessmentOption(
-          id: 'male',
-          label: 'Male Voice Resonance',
-          description: 'Focused on deep chest resonance, diaphragmatic support, and steady projection.',
-        ),
-        AssessmentOption(
-          id: 'female',
-          label: 'Female Voice Resonance',
-          description: 'Focused on pitch clarity, throat-to-chest transitions, and authoritative resonance.',
-        ),
-        AssessmentOption(
-          id: 'non_binary_vocal_alignment',
-          label: 'Non-Binary / Vocal Alignment',
-          description: 'Focused on customizable pitch matching, vocal stamina, and healthy vocal boundary training.',
-        ),
+  final List<Map<String, dynamic>> _steps = [
+    {
+      'tag': 'VOICE PROFILE',
+      'stepNum': '01/06',
+      'title': 'Which voice profile best aligns with your vocal structure?',
+      'subtitle': 'PICK YOUR BIOLOGICAL VOCAL RESONANCE',
+      'options': [
+        {
+          'id': 'male',
+          'title': 'Male Voice Resonance',
+          'subtitle': 'Focused on deep chest resonance and steady projection',
+        },
+        {
+          'id': 'female',
+          'title': 'Female Voice Resonance',
+          'subtitle': 'Focused on pitch clarity and head-to-chest transitions',
+        },
+        {
+          'id': 'non_binary',
+          'title': 'Non-Binary / Alignment',
+          'subtitle': 'Customizable pitch matching and vocal safety',
+        },
       ],
-    ),
-    AssessmentQuestion(
-      id: 'careerStage',
-      title: 'Career Stage',
-      subtitle: 'Where are you currently at in your professional journey?',
-      options: [
-        AssessmentOption(
-          id: 'student_early_career',
-          label: 'Student / Early Career',
-          description: 'Preparing for interviews, assessment centers, and entry-level team entries.',
-        ),
-        AssessmentOption(
-          id: 'mid_level_professional',
-          label: 'Mid-Level Professional',
-          description: 'Leading team meetings, cross-functional projects, reviews, and cross-team alignment.',
-        ),
-        AssessmentOption(
-          id: 'senior_executive_founder',
-          label: 'Senior Executive / Founder',
-          description: 'Delivering investor pitches, speaking to media, steering all-hands, or board keynotes.',
-        ),
-        AssessmentOption(
-          id: 'general_self_learner',
-          label: 'General Self-Learner',
-          description: 'Focused on personal charisma, casual conversational agility, and everyday communication.',
-        ),
+    },
+    {
+      'tag': 'CAREER STAGE',
+      'stepNum': '02/06',
+      'title': 'Where are you currently at in your career journey?',
+      'subtitle': 'SELECT YOUR PROFESSIONAL LEVEL',
+      'options': [
+        {
+          'id': 'early',
+          'title': 'Student / Early Career',
+          'subtitle': 'Preparing for interviews and first corporate roles',
+        },
+        {
+          'id': 'mid_level',
+          'title': 'Mid-Level Professional',
+          'subtitle': 'Leading meetings, cross-functional projects and reviews',
+        },
+        {
+          'id': 'exec',
+          'title': 'Senior Executive / Founder',
+          'subtitle': 'Delivering board pitches, keynotes and steering media',
+        },
       ],
-    ),
-    AssessmentQuestion(
-      id: 'careerType',
-      title: 'Career Environment',
-      subtitle: 'Which field best describes your primary work environment?',
-      options: [
-        AssessmentOption(
-          id: 'corporate_finance',
-          label: 'Corporate & Finance',
-          description: 'Structured meetings, data reviews, forecasting, and formal boardroom presentations.',
-        ),
-        AssessmentOption(
-          id: 'tech_engineering_product',
-          label: 'Tech, Engineering & Product',
-          description: 'Translating complex architecture into simple terms, backlog alignment, and technical roadmaps.',
-        ),
-        AssessmentOption(
-          id: 'sales_marketing_creator',
-          label: 'Sales, Marketing & Content Creator',
-          description: 'High-energy persuasion, commercial negotiation, and audience engagement.',
-        ),
-        AssessmentOption(
-          id: 'healthcare_education',
-          label: 'Healthcare & Education',
-          description: 'Clear, patient, empathetic, structured, and emotionally calibrated speaking.',
-        ),
+    },
+    {
+      'tag': 'YOUR FIELD',
+      'stepNum': '03/06',
+      'title': 'Which field best describes your primary work environment?',
+      'subtitle': 'TAILORS YOUR INDUSTRY PROMPTS',
+      'options': [
+        {
+          'id': 'sales_marketing',
+          'title': 'Sales & Marketing',
+          'subtitle': 'High-energy persuasion, objection handling, deals',
+        },
+        {
+          'id': 'tech_product',
+          'title': 'Tech, Engineering & Product',
+          'subtitle': 'Translating complex architecture into simple terms',
+        },
+        {
+          'id': 'corporate_finance',
+          'title': 'Corporate & Finance',
+          'subtitle': 'Structured data reviews, governance and forecasts',
+        },
+        {
+          'id': 'healthcare_edu',
+          'title': 'Healthcare & Education',
+          'subtitle': 'Clear, patient, empathetic, structured delivery',
+        },
       ],
-    ),
-    AssessmentQuestion(
-      id: 'confidence',
-      title: 'Verbal Speaking Confidence',
-      subtitle: 'How do you honestly feel when you have to speak or present under pressure?',
-      options: [
-        AssessmentOption(
-          id: 'anxious_shaky',
-          label: 'Anxious & Shaky',
-          description: 'Throat tightens, speaking speed runs away, and struggle to find words on the spot.',
-        ),
-        AssessmentOption(
-          id: 'moderately_confident',
-          label: 'Moderately Confident',
-          description: 'I can get my point across, but I default to filler words like "um" and "like".',
-        ),
-        AssessmentOption(
-          id: 'highly_confident',
-          label: 'Highly Confident',
-          description: 'I control the room well, but I want to master advanced tactics like strategic power pausing.',
-        ),
+    },
+    {
+      'tag': 'CONFIDENCE',
+      'stepNum': '04/06',
+      'title': 'How do you feel when you speak under pressure?',
+      'subtitle': 'HONEST SELF-ASSESSMENT',
+      'options': [
+        {
+          'id': 'anxious',
+          'title': 'Anxious & Shaky',
+          'subtitle': 'Throat tightens, I speak too fast, I struggle for words',
+        },
+        {
+          'id': 'moderate',
+          'title': 'Moderately Confident',
+          'subtitle': 'I get my point across but default to fillers like "um"',
+        },
+        {
+          'id': 'high',
+          'title': 'Highly Confident',
+          'subtitle': 'I control the room well, seeking advanced executive tactics',
+        },
       ],
-    ),
-    AssessmentQuestion(
-      id: 'roadblock',
-      title: 'The Roadblock to Solve',
-      subtitle: 'What is the biggest roadblock holding your voice back right now?',
-      options: [
-        AssessmentOption(
-          id: 'fast_talking_mumbling',
-          label: 'Fast Talking & Mumbling',
-          description: 'Losing breath control and pacing when put on the spot; trailing off at sentence ends.',
-        ),
-        AssessmentOption(
-          id: 'excessive_filler_words',
-          label: 'Excessive Filler Words',
-          description: 'Relying on "uh", "um", "sort of", "basically", and "does that make sense?" while thinking.',
-        ),
-        AssessmentOption(
-          id: 'monotone_flat_delivery',
-          label: 'Monotone / Flat Delivery',
-          description: 'Sounding unengaging or like reading directly from a script without dynamic pitch.',
-        ),
-        AssessmentOption(
-          id: 'accent_barriers_clarity',
-          label: 'Accent Barriers / Intelligibility',
-          description: 'Struggling with consonant clarity or feeling misunderstood in global/virtual meetings.',
-        ),
+    },
+    // STEP 05/06 - Exactly as seen in Page 2 screenshot!
+    {
+      'tag': 'YOUR GOALS',
+      'stepNum': '05/06',
+      'title': 'What gets in your way\nmost when you speak?',
+      'subtitle': 'PICK THE ONE THAT MATTERS MOST',
+      'options': [
+        {
+          'id': 'blank_on_spot',
+          'title': 'I go blank when put on the spot',
+          'subtitle': 'I need a few seconds and lose my train of thought',
+        },
+        {
+          'id': 'too_long_point',
+          'title': 'I take too long to get to the point',
+          'subtitle': 'I add background first and people lose track',
+        },
+        {
+          'id': 'rush_fill_gaps',
+          'title': 'I rush or fill gaps with “um” and “so”',
+          'subtitle': 'I speed up while working out what to say',
+        },
+        {
+          'id': 'explain_simply',
+          'title': 'I struggle to explain things simply',
+          'subtitle': 'It comes out too complicated for the listener',
+        },
+        {
+          'id': 'switch_off',
+          'title': 'People switch off when I talk',
+          'subtitle': 'Facts and updates don’t land or stick',
+        },
+        {
+          'id': 'lose_footing',
+          'title': 'I lose my footing when challenged',
+          'subtitle': 'I get defensive or forget my argument',
+        },
       ],
-    ),
-    AssessmentQuestion(
-      id: 'primaryGoal',
-      title: 'Primary Goal',
-      subtitle: 'If you could fix one thing by using this app daily, what would it be?',
-      options: [
-        AssessmentOption(
-          id: 'executive_presence_authority',
-          label: 'Executive Presence & Authority',
-          description: 'Speak with authority, project calm competence, and eliminate upward inflections.',
-        ),
-        AssessmentOption(
-          id: 'reduce_anxiety_freeze',
-          label: 'Reduce Anxiety & Conversational Freeze',
-          description: 'Stop freezing when put on the spot in unpredictable meetings.',
-        ),
-        AssessmentOption(
-          id: 'sharp_arguments_debate',
-          label: 'Sharp On-The-Fly Arguments',
-          description: 'Build persuasive structured rebuttals and counter-proposals in real time.',
-        ),
-        AssessmentOption(
-          id: 'diction_clarity_stamina',
-          label: 'Diction, Clarity & Stamina',
-          description: 'Improve daily consonant crispness, projection, and vocal endurance.',
-        ),
+    },
+    {
+      'tag': 'PRIMARY GOAL',
+      'stepNum': '06/06',
+      'title': 'If you could fix one thing using this app, what would it be?',
+      'subtitle': 'DEFINES YOUR DAILY ANCHOR FOCUS',
+      'options': [
+        {
+          'id': 'exec_presence',
+          'title': 'Speak with authority & executive presence',
+          'subtitle': 'Eliminate tentative uptalk and project steady conviction',
+        },
+        {
+          'id': 'reduce_freeze',
+          'title': 'Reduce public speaking freeze & anxiety',
+          'subtitle': 'Stay grounded and composed in unpredictable syncs',
+        },
+        {
+          'id': 'sharp_debate',
+          'title': 'Build sharp arguments on the fly',
+          'subtitle': 'Spontaneous rebuttal and negotiation mastery',
+        },
       ],
-    ),
+    },
   ];
 
-  void _onSelectOption(String optionId) {
+  void _onContinue() {
     final state = Provider.of<AppStateProvider>(context, listen: false);
-    final question = _questions[_currentIndex];
-    state.setAssessmentAnswer(question.id, optionId);
 
-    if (_currentIndex < _questions.length - 1) {
+    if (_currentStepIndex < _steps.length - 1) {
       setState(() {
-        _currentIndex += 1;
+        _currentStepIndex += 1;
+        _selectedOptionId = (_steps[_currentStepIndex]['options'] as List).first['id'];
       });
     } else {
       state.completeAssessment();
@@ -188,71 +195,99 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     }
   }
 
+  void _onBack() {
+    if (_currentStepIndex > 0) {
+      setState(() {
+        _currentStepIndex -= 1;
+        _selectedOptionId = (_steps[_currentStepIndex]['options'] as List).first['id'];
+      });
+    } else {
+      Navigator.pop(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final question = _questions[_currentIndex];
-    final progress = (_currentIndex + 1) / _questions.length;
+    final step = _steps[_currentStepIndex];
+    final double progress = (_currentStepIndex + 1) / _steps.length;
+    final List options = step['options'] as List;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top navigation & Progress
+              // Top Bar (< YOUR GOALS  05/06)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  IconButton(
-                    onPressed: () {
-                      if (_currentIndex > 0) {
-                        setState(() => _currentIndex -= 1);
-                      } else {
-                        Navigator.pop(context);
-                      }
-                    },
-                    icon: const Icon(Icons.arrow_back, color: AppColors.textSecondary),
+                  GestureDetector(
+                    onTap: _onBack,
+                    child: const Icon(
+                      Icons.chevron_left_rounded,
+                      color: AppColors.textPrimary,
+                      size: 28,
+                    ),
                   ),
                   Text(
-                    'Step ${_currentIndex + 1} of ${_questions.length}',
+                    step['tag'] as String,
                     style: const TextStyle(
-                      color: AppColors.accentCyan,
+                      color: AppColors.textSecondary,
                       fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  Text(
+                    step['stepNum'] as String,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
+
+              // Thin Royal Blue Progress Line
               ClipRRect(
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(2),
                 child: LinearProgressIndicator(
                   value: progress,
-                  minHeight: 4,
+                  minHeight: 2.5,
                   backgroundColor: AppColors.surfaceBorder,
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accentCyan),
+                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.royalBlue),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
 
               // Question Heading
               Text(
-                question.title,
+                step['title'] as String,
                 style: const TextStyle(
+                  fontFamily: 'Inter',
                   color: AppColors.textPrimary,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  height: 1.2,
+                  letterSpacing: -0.6,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
+
+              // Uppercase Subtitle
               Text(
-                question.subtitle,
+                step['subtitle'] as String,
                 style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                  height: 1.4,
+                  color: AppColors.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
                 ),
               ),
               const SizedBox(height: 20),
@@ -260,45 +295,94 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               // Options List
               Expanded(
                 child: ListView.separated(
-                  itemCount: question.options.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: options.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
-                    final opt = question.options[index];
-                    return InkWell(
-                      onTap: () => _onSelectOption(opt.id),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
+                    final opt = options[index];
+                    final isSelected = _selectedOptionId == opt['id'];
+
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _selectedOptionId = opt['id']);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
                         decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.surfaceBorder),
+                          color: isSelected ? const Color(0xFF141522) : AppColors.surfaceWhite,
+                          borderRadius: BorderRadius.circular(16),
+                          border: isSelected
+                              ? null
+                              : Border.all(color: AppColors.surfaceBorder, width: 1.0),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.08),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ]
+                              : null,
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Text(
-                              opt.label,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    opt['title'] as String,
+                                    style: TextStyle(
+                                      color: isSelected ? Colors.white : AppColors.textPrimary,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    opt['subtitle'] as String,
+                                    style: TextStyle(
+                                      color: isSelected ? const Color(0xFFA3A6B8) : AppColors.textMuted,
+                                      fontSize: 12,
+                                      height: 1.3,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              opt.description,
-                              style: const TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 12,
-                                height: 1.4,
+                            const SizedBox(width: 12),
+                            // Selection Indicator
+                            Container(
+                              width: 24,
+                              height: 24,
+                              decoration: BoxDecoration(
+                                color: isSelected ? AppColors.royalBlue : Colors.transparent,
+                                shape: BoxShape.circle,
+                                border: isSelected
+                                    ? null
+                                    : Border.all(color: const Color(0xFFD4D2C8), width: 1.5),
                               ),
+                              alignment: Alignment.center,
+                              child: isSelected
+                                  ? const Icon(Icons.check, color: Colors.white, size: 14)
+                                  : null,
                             ),
                           ],
                         ),
                       ),
                     );
                   },
+                ),
+              ),
+
+              // Bottom Continue Button
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: ActionPillButton(
+                  label: 'Continue',
+                  onPressed: _onContinue,
                 ),
               ),
             ],

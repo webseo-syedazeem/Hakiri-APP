@@ -28,17 +28,17 @@ class HakkiriApp extends StatelessWidget {
         title: 'Hakkiri',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          brightness: Brightness.dark,
+          brightness: Brightness.light,
           scaffoldBackgroundColor: AppColors.background,
-          primaryColor: AppColors.accentCyan,
-          colorScheme: const ColorScheme.dark(
-            primary: AppColors.accentCyan,
-            secondary: AppColors.accentBlue,
-            surface: AppColors.surface,
-            error: AppColors.accentRose,
+          primaryColor: AppColors.royalBlue,
+          colorScheme: const ColorScheme.light(
+            primary: AppColors.royalBlue,
+            secondary: AppColors.chartLavender,
+            surface: AppColors.surfaceWhite,
+            error: AppColors.coralRed,
           ),
           textTheme: GoogleFonts.interTextTheme(
-            ThemeData.dark().textTheme,
+            ThemeData.light().textTheme,
           ),
           useMaterial3: true,
         ),

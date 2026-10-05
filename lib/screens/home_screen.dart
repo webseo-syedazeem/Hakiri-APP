@@ -2,130 +2,192 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
-import '../widgets/daily_anchor_card.dart';
+import '../widgets/hakkiri_logo.dart';
+import '../widgets/week_calendar_strip.dart';
+import '../widgets/hakkiri_bottom_nav.dart';
 import 'activity_detail_screen.dart';
 import 'analytics_dashboard_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _navIndex = 0;
+  int _selectedDayIndex = 3; // THU 4 as in Page 5
+
+  void _onBottomNavTap(int index) {
+    if (index == 1) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const AnalyticsDashboardScreen()),
+      );
+    } else {
+      setState(() => _navIndex = index);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
-    final anchorActivity = state.activities.first;
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      bottomNavigationBar: HakkiriBottomNav(
+        currentIndex: _navIndex,
+        onTap: _onBottomNavTap,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header & Streaks
+              // Header Row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'DAILY COMMUNICATION GYM',
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        "Today's Reps",
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  const HakkiriLogo(
+                    variant: HakkiriLogoVariant.compactMark,
+                    size: 20,
                   ),
-                  Row(
-                    children: [
-                      _buildPillBadge(
-                        icon: '🔥',
-                        label: '${state.currentStreak}d',
-                        color: AppColors.accentAmber,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceWhite,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
+                    ),
+                    child: const Text(
+                      'DAY  4  STREAK',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.0,
                       ),
-                      const SizedBox(width: 8),
-                      _buildPillBadge(
-                        icon: '⚡',
-                        label: '${state.totalXp} XP',
-                        color: AppColors.accentPurple,
-                      ),
-                    ],
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 20),
 
-              // Daily Anchor Card
-              DailyAnchorCard(
-                activity: anchorActivity,
-                onStart: () {
-                  state.selectActivity(anchorActivity.slug);
+              // Subtag
+              const Text(
+                'DAILY ANCHOR  ·  MONDAY',
+                style: TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(height: 6),
+
+              // Heading
+              RichText(
+                text: const TextSpan(
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: AppColors.textPrimary,
+                    fontSize: 34,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1.0,
+                    height: 1.15,
+                  ),
+                  children: [
+                    TextSpan(text: 'Five minutes.\n'),
+                    TextSpan(
+                      text: 'Then go speak.',
+                      style: TextStyle(color: AppColors.royalBlue),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Calendar Row
+              WeekCalendarStrip(
+                selectedDayIndex: _selectedDayIndex,
+                onDaySelected: (idx) => setState(() => _selectedDayIndex = idx),
+              ),
+              const SizedBox(height: 20),
+
+              // Featured Anchor Card (Dark Navy Card)
+              GestureDetector(
+                onTap: () {
+                  state.selectActivity('think_fast');
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
                   );
                 },
-              ),
-              const SizedBox(height: 16),
-
-              // Analytics Dashboard Shortcut
-              InkWell(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AnalyticsDashboardScreen()),
-                  );
-                },
-                borderRadius: BorderRadius.circular(16),
                 child: Container(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.surfaceBorder),
+                    color: const Color(0xFF141522),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.12),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            'EXECUTIVE PRESENCE RADAR',
-                            style: TextStyle(
-                              color: AppColors.accentCyan,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: const [
+                            Text(
+                              'TODAY  ·  BEGINNER  ·  SALES',
+                              style: TextStyle(
+                                color: Color(0xFFA3A6B8),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.2,
+                              ),
                             ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Composite: 4.2 / 5.0 (Effective)',
-                            style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
+                            SizedBox(height: 6),
+                            Text(
+                              'Think First',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
-                          ),
-                        ],
+                            SizedBox(height: 4),
+                            Text(
+                              'Answer a surprise client question.',
+                              style: TextStyle(
+                                color: Color(0xFF8E91A6),
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const Text(
-                        'View Radar →',
-                        style: TextStyle(color: AppColors.accentCyan, fontSize: 13, fontWeight: FontWeight.bold),
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: AppColors.royalBlue,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
                       ),
                     ],
                   ),
@@ -133,95 +195,59 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
-              // Core Drills List
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Explore Core Drills',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  Text(
-                    '${state.activities.length} MVP Drills',
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
+              // Secondary Activities
+              _buildSecondaryActivityRow('02', 'Cut it in Half', '~2 min', () {
+                state.selectActivity('cut_it_in_half');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
+                );
+              }),
+              const SizedBox(height: 14),
+              _buildSecondaryActivityRow('03', 'Debate Me', '60 sec', () {
+                state.selectActivity('debate_me');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
+                );
+              }),
 
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: state.activities.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final act = state.activities[index];
-                  return InkWell(
-                    onTap: () {
-                      state.selectActivity(act.slug);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.surfaceBorder),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  act.name,
-                                  style: const TextStyle(
-                                    color: AppColors.textPrimary,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  act.tagline,
-                                  style: const TextStyle(
-                                    color: AppColors.textSecondary,
-                                    fontSize: 12,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${act.defaultDurationSeconds}s →',
-                            style: const TextStyle(
-                              color: AppColors.accentCyan,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+              const SizedBox(height: 28),
+
+              // YOUR FOCUS Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceWhite,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'YOUR FOCUS',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
                       ),
                     ),
-                  );
-                },
+                    SizedBox(height: 6),
+                    Text(
+                      'Go blank less, land the point sooner.',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -229,32 +255,44 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildPillBadge({
-    required String icon,
-    required String label,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(icon, style: const TextStyle(fontSize: 11)),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
+  Widget _buildSecondaryActivityRow(String num, String title, String time, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 26,
+              child: Text(
+                num,
+                style: const TextStyle(
+                  color: AppColors.royalBlue,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              time,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

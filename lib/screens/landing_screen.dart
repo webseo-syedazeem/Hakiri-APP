@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
-import '../core/constants/app_strings.dart';
+import '../widgets/hakkiri_logo.dart';
+import '../widgets/action_pill_button.dart';
 import 'assessment_screen.dart';
 
 class LandingScreen extends StatelessWidget {
@@ -17,34 +18,16 @@ class LandingScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Header brand
+              // Top Bar
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: AppColors.accentCyan,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'HAKKIRI',
-                        style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ],
+                  const HakkiriLogo(
+                    variant: HakkiriLogoVariant.compactMark,
+                    size: 20,
                   ),
-                  TextButton(
-                    onPressed: () {
+                  GestureDetector(
+                    onTap: () {
                       Navigator.push(
                         context,
                         MaterialPageRoute(builder: (_) => const AssessmentScreen()),
@@ -52,128 +35,194 @@ class LandingScreen extends StatelessWidget {
                     },
                     child: const Text(
                       'Log in',
-                      style: TextStyle(color: AppColors.accentCyan, fontSize: 13),
+                      style: TextStyle(
+                        color: AppColors.royalBlue,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
               ),
 
-              // Main Hero Content
+              // Main Hero Area
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Hero Title with Japanese Watermark Stack
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned(
+                        left: -8,
+                        top: -24,
+                        child: Text(
+                          'はっきり',
+                          style: TextStyle(
+                            fontSize: 72,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.black.withOpacity(0.04),
+                            letterSpacing: 4.0,
+                          ),
+                        ),
+                      ),
+                      RichText(
+                        text: const TextSpan(
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 44,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.textPrimary,
+                            height: 1.15,
+                            letterSpacing: -1.2,
+                          ),
+                          children: [
+                            TextSpan(text: 'Say what\nyou mean.\n'),
+                            TextSpan(
+                              text: 'First time.',
+                              style: TextStyle(color: AppColors.royalBlue),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+
+                  // LIVE · THINK FIRST Waveform Card
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
                     decoration: BoxDecoration(
-                      color: AppColors.accentCyan.withOpacity(0.1),
+                      color: AppColors.surfaceWhite,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: AppColors.accentCyan.withOpacity(0.3)),
-                    ),
-                    child: const Text(
-                      'Daily Communication Gym for Professionals',
-                      style: TextStyle(
-                        color: AppColors.accentCyan,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Train Your Brain to Think Fast & Speak with Authority.',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 32,
-                      fontWeight: FontWeight.w800,
-                      height: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  const Text(
-                    'A daily communication gym where working professionals build an idea, organize it, eliminate crutch words, and receive real-time AI feedback.',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 14,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // PMC Evidence Card
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.surfaceBorder),
-                    ),
-                    child: const Text(
-                      AppStrings.evidenceCitation,
-                      style: TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 11,
-                        height: 1.4,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Metric Stat Preview
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.surfaceBorder),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: const [
-                        _StatPreview(label: 'Executive Presence', value: '4.8', color: AppColors.accentCyan),
-                        _StatPreview(label: 'Crutch Reduction', value: '-64%', color: AppColors.accentEmerald),
-                        _StatPreview(label: 'Power Pauses', value: '1.8s', color: AppColors.accentPurple),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
                       ],
                     ),
+                    child: Column(
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'LIVE  ·  THINK FIRST',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: const BoxDecoration(
+                                    color: AppColors.coralRed,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Text(
+                                  'REC 0:12',
+                                  style: TextStyle(
+                                    color: AppColors.coralRed,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    fontFeatures: [FontFeature.tabularFigures()],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                        // Waveform bars
+                        SizedBox(
+                          height: 48,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: _buildWaveformBars(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Description Text
+                  const Text(
+                    'Short daily speaking practice built around your job, with instant feedback on speed, structure and filler words.',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 16,
+                      height: 1.5,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Carousel Indicator (Dash + Dots)
+                  Row(
+                    children: [
+                      Container(
+                        width: 24,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.textPrimary,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: AppColors.textMuted.withOpacity(0.4),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: AppColors.textMuted.withOpacity(0.4),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
 
-              // Bottom CTA
+              // Bottom Area
               Column(
                 children: [
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const AssessmentScreen()),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.accentCyan,
-                        foregroundColor: AppColors.textInverse,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Text(
-                        'Take 2-Minute Diagnostic Assessment →',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                  ActionPillButton(
+                    label: 'Start your assessment',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AssessmentScreen()),
+                      );
+                    },
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 18),
                   const Text(
-                    '6 diagnostic questions • Tailored prompt routing',
+                    'CLEARLY  ·  DISTINCTLY  ·  FIRST TIME',
                     style: TextStyle(
                       color: AppColors.textMuted,
                       fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2.0,
                     ),
                   ),
                 ],
@@ -184,40 +233,23 @@ class LandingScreen extends StatelessWidget {
       ),
     );
   }
-}
 
-class _StatPreview extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color color;
+  static List<Widget> _buildWaveformBars() {
+    final heights = [
+      8.0, 14.0, 24.0, 36.0, 20.0, 12.0, 26.0, 42.0, 38.0, 46.0, 28.0, 16.0,
+      32.0, 44.0, 22.0, 10.0, 18.0, 28.0, 38.0, 14.0, 8.0, 16.0, 30.0, 20.0,
+    ];
 
-  const _StatPreview({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
+    return heights.map((h) {
+      return Container(
+        margin: const EdgeInsets.symmetric(horizontal: 1.8),
+        width: 3.2,
+        height: h,
+        decoration: BoxDecoration(
+          color: AppColors.royalBlue,
+          borderRadius: BorderRadius.circular(2),
         ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.textMuted,
-            fontSize: 10,
-          ),
-        ),
-      ],
-    );
+      );
+    }).toList();
   }
 }

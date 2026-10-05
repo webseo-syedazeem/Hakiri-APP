@@ -6,7 +6,7 @@ void main() {
     await tester.pumpWidget(const HakkiriApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('HAKKIRI'), findsOneWidget);
-    expect(find.text('Take 2-Minute Diagnostic Assessment →'), findsOneWidget);
+    expect(find.text('hakkiri'), findsOneWidget);
+    expect(find.text('Start your assessment'), findsOneWidget);
   });
 }
