@@ -22,7 +22,7 @@ class DailyAnchorCard extends StatelessWidget {
         border: Border.all(color: AppColors.surfaceBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -37,7 +37,7 @@ class DailyAnchorCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.accentCyan.withOpacity(0.12),
+                  color: AppColors.accentCyan.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
+import '../widgets/dashed_border.dart';
 import 'recording_screen.dart';
 
 class ActivityDetailScreen extends StatefulWidget {
@@ -230,27 +231,46 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   Widget _buildLevelCard(String id, String label) {
     final isSelected = _selectedLevel == id;
 
+    if (isSelected) {
+      return GestureDetector(
+        onTap: () => setState(() => _selectedLevel = id),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF141522),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      );
+    }
+
     return GestureDetector(
       onTap: () => setState(() => _selectedLevel = id),
-      child: Container(
+      child: DashedBorderContainer(
+        borderRadius: 12,
+        strokeWidth: 1.2,
+        dashWidth: 4.5,
+        dashGap: 4.0,
+        color: const Color(0xFFC7C5BA),
+        backgroundColor: AppColors.surfaceWhite,
         padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF141522) : AppColors.surfaceWhite,
-          borderRadius: BorderRadius.circular(12),
-          border: isSelected
-              ? null
-              : Border.all(
-                  color: const Color(0xFFD8D6CC),
-                  width: 1.2,
-                ),
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : AppColors.textPrimary,
-            fontSize: 14,
-            fontWeight: FontWeight.w800,
+        child: Center(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       ),

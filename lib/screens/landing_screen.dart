@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/action_pill_button.dart';
+import '../widgets/live_waveform_bars.dart';
 import 'assessment_screen.dart';
 
 class LandingScreen extends StatelessWidget {
@@ -61,7 +62,7 @@ class LandingScreen extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 72,
                             fontWeight: FontWeight.w900,
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withValues(alpha: 0.04),
                             letterSpacing: 4.0,
                           ),
                         ),
@@ -98,7 +99,7 @@ class LandingScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
@@ -142,15 +143,13 @@ class LandingScreen extends StatelessWidget {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 20),
-                        // Waveform bars
-                        SizedBox(
-                          height: 48,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: _buildWaveformBars(),
-                          ),
+                        const SizedBox(height: 16),
+                        // Live dynamic animated waveform bars
+                        const LiveWaveformBars(
+                          barCount: 22,
+                          maxHeight: 44,
+                          color: AppColors.royalBlue,
+                          isAnimated: true,
                         ),
                       ],
                     ),
@@ -185,7 +184,7 @@ class LandingScreen extends StatelessWidget {
                         width: 5,
                         height: 5,
                         decoration: BoxDecoration(
-                          color: AppColors.textMuted.withOpacity(0.4),
+                          color: AppColors.textMuted.withValues(alpha: 0.4),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -194,7 +193,7 @@ class LandingScreen extends StatelessWidget {
                         width: 5,
                         height: 5,
                         decoration: BoxDecoration(
-                          color: AppColors.textMuted.withOpacity(0.4),
+                          color: AppColors.textMuted.withValues(alpha: 0.4),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -232,24 +231,5 @@ class LandingScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  static List<Widget> _buildWaveformBars() {
-    final heights = [
-      8.0, 14.0, 24.0, 36.0, 20.0, 12.0, 26.0, 42.0, 38.0, 46.0, 28.0, 16.0,
-      32.0, 44.0, 22.0, 10.0, 18.0, 28.0, 38.0, 14.0, 8.0, 16.0, 30.0, 20.0,
-    ];
-
-    return heights.map((h) {
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 1.8),
-        width: 3.2,
-        height: h,
-        decoration: BoxDecoration(
-          color: AppColors.royalBlue,
-          borderRadius: BorderRadius.circular(2),
-        ),
-      );
-    }).toList();
   }
 }

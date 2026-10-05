@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
+import '../widgets/live_waveform_bars.dart';
 import 'feedback_screen.dart';
 
 class RecordingScreen extends StatefulWidget {
@@ -211,15 +212,12 @@ class _RecordingScreenState extends State<RecordingScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Waveform Visualizer
-                  SizedBox(
-                    height: 60,
-                    width: double.infinity,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: _buildLiveWaveform(),
-                    ),
+                  // Live animated dynamic waveform
+                  const LiveWaveformBars(
+                    barCount: 24,
+                    maxHeight: 60,
+                    color: Color(0xFF5B6BFF),
+                    isAnimated: true,
                   ),
                   const SizedBox(height: 24),
 
@@ -317,24 +315,5 @@ class _RecordingScreenState extends State<RecordingScreen> {
         ],
       ),
     );
-  }
-
-  List<Widget> _buildLiveWaveform() {
-    final heights = [
-      12.0, 18.0, 28.0, 42.0, 24.0, 14.0, 32.0, 50.0, 44.0, 54.0, 36.0, 20.0,
-      38.0, 48.0, 28.0, 16.0, 26.0, 36.0, 44.0, 22.0, 14.0, 20.0, 34.0, 24.0,
-    ];
-
-    return heights.map((h) {
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 2.0),
-        width: 3.5,
-        height: h,
-        decoration: BoxDecoration(
-          color: const Color(0xFF5B6BFF),
-          borderRadius: BorderRadius.circular(2),
-        ),
-      );
-    }).toList();
   }
 }

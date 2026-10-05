@@ -54,7 +54,7 @@ class WaveformVisualizer extends StatelessWidget {
                   boxShadow: isRecording
                       ? [
                           BoxShadow(
-                            color: AppColors.accentRose.withOpacity(0.6),
+                            color: AppColors.accentRose.withValues(alpha: 0.6),
                             blurRadius: 8,
                           ),
                         ]

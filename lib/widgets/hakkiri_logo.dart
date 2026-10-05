@@ -58,7 +58,7 @@ class HakkiriLogo extends StatelessWidget {
         return Text(
           'はっきり',
           style: TextStyle(
-            color: (isDark ? Colors.white : Colors.black).withOpacity(0.045),
+            color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.045),
             fontSize: size,
             fontWeight: FontWeight.w900,
             letterSpacing: 2.0,

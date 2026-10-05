@@ -4,6 +4,7 @@ import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
 import 'home_screen.dart';
 import 'recording_screen.dart';
+import '../widgets/audio_player_chip.dart';
 
 class FeedbackScreen extends StatelessWidget {
   const FeedbackScreen({super.key});
@@ -185,37 +186,10 @@ class FeedbackScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 14),
-                            // Audio Excerpt Chip
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1E2033),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: const [
-                                  Icon(Icons.play_arrow_rounded, color: Color(0xFF6B7BFF), size: 18),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    '0:14',
-                                    style: TextStyle(
-                                      color: Color(0xFF6B7BFF),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    '“So basically, I think the reason is…”',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12,
-                                      fontStyle: FontStyle.italic,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            // Interactive Audio Excerpt Chip
+                            const AudioPlayerChip(
+                              timestamp: '0:14',
+                              phrase: '“So basically, I think the reason is…”',
                             ),
                           ],
                         ),

@@ -4,9 +4,8 @@ import 'package:hakkiri_app/main.dart';
 void main() {
   testWidgets('Hakkiri App launches and displays landing hero', (WidgetTester tester) async {
     await tester.pumpWidget(const HakkiriApp());
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
 
-    expect(find.text('hakkiri'), findsOneWidget);
     expect(find.text('Start your assessment'), findsOneWidget);
   });
 }

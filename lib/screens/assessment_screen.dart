@@ -318,7 +318,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                           boxShadow: isSelected
                               ? [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.08),
+                                    color: Colors.black.withValues(alpha: 0.08),
                                     blurRadius: 12,
                                     offset: const Offset(0, 4),
                                   ),

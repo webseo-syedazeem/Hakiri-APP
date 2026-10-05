@@ -110,7 +110,7 @@ class FeedbackReportCard extends StatelessWidget {
                 _buildFeedbackBlock(
                   badge: '✓ VERIFIED STRENGTH',
                   badgeColor: AppColors.accentEmerald,
-                  bgColor: AppColors.accentEmerald.withOpacity(0.08),
+                  bgColor: AppColors.accentEmerald.withValues(alpha: 0.08),
                   borderColor: AppColors.accentEmerald,
                   text: feedback.oneStrength,
                 ),
@@ -120,7 +120,7 @@ class FeedbackReportCard extends StatelessWidget {
                 _buildFeedbackBlock(
                   badge: '⚡ PRIMARY AREA FOR IMPROVEMENT',
                   badgeColor: AppColors.accentRose,
-                  bgColor: AppColors.accentRose.withOpacity(0.08),
+                  bgColor: AppColors.accentRose.withValues(alpha: 0.08),
                   borderColor: AppColors.accentRose,
                   text: feedback.oneSpecificImprovement,
                 ),
@@ -172,7 +172,7 @@ class FeedbackReportCard extends StatelessWidget {
                 _buildFeedbackBlock(
                   badge: '🔄 NEXT REP COACHING DIRECTIVE',
                   badgeColor: AppColors.accentCyan,
-                  bgColor: AppColors.accentCyan.withOpacity(0.08),
+                  bgColor: AppColors.accentCyan.withValues(alpha: 0.08),
                   borderColor: AppColors.accentCyan,
                   text: feedback.retryInstruction,
                 ),
