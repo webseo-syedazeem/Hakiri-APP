@@ -29,46 +29,45 @@ class _PaywallScreenState extends State<PaywallScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF090A10),
+      backgroundColor: const Color(0xFF04060E),
       body: Stack(
         children: [
-          // Ambient Dark Waves Background matching Figma
-          const Positioned.fill(
+          Positioned.fill(
             child: IgnorePointer(
-              child: CustomPaint(
-                painter: _PaywallWaveBackgroundPainter(),
+              child: Image.asset(
+                'assets/images/paywall_wave_bg.png',
+                fit: BoxFit.cover,
               ),
             ),
           ),
-
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top Bar
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Top Bar
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const HakkiriLogo(
-                        variant: HakkiriLogoVariant.paywallDarkLockup,
-                        size: 28,
-                      ),
-                      GestureDetector(
-                        onTap: _onContinue,
-                        child: const Padding(
-                          padding: EdgeInsets.all(4.0),
-                          child: Icon(
-                            Icons.close,
-                            color: Colors.white,
-                            size: 24,
-                          ),
-                        ),
-                      ),
-                    ],
+                  const HakkiriLogo(
+                    variant: HakkiriLogoVariant.paywallDarkLockup,
+                    size: 28,
                   ),
-                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: _onContinue,
+                    child: const Padding(
+                      padding: EdgeInsets.all(4.0),
+                      child: Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
 
                   // Scrollable Content
                   Expanded(
@@ -401,93 +400,4 @@ class _PaywallScreenState extends State<PaywallScreen> {
   }
 }
 
-class _PaywallWaveBackgroundPainter extends CustomPainter {
-  const _PaywallWaveBackgroundPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // 1. Deep midnight base background
-    canvas.drawRect(
-      Rect.fromLTWH(0, 0, size.width, size.height),
-      Paint()..color = const Color(0xFF090A10),
-    );
-
-    // 2. Ambient radial glow in top right
-    final glowPaint = Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(0.70, -0.75),
-        radius: 0.95,
-        colors: [
-          const Color(0xFF2B4EA6).withValues(alpha: 0.35),
-          const Color(0xFF1B326E).withValues(alpha: 0.16),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.55, 1.0],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.55));
-
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height * 0.55), glowPaint);
-
-    // 3. Layer 1: Upper Dark-Blue Wave Swoosh behind close button
-    final wave1Paint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topRight,
-        end: Alignment.bottomLeft,
-        colors: [
-          const Color(0xFF223A74).withValues(alpha: 0.88),
-          const Color(0xFF142244).withValues(alpha: 0.65),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height * 0.30));
-
-    final path1 = Path();
-    path1.moveTo(size.width * 0.36, 0);
-    path1.cubicTo(
-      size.width * 0.32,
-      size.height * 0.08,
-      size.width * 0.58,
-      size.height * 0.16,
-      size.width,
-      size.height * 0.18,
-    );
-    path1.lineTo(size.width, 0);
-    path1.close();
-    canvas.drawPath(path1, wave1Paint);
-
-    // 4. Layer 2: Concentric Lower Dark-Navy Wave Swoosh behind headline
-    final wave2Paint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topRight,
-        end: Alignment.bottomLeft,
-        colors: [
-          const Color(0xFF182952).withValues(alpha: 0.75),
-          const Color(0xFF0E1730).withValues(alpha: 0.55),
-        ],
-      ).createShader(Rect.fromLTWH(0, size.height * 0.10, size.width, size.height * 0.32));
-
-    final path2 = Path();
-    path2.moveTo(size.width * 0.48, size.height * 0.12);
-    path2.cubicTo(
-      size.width * 0.32,
-      size.height * 0.20,
-      size.width * 0.44,
-      size.height * 0.30,
-      size.width,
-      size.height * 0.34,
-    );
-    path2.lineTo(size.width, size.height * 0.18);
-    path2.cubicTo(
-      size.width * 0.58,
-      size.height * 0.16,
-      size.width * 0.32,
-      size.height * 0.08,
-      size.width * 0.36,
-      0,
-    );
-    path2.lineTo(size.width, 0);
-    path2.close();
-    canvas.drawPath(path2, wave2Paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
 
