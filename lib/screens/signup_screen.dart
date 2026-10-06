@@ -41,12 +41,8 @@ class _SignupScreenState extends State<SignupScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            // Ambient Top-Right Soundwave Watermark
-            Positioned(
-              top: 30,
-              right: 16,
-              child: const AuthWaveformWatermark(width: 140, height: 160),
-            ),
+            // Ambient Organic Waves & Soundwave Background
+            const AuthScreenBackground(showBottomWave: false),
 
             // Main Content
             Padding(
@@ -54,11 +50,11 @@ class _SignupScreenState extends State<SignupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Centered Official Hakkiri Brand Mark
+                  // Centered Official Hakkiri Brand Mark (Bigger & Prominent)
                   Center(
                     child: const HakkiriLogo(
                       variant: HakkiriLogoVariant.fullImage,
-                      size: 96,
+                      size: 108,
                     ),
                   ),
                   const SizedBox(height: 28),

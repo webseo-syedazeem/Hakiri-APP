@@ -40,12 +40,8 @@ class _LoginScreenState extends State<LoginScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            // Ambient Top-Right Soundwave Watermark
-            Positioned(
-              top: 20,
-              right: 16,
-              child: const AuthWaveformWatermark(width: 140, height: 160),
-            ),
+            // Ambient Organic Waves & Soundwave Background
+            const AuthScreenBackground(showBottomWave: true),
 
             // Main Content
             Padding(
@@ -53,26 +49,30 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top Brand Header
+                  // Top Brand Header (Clean Horizontal Lockup)
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const HakkiriLogo(
                         variant: HakkiriLogoVariant.compactMark,
-                        size: 34,
+                        size: 38,
                         brandText: 'Hakkiri',
                       ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(
-                          Icons.close_rounded,
-                          color: AppColors.textSecondary,
-                          size: 22,
+                      if (Navigator.canPop(context))
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: const Padding(
+                            padding: EdgeInsets.all(4.0),
+                            child: Icon(
+                              Icons.close_rounded,
+                              color: AppColors.textSecondary,
+                              size: 22,
+                            ),
+                          ),
                         ),
-                      ),
                     ],
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 38),
 
                   // Headline: "Welcome back."
                   RichText(

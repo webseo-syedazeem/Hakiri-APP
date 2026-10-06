@@ -21,7 +21,7 @@ class AssessmentIntroScreen extends StatelessWidget {
               Center(
                 child: const HakkiriLogo(
                   variant: HakkiriLogoVariant.fullImage,
-                  size: 72,
+                  size: 85,
                 ),
               ),
               const SizedBox(height: 24),

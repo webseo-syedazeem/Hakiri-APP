@@ -347,7 +347,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               Center(
                 child: const HakkiriLogo(
                   variant: HakkiriLogoVariant.fullImage,
-                  size: 68,
+                  size: 78,
                 ),
               ),
               const SizedBox(height: 20),

@@ -41,10 +41,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const HakkiriLogo(
-                    variant: HakkiriLogoVariant.compactMark,
-                    size: 24,
-                    isDark: true,
-                    brandText: 'Hakkiri',
+                    variant: HakkiriLogoVariant.paywallDarkLockup,
+                    size: 26,
                   ),
                   GestureDetector(
                     onTap: _onContinue,

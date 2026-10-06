@@ -38,8 +38,8 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                     ),
                   ),
                   const HakkiriLogo(
-                    variant: HakkiriLogoVariant.compactMark,
-                    size: 22,
+                    variant: HakkiriLogoVariant.headerPlanLockup,
+                    size: 24,
                   ),
                   const SizedBox(width: 28), // Balance spacing
                 ],

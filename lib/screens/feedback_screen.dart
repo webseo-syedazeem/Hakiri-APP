@@ -25,8 +25,8 @@ class FeedbackScreen extends StatelessWidget {
               // Top Bar with Centered Logo
               Center(
                 child: const HakkiriLogo(
-                  variant: HakkiriLogoVariant.compactMark,
-                  size: 22,
+                  variant: HakkiriLogoVariant.headerPlanLockup,
+                  size: 24,
                 ),
               ),
               const SizedBox(height: 16),
