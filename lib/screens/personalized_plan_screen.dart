@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
-import '../widgets/week_calendar_strip.dart';
 import '../widgets/action_pill_button.dart';
+import '../widgets/hakkiri_logo.dart';
+import '../widgets/week_calendar_strip.dart';
 import 'paywall_screen.dart';
 
 class PersonalizedPlanScreen extends StatefulWidget {
@@ -12,45 +13,67 @@ class PersonalizedPlanScreen extends StatefulWidget {
 }
 
 class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
-  int _selectedDay = 0; // MON 1
+  int _selectedDay = 0; // Monday 1
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFFBFBF9),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // Top Bar with back chevron and centered logo
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Icon(
+                      Icons.chevron_left_rounded,
+                      color: AppColors.textPrimary,
+                      size: 28,
+                    ),
+                  ),
+                  const HakkiriLogo(
+                    variant: HakkiriLogoVariant.compactMark,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 28), // Balance spacing
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Scrollable Content
               Expanded(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 8),
-                      // Top Tag
-                      const Text(
-                        'WEEK ONE  ·  5 MIN A DAY',
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
+                      // Centered Week Tag
+                      const Center(
+                        child: Text(
+                          'WEEK 1  ·  5 MIN A DAY',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
 
-                      // Heading with royal blue accent
+                      // Heading with Royal Blue Accent
                       RichText(
                         text: const TextSpan(
                           style: TextStyle(
                             fontFamily: 'Inter',
                             color: AppColors.textPrimary,
-                            fontSize: 34,
+                            fontSize: 36,
                             fontWeight: FontWeight.w900,
                             letterSpacing: -1.0,
                             height: 1.15,
@@ -64,27 +87,47 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
 
-                      // User track summary
+                      // Subtitle
                       const Text(
-                        'Sales & Marketing · Mid-level · Focus: go blank on the spot',
+                        'Built around: thinking on your feet',
                         style: TextStyle(
                           color: AppColors.textSecondary,
-                          fontSize: 13,
-                          height: 1.4,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(height: 20),
 
-                      // Week Calendar
+                      // Dual Focus Cards (Side by side)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildFocusCard(
+                              tag: 'FOCUS 1',
+                              title: 'Answer first, then explain',
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildFocusCard(
+                              tag: 'FOCUS 2',
+                              title: 'Pause instead of filling',
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // 7-Day Calendar Strip
                       WeekCalendarStrip(
                         selectedDayIndex: _selectedDay,
                         onDaySelected: (idx) => setState(() => _selectedDay = idx),
                       ),
                       const SizedBox(height: 20),
 
-                      // Today's Featured Card (Dark Navy Card)
+                      // Today's Featured Drill Card (Dark Navy Card with Blue Play Button)
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -92,7 +135,7 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
+                              color: Colors.black.withValues(alpha: 0.10),
                               blurRadius: 16,
                               offset: const Offset(0, 6),
                             ),
@@ -106,17 +149,17 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: const [
                                   Text(
-                                    'TODAY  ·  60 SEC  ·  1 OF 3',
+                                    'TODAY  ·  50 SEC  ·  1 OF 4',
                                     style: TextStyle(
                                       color: Color(0xFFA3A6B8),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w700,
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w800,
                                       letterSpacing: 1.2,
                                     ),
                                   ),
                                   SizedBox(height: 6),
                                   Text(
-                                    'Think First',
+                                    'Think Fast',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 22,
@@ -125,76 +168,57 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                                   ),
                                   SizedBox(height: 4),
                                   Text(
-                                    'Three seconds to think. Then speak.',
+                                    'Three quick reps to think, then speak.',
                                     style: TextStyle(
                                       color: Color(0xFF8E91A6),
-                                      fontSize: 13,
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w500,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                            // Play Button
                             Container(
-                              width: 46,
-                              height: 46,
+                              width: 48,
+                              height: 48,
                               decoration: BoxDecoration(
                                 color: AppColors.royalBlue,
                                 borderRadius: BorderRadius.circular(14),
                               ),
-                              alignment: Alignment.center,
                               child: const Icon(
                                 Icons.play_arrow_rounded,
                                 color: Colors.white,
-                                size: 28,
+                                size: 26,
                               ),
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(height: 20),
+
+                      // Upcoming Drills List with chevron >
+                      _buildDrillItem('02', 'Cut it in Half', 'Lead with the point'),
+                      const Divider(height: 24, color: Color(0xFFEAE9E2)),
+                      _buildDrillItem('03', 'Debate Me', 'Stay clear when challenged'),
+                      const Divider(height: 24, color: Color(0xFFEAE9E2)),
+                      _buildDrillItem('04', 'Storytelling Gym', 'Make one point land'),
                       const SizedBox(height: 24),
-
-                      // Upcoming Activities List
-                      _buildUpcomingRow('02', 'Debate Me', 'Hold your ground on price'),
-                      const SizedBox(height: 14),
-                      _buildUpcomingRow('03', 'Cut it in Half', 'Lead with the point'),
-                      const SizedBox(height: 14),
-                      _buildUpcomingRow('04', 'Connect the Dots', 'Link ideas on the fly'),
-                      const SizedBox(height: 14),
-                      _buildUpcomingRow('05', 'Re-assess', 'See how far you’ve come'),
-
-                      const SizedBox(height: 24),
-
-                      // Change activities link
-                      GestureDetector(
-                        onTap: () {},
-                        child: const Text(
-                          'Change my activities',
-                          style: TextStyle(
-                            color: AppColors.royalBlue,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            decoration: TextDecoration.underline,
-                            decorationColor: AppColors.royalBlue,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
               ),
 
-              // Bottom Continue Button
+              // Bottom Continue Action Button
               ActionPillButton(
                 label: 'Continue',
-                onPressed: () {
-                  Navigator.pushReplacement(
+                onTap: () {
+                  Navigator.push(
                     context,
                     MaterialPageRoute(builder: (_) => const PaywallScreen()),
                   );
                 },
               ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -202,36 +226,83 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
     );
   }
 
-  Widget _buildUpcomingRow(String num, String title, String subtitle) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 26,
-          child: Text(
-            num,
+  Widget _buildFocusCard({required String tag, required String title}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEAE9E2), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tag,
             style: const TextStyle(
               color: AppColors.royalBlue,
-              fontSize: 13,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+              height: 1.25,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDrillItem(String index, String title, String subtitle) {
+    return Row(
+      children: [
+        Text(
+          index,
+          style: const TextStyle(
+            color: AppColors.royalBlue,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 15,
               fontWeight: FontWeight.w800,
             ),
           ),
         ),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const Spacer(),
         Text(
           subtitle,
           style: const TextStyle(
             color: AppColors.textSecondary,
             fontSize: 13,
+            fontWeight: FontWeight.w500,
           ),
+        ),
+        const SizedBox(width: 8),
+        const Icon(
+          Icons.chevron_right_rounded,
+          color: AppColors.textMuted,
+          size: 18,
         ),
       ],
     );

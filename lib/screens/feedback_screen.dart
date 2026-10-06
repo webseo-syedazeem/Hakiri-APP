@@ -2,182 +2,218 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
-import 'home_screen.dart';
-import 'recording_screen.dart';
 import '../widgets/audio_player_chip.dart';
+import '../widgets/hakkiri_logo.dart';
+import 'personalized_plan_screen.dart';
+import 'recording_screen.dart';
 
 class FeedbackScreen extends StatelessWidget {
   const FeedbackScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final state = Provider.of<AppStateProvider>(context);
+    final state = Provider.of<AppStateProvider>(context, listen: false);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: const Color(0xFFFBFBF9),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Bar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.pop(context),
-                    child: const Icon(
-                      Icons.chevron_left_rounded,
-                      color: AppColors.textPrimary,
-                      size: 28,
-                    ),
-                  ),
-                  const Text(
-                    'YOUR FEEDBACK',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const Text(
-                    'THINK FIRST',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                ],
+              // Top Bar with Centered Logo
+              Center(
+                child: const HakkiriLogo(
+                  variant: HakkiriLogoVariant.compactMark,
+                  size: 22,
+                ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
 
-              // Scrollable Feedback Body
+              // Scrollable Content
               Expanded(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Activity Score Header
-                      const Text(
-                        'ACTIVITY SCORE',
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
+                      // Centered Tag
+                      const Center(
+                        child: Text(
+                          'YOUR FEEDBACK',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.2,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          const Text(
-                            '3.7',
-                            style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 48,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -1.0,
-                            ),
+                      const SizedBox(height: 12),
+
+                      // Heading with Royal Blue Accent
+                      RichText(
+                        text: const TextSpan(
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            color: AppColors.textPrimary,
+                            fontSize: 36,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -1.0,
+                            height: 1.15,
                           ),
-                          const Text(
-                            '/5',
-                            style: TextStyle(
-                              color: AppColors.textMuted,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w700,
+                          children: [
+                            TextSpan(text: "Here's what\n"),
+                            TextSpan(
+                              text: 'we heard.',
+                              style: TextStyle(color: AppColors.royalBlue),
                             ),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFEBF0FF),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              'EFFECTIVE',
-                              style: TextStyle(
-                                color: AppColors.royalBlue,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
+
+                      // Subtitle
                       const Text(
-                        'BEGINNER  ·  SALES  ·  AUDIO GOOD  ·  FACTS NOT ASSESSED',
+                        'From your first speaking sample.',
                         style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.8,
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(height: 20),
 
-                      // Metrics Breakdown Card
-                      Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceWhite,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.surfaceBorder),
-                        ),
-                        child: Column(
-                          children: [
-                            _buildScoreProgressRow('Getting started', '4 · Effective', 0.8, AppColors.royalBlue),
-                            const SizedBox(height: 14),
-                            _buildScoreProgressRow('Structure', '4 · Effective', 0.8, AppColors.royalBlue),
-                            const SizedBox(height: 14),
-                            _buildScoreProgressRow('Fillers & phrasing', '3 · Partly', 0.6, const Color(0xFF9EA7FA)),
-                          ],
-                        ),
+                      // 3 Telemetry Metrics Cards (Side by side)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildMetricCard(label: 'FIRST WORD', value: '1.2s'),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildMetricCard(label: 'PACE', value: 'Steady'),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _buildMetricCard(label: 'FILLERS', value: '3'),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
 
                       // Card 1: WHAT WORKED (White card)
-                      _buildContentCard(
-                        tag: 'WHAT WORKED',
-                        tagColor: const Color(0xFF5B6BFF),
-                        bgColor: AppColors.surfaceWhite,
-                        textColor: AppColors.textPrimary,
-                        body: 'You gave your answer in the first sentence and backed it with a real client example.',
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFEAE9E2), width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 22,
+                                  height: 22,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFEBF0FF),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.check_rounded,
+                                    color: AppColors.royalBlue,
+                                    size: 14,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'WHAT WORKED',
+                                  style: TextStyle(
+                                    color: AppColors.royalBlue,
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            const Text(
+                              'You got to your point early, which made your answer easy to follow.',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 14.5,
+                                height: 1.4,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
 
-                      // Card 2: ONE THING TO IMPROVE (Dark Navy Card with Audio Chip)
+                      // Card 2: ONE THING TO IMPROVE (Dark Navy Card with Audio Player Chip)
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
                           color: const Color(0xFF141522),
                           borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.10),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'ONE THING TO IMPROVE',
-                              style: TextStyle(
-                                color: Color(0xFF9EA7FA),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.0,
-                              ),
+                            Row(
+                              children: [
+                                Container(
+                                  width: 22,
+                                  height: 22,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF3446EB),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: const Icon(
+                                    Icons.equalizer_rounded,
+                                    color: Colors.white,
+                                    size: 14,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'ONE THING TO IMPROVE',
+                                  style: TextStyle(
+                                    color: Color(0xFF9EA7FA),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.0,
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 10),
                             const Text(
-                              '“So basically” came in three times while you found your reason. A short pause sounds more sure.',
+                              'Pause briefly instead of filling space with words like ‘so’ or ‘basically’. It will make you sound more clear and confident.',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 14,
@@ -186,34 +222,14 @@ class FeedbackScreen extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 14),
-                            // Interactive Audio Excerpt Chip
+
+                            // Audio Player Chip with red highlighted phrase
                             const AudioPlayerChip(
-                              timestamp: '0:14',
-                              phrase: '“So basically, I think the reason is…”',
+                              timestamp: '0:08',
+                              phrase: '“So basically, I think the main reason is…”',
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Card 3: WHAT A STRONG ANSWER SOUNDS LIKE (White card)
-                      _buildContentCard(
-                        tag: 'WHAT A STRONG ANSWER SOUNDS LIKE',
-                        tagColor: AppColors.textMuted,
-                        bgColor: AppColors.surfaceWhite,
-                        textColor: AppColors.textPrimary,
-                        body:
-                            '“Pick up the phone when the deal matters. [pause] A call shows effort, and you hear hesitation you’d miss in an email. Then send a short recap email.”',
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Card 4: FOR YOUR RETRY (Lavender tinted card)
-                      _buildContentCard(
-                        tag: 'FOR YOUR RETRY',
-                        tagColor: AppColors.royalBlue,
-                        bgColor: const Color(0xFFEBEFFF),
-                        textColor: AppColors.textPrimary,
-                        body: 'Same question. Open with your answer, then pause for one beat before your reason.',
                       ),
                       const SizedBox(height: 24),
                     ],
@@ -221,7 +237,7 @@ class FeedbackScreen extends StatelessWidget {
                 ),
               ),
 
-              // Bottom Actions Row (Try again & Continue)
+              // Bottom Actions Row: [Try again] [See my plan ->]
               Row(
                 children: [
                   Expanded(
@@ -236,8 +252,8 @@ class FeedbackScreen extends StatelessWidget {
                           );
                         },
                         style: OutlinedButton.styleFrom(
-                          backgroundColor: AppColors.surfaceWhite,
-                          side: const BorderSide(color: AppColors.surfaceBorder, width: 1.2),
+                          backgroundColor: Colors.white,
+                          side: const BorderSide(color: Color(0xFFEAE9E2), width: 1.2),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
                         child: const Text(
@@ -262,10 +278,9 @@ class FeedbackScreen extends StatelessWidget {
                         child: InkWell(
                           onTap: () {
                             state.finishDrillAndIncrementStreak();
-                            Navigator.pushAndRemoveUntil(
+                            Navigator.pushReplacement(
                               context,
-                              MaterialPageRoute(builder: (_) => const HomeScreen()),
-                              (route) => false,
+                              MaterialPageRoute(builder: (_) => const PersonalizedPlanScreen()),
                             );
                           },
                           borderRadius: BorderRadius.circular(16),
@@ -275,7 +290,7 @@ class FeedbackScreen extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 const Text(
-                                  'Continue',
+                                  'See my plan',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,
@@ -305,6 +320,7 @@ class FeedbackScreen extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -312,80 +328,40 @@ class FeedbackScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildScoreProgressRow(String label, String scoreText, double progress, Color barColor) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            Text(
-              scoreText,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(3),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 6,
-            backgroundColor: const Color(0xFFECEAE2),
-            valueColor: AlwaysStoppedAnimation<Color>(barColor),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildContentCard({
-    required String tag,
-    required Color tagColor,
-    required Color bgColor,
-    required Color textColor,
-    required String body,
-  }) {
+  Widget _buildMetricCard({required String label, required String value}) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: bgColor,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.surfaceBorderLight),
+        border: Border.all(color: const Color(0xFFEAE9E2), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            tag,
-            style: TextStyle(
-              color: tagColor,
+            label,
+            style: const TextStyle(
+              color: AppColors.textMuted,
               fontSize: 10,
               fontWeight: FontWeight.w800,
-              letterSpacing: 1.0,
+              letterSpacing: 0.6,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
           Text(
-            body,
-            style: TextStyle(
-              color: textColor,
-              fontSize: 14,
-              height: 1.45,
-              fontWeight: FontWeight.w600,
+            value,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],

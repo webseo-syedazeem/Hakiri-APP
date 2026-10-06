@@ -3,7 +3,8 @@ import '../core/constants/app_colors.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/live_waveform_bars.dart';
-import 'assessment_screen.dart';
+import 'assessment_intro_screen.dart';
+import 'login_screen.dart';
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
@@ -31,7 +32,7 @@ class LandingScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const AssessmentScreen()),
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
                       );
                     },
                     child: const Text(
@@ -207,10 +208,10 @@ class LandingScreen extends StatelessWidget {
                 children: [
                   ActionPillButton(
                     label: 'Start your assessment',
-                    onPressed: () {
+                    onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const AssessmentScreen()),
+                        MaterialPageRoute(builder: (_) => const AssessmentIntroScreen()),
                       );
                     },
                   ),

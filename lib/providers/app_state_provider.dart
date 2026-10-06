@@ -286,6 +286,23 @@ class AppStateProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateAssessment({
+    String? gender,
+    String? careerStage,
+    String? careerType,
+    String? confidence,
+    String? problem,
+    String? goal,
+  }) {
+    if (gender != null) answers.voiceProfile = gender;
+    if (careerStage != null) answers.careerStage = careerStage;
+    if (careerType != null) answers.careerType = careerType;
+    if (confidence != null) answers.confidence = confidence;
+    if (problem != null) answers.roadblock = problem;
+    if (goal != null) answers.primaryGoal = goal;
+    completeAssessment();
+  }
+
   void completeAssessment() {
     personalizedPlan = const PersonalizedPlanModel(
       headline: 'Filler Elimination & Executive Authority Program',

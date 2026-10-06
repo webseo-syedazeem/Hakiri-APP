@@ -3,7 +3,8 @@ import '../core/constants/app_colors.dart';
 
 class ActionPillButton extends StatelessWidget {
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
+  final VoidCallback? onTap;
   final bool isDark;
   final bool showArrow;
   final bool isSecondary;
@@ -11,7 +12,8 @@ class ActionPillButton extends StatelessWidget {
   const ActionPillButton({
     super.key,
     required this.label,
-    required this.onPressed,
+    this.onPressed,
+    this.onTap,
     this.isDark = true,
     this.showArrow = true,
     this.isSecondary = false,
@@ -30,7 +32,7 @@ class ActionPillButton extends StatelessWidget {
         color: bgColor,
         borderRadius: BorderRadius.circular(16),
         child: InkWell(
-          onTap: onPressed,
+          onTap: onTap ?? onPressed,
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20),

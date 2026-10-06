@@ -12,12 +12,14 @@ class HakkiriLogo extends StatelessWidget {
   final HakkiriLogoVariant variant;
   final double size;
   final bool isDark;
+  final String? brandText;
 
   const HakkiriLogo({
     super.key,
     this.variant = HakkiriLogoVariant.compactMark,
     this.size = 24.0,
     this.isDark = false,
+    this.brandText,
   });
 
   @override
@@ -52,7 +54,7 @@ class HakkiriLogo extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              'hakkiri',
+              brandText ?? 'hakkiri',
               style: TextStyle(
                 color: textColor,
                 fontSize: size * 0.95,

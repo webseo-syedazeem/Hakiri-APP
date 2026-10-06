@@ -89,16 +89,42 @@ class _AudioPlayerChipState extends State<AudioPlayerChip> {
             ),
             const SizedBox(width: 8),
             Flexible(
-              child: Text(
-                widget.phrase,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                  fontWeight: FontWeight.w500,
-                ),
+              child: RichText(
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
+                text: TextSpan(
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  children: [
+                    const TextSpan(text: '“', style: TextStyle(color: Colors.white)),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.middle,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: const Color(0x33FF443A),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'So basically,',
+                          style: TextStyle(
+                            color: Color(0xFFFF6B6B),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const TextSpan(
+                      text: ' I think the main reason is…”',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
