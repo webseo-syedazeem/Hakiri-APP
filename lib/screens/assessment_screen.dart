@@ -297,7 +297,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                 child: ListView.separated(
                   physics: const BouncingScrollPhysics(),
                   itemCount: options.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
                     final opt = options[index];
                     final isSelected = _selectedOptionId == opt['id'];

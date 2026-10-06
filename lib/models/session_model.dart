@@ -88,3 +88,34 @@ class EvaluationFeedback {
         'is_coached_retry': isCoachedRetry,
       };
 }
+
+class PracticeSessionRecord {
+  final String id;
+  final String activitySlug;
+  final String activityName;
+  final String promptTitle;
+  final DateTime timestamp;
+  final int durationSeconds;
+  final EvaluationFeedback feedback;
+
+  const PracticeSessionRecord({
+    required this.id,
+    required this.activitySlug,
+    required this.activityName,
+    required this.promptTitle,
+    required this.timestamp,
+    required this.durationSeconds,
+    required this.feedback,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'activity_slug': activitySlug,
+        'activity_name': activityName,
+        'prompt_title': promptTitle,
+        'timestamp': timestamp.toIso8601String(),
+        'duration_seconds': durationSeconds,
+        'feedback': feedback.toJson(),
+      };
+}
+

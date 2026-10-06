@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 import '../models/assessment_model.dart';
 import '../models/activity_model.dart';
 import '../models/session_model.dart';
@@ -7,6 +8,7 @@ import '../core/services/supabase_service.dart';
 
 class AppStateProvider extends ChangeNotifier {
   final SupabaseService _supabase = SupabaseService.instance;
+  final Uuid _uuid = const Uuid();
 
   String userId = 'usr_hakkiri_demo_user';
   bool isOnboarded = false;
@@ -24,6 +26,12 @@ class AppStateProvider extends ChangeNotifier {
   int currentStreak = 3;
   int totalXp = 450;
   int completedSessions = 8;
+
+  // Practice & Debate History
+  final List<PracticeSessionRecord> sessionHistory = [];
+
+  List<PracticeSessionRecord> get debateHistory =>
+      sessionHistory.where((s) => s.activitySlug == 'debate_me').toList();
 
   // Activities Catalog (7 MVP activities)
   late List<ActivityModel> activities;
@@ -353,6 +361,18 @@ class AppStateProvider extends ChangeNotifier {
     );
 
     latestFeedback = feedback;
+
+    // Create and save local session history record
+    final record = PracticeSessionRecord(
+      id: _uuid.v4(),
+      activitySlug: prompt.activitySlug,
+      activityName: selectedActivity?.name ?? 'Drill Session',
+      promptTitle: prompt.title ?? (prompt.promptText.length > 40 ? '${prompt.promptText.substring(0, 40)}...' : prompt.promptText),
+      timestamp: DateTime.now(),
+      durationSeconds: durationSeconds,
+      feedback: feedback,
+    );
+    sessionHistory.insert(0, record);
 
     // Save session in Supabase backend
     _supabase.recordPracticeSession(

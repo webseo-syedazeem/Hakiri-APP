@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../models/session_model.dart';
 import '../providers/app_state_provider.dart';
+import '../widgets/empty_history_widget.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/week_calendar_strip.dart';
 import 'activity_detail_screen.dart';
+import 'feedback_screen.dart';
 import 'main_tab_scaffold.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -202,7 +205,64 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
               );
             }),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
+
+            // DRILL & DEBATE HISTORY SECTION
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'DEBATE & DRILL HISTORY',
+                  style: TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                if (state.sessionHistory.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.royalBlue.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${state.sessionHistory.length} COMPLETED',
+                      style: const TextStyle(
+                        color: AppColors.royalBlue,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Show Empty State SVG / Vector or History List
+            if (state.sessionHistory.isEmpty)
+              EmptyHistoryWidget(
+                title: 'No Debate History Yet',
+                subtitle:
+                    'You haven\'t completed any debate or speaking drills yet. Challenge your agility under fire to start building your history.',
+                buttonText: 'Start Debate Drill',
+                onButtonPressed: () {
+                  state.selectActivity('debate_me');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
+                  );
+                },
+              )
+            else
+              Column(
+                children: state.sessionHistory
+                    .map((item) => _buildHistoryCard(context, state, item))
+                    .toList(),
+              ),
+
+            const SizedBox(height: 24),
 
             // YOUR FOCUS Card
             Container(
@@ -242,6 +302,147 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
         ),
       ),
     );
+  }
+
+  Widget _buildHistoryCard(
+      BuildContext context, AppStateProvider state, PracticeSessionRecord item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceWhite,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF141522),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      item.activityName.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${item.durationSeconds}s drill',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.royalBlue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.star_rounded, color: AppColors.royalBlue, size: 14),
+                    const SizedBox(width: 3),
+                    Text(
+                      '${item.feedback.overallScore}/5',
+                      style: const TextStyle(
+                        color: AppColors.royalBlue,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            item.promptTitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              height: 1.3,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatTimeAgo(item.timestamp),
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  state.latestFeedback = item.feedback;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const FeedbackScreen()),
+                  );
+                },
+                child: Row(
+                  children: const [
+                    Text(
+                      'View Review',
+                      style: TextStyle(
+                        color: AppColors.royalBlue,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(width: 2),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: AppColors.royalBlue,
+                      size: 16,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatTimeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${dt.day}/${dt.month}/${dt.year}';
   }
 
   Widget _buildSecondaryActivityRow(String num, String title, String time, VoidCallback onTap) {
