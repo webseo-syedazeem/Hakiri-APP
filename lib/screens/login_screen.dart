@@ -298,8 +298,11 @@ class _LoginScreenState extends State<LoginScreen> {
     bool isGoogle = false,
     required VoidCallback onTap,
   }) {
+    final bgColor = isGoogle ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC);
+    final borderColor = isGoogle ? const Color(0xFFBFDBFE) : const Color(0xFFE2E8F0);
+
     return Material(
-      color: Colors.white,
+      color: bgColor,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         onTap: onTap,
@@ -308,7 +311,7 @@ class _LoginScreenState extends State<LoginScreen> {
           height: 52,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFEAE9E2), width: 1.2),
+            border: Border.all(color: borderColor, width: 1.2),
           ),
           alignment: Alignment.center,
           child: Row(
@@ -317,12 +320,12 @@ class _LoginScreenState extends State<LoginScreen> {
               if (isGoogle)
                 _buildGoogleLogo()
               else if (icon != null)
-                Icon(icon, color: Colors.black, size: 20),
+                Icon(icon, color: const Color(0xFF0F172A), size: 20),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: const TextStyle(
-                  color: AppColors.textPrimary,
+                  color: Color(0xFF0F172A),
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                 ),

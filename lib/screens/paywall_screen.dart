@@ -5,6 +5,8 @@ import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_logo.dart';
 import 'home_screen.dart';
 
+import '../widgets/paywall_wave_background.dart';
+
 class PaywallScreen extends StatefulWidget {
   const PaywallScreen({super.key});
 
@@ -29,17 +31,10 @@ class _PaywallScreenState extends State<PaywallScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF04060E),
+      backgroundColor: const Color(0xFF020617),
       body: Stack(
         children: [
-          Positioned.fill(
-            child: IgnorePointer(
-              child: Image.asset(
-                'assets/images/paywall_wave_bg.png',
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
+          const PaywallWaveBackground(),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),

@@ -88,52 +88,37 @@ class _AuthScreenBackgroundPainter extends CustomPainter {
   }
 
   void _drawSoundwaveBars(Canvas canvas, Rect bounds) {
-    // Ambient radial glow behind the bars
-    final glowPaint = Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(0.3, 0.0),
-        radius: 0.85,
-        colors: [
-          const Color(0xFFBFD5FE).withValues(alpha: 0.42),
-          const Color(0xFFBFD5FE).withValues(alpha: 0.16),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.55, 1.0],
-      ).createShader(bounds);
-
-    canvas.drawRect(bounds, glowPaint);
-
     final heights = [
-      0.09, // 1: tiny pill dot
-      0.15, // 2: small pill
-      0.24, // 3: medium-low
-      0.35, // 4: medium
-      0.49, // 5: medium-high
-      0.33, // 6: dip
-      0.73, // 7: tall
-      0.50, // 8: dip
-      1.00, // 9: tallest royal blue bar
-      0.64, // 10: trailing tall
+      0.12, // 1: tiny pill dot
+      0.20, // 2: small pill
+      0.30, // 3: medium-low
+      0.44, // 4: medium
+      0.60, // 5: medium-high
+      0.42, // 6: dip
+      0.78, // 7: tall
+      0.56, // 8: dip
+      0.98, // 9: tallest royal blue bar
+      0.70, // 10: trailing tall
     ];
 
     final opacities = [
-      0.22,
-      0.30,
-      0.40,
-      0.52,
+      0.20,
+      0.28,
+      0.38,
+      0.50,
       0.65,
-      0.58,
+      0.60,
       0.82,
-      0.72,
-      1.00,
-      0.78,
+      0.70,
+      0.95,
+      0.75,
     ];
 
     final barCount = heights.length;
-    final barWidth = 6.2;
+    final barWidth = 4.8;
     final totalBarsWidth = barCount * barWidth;
     final spacing = (bounds.width - totalBarsWidth) / (barCount - 1);
-    final centerY = bounds.top + (bounds.height * 0.50);
+    final centerY = bounds.top + (bounds.height * 0.52);
 
     for (int i = 0; i < barCount; i++) {
       final x = bounds.left + i * (barWidth + spacing);
@@ -146,8 +131,8 @@ class _AuthScreenBackgroundPainter extends CustomPainter {
       );
 
       final isVibrant = i >= 6;
-      final topColor = isVibrant ? const Color(0xFF3B82F6) : const Color(0xFF7B9AFE);
-      final bottomColor = isVibrant ? const Color(0xFF60A5FA) : const Color(0xFFBACDFE);
+      final topColor = isVibrant ? const Color(0xFF2563EB) : const Color(0xFF3B82F6);
+      final bottomColor = isVibrant ? const Color(0xFF60A5FA) : const Color(0xFF93C5FD);
 
       final barPaint = Paint()
         ..shader = LinearGradient(
@@ -155,8 +140,10 @@ class _AuthScreenBackgroundPainter extends CustomPainter {
           end: Alignment.bottomCenter,
           colors: [
             topColor.withValues(alpha: opacities[i]),
-            bottomColor.withValues(alpha: opacities[i] * 0.85),
+            bottomColor.withValues(alpha: opacities[i] * 0.40),
+            Colors.transparent,
           ],
+          stops: const [0.0, 0.72, 1.0],
         ).createShader(Rect.fromLTWH(x, y, barWidth, barH));
 
       canvas.drawRRect(barRect, barPaint);
@@ -194,49 +181,34 @@ class AuthWaveformWatermark extends StatelessWidget {
 class _StandaloneWavePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Ambient radial glow behind the bars
-    final glowPaint = Paint()
-      ..shader = RadialGradient(
-        center: const Alignment(0.3, 0.0),
-        radius: 0.85,
-        colors: [
-          const Color(0xFFBFD5FE).withValues(alpha: 0.42),
-          const Color(0xFFBFD5FE).withValues(alpha: 0.16),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.55, 1.0],
-      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-
-    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), glowPaint);
-
     final heights = [
-      0.09, // 1: tiny pill dot
-      0.15, // 2: small pill
-      0.24, // 3: medium-low
-      0.35, // 4: medium
-      0.49, // 5: medium-high
-      0.33, // 6: dip
-      0.73, // 7: tall
-      0.50, // 8: dip
-      1.00, // 9: tallest royal blue bar
-      0.64, // 10: trailing tall
+      0.12, // 1: tiny pill dot
+      0.20, // 2: small pill
+      0.30, // 3: medium-low
+      0.44, // 4: medium
+      0.60, // 5: medium-high
+      0.42, // 6: dip
+      0.78, // 7: tall
+      0.56, // 8: dip
+      0.98, // 9: tallest royal blue bar
+      0.70, // 10: trailing tall
     ];
 
     final opacities = [
-      0.22,
-      0.30,
-      0.40,
-      0.52,
+      0.20,
+      0.28,
+      0.38,
+      0.50,
       0.65,
-      0.58,
+      0.60,
       0.82,
-      0.72,
-      1.00,
-      0.78,
+      0.70,
+      0.95,
+      0.75,
     ];
 
     final barCount = heights.length;
-    final barWidth = 6.2;
+    final barWidth = 4.8;
     final totalBarsWidth = barCount * barWidth;
     final spacing = (size.width - totalBarsWidth) / (barCount - 1);
     final centerY = size.height * 0.50;
@@ -252,8 +224,8 @@ class _StandaloneWavePainter extends CustomPainter {
       );
 
       final isVibrant = i >= 6;
-      final topColor = isVibrant ? const Color(0xFF3B82F6) : const Color(0xFF7B9AFE);
-      final bottomColor = isVibrant ? const Color(0xFF60A5FA) : const Color(0xFFBACDFE);
+      final topColor = isVibrant ? const Color(0xFF2563EB) : const Color(0xFF3B82F6);
+      final bottomColor = isVibrant ? const Color(0xFF60A5FA) : const Color(0xFF93C5FD);
 
       final barPaint = Paint()
         ..shader = LinearGradient(
@@ -261,8 +233,10 @@ class _StandaloneWavePainter extends CustomPainter {
           end: Alignment.bottomCenter,
           colors: [
             topColor.withValues(alpha: opacities[i]),
-            bottomColor.withValues(alpha: opacities[i] * 0.85),
+            bottomColor.withValues(alpha: opacities[i] * 0.40),
+            Colors.transparent,
           ],
+          stops: const [0.0, 0.72, 1.0],
         ).createShader(Rect.fromLTWH(x, y, barWidth, barH));
 
       canvas.drawRRect(barRect, barPaint);

@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'core/constants/app_colors.dart';
 import 'core/services/supabase_service.dart';
 import 'providers/app_state_provider.dart';
-import 'screens/landing_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,7 +42,7 @@ class HakkiriApp extends StatelessWidget {
           ),
           useMaterial3: true,
         ),
-        home: const LandingScreen(),
+        home: const SplashScreen(),
       ),
     );
   }

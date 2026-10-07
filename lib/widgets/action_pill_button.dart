@@ -30,14 +30,14 @@ class ActionPillButton extends StatelessWidget {
       height: 56,
       child: Material(
         color: bgColor,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(30),
         child: InkWell(
           onTap: onTap ?? onPressed,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(30),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.symmetric(horizontal: 22),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(30),
               border: isSecondary ? Border.all(color: AppColors.surfaceBorder) : null,
             ),
             child: Row(
@@ -47,23 +47,23 @@ class ActionPillButton extends StatelessWidget {
                   label,
                   style: TextStyle(
                     color: textColor,
-                    fontSize: 16,
+                    fontSize: 16.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 if (showArrow)
                   Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
+                    width: 36,
+                    height: 36,
+                    decoration: const BoxDecoration(
                       color: AppColors.royalBlue,
-                      borderRadius: BorderRadius.circular(10),
+                      shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,
                     child: const Icon(
                       Icons.arrow_forward_rounded,
                       color: Colors.white,
-                      size: 18,
+                      size: 19,
                     ),
                   ),
               ],
