@@ -40,3 +40,10 @@ app.*.map.json
 
 .env
 .env.local
+
+# Flutter/Dart generated files
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
