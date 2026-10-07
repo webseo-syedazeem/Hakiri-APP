@@ -1,11 +1,20 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
-import '../widgets/live_waveform_bars.dart';
 import 'feedback_screen.dart';
 
+enum ExerciseStage {
+  wordByWordReveal, // Step 1 (doc_images/img_0.png)
+  countdown5s,       // Step 2 (doc_images/img_2.png)
+  recordingScreen,   // Step 3 (doc_images/img_1.png)
+}
+
+/// Opal-style interactive speaking practice session:
+/// 1. Question appears word-by-word with royal blue karaoke highlight
+/// 2. 5-second preparation countdown automatically starts
+/// 3. Transitions automatically into dark mode recording screen with animated waveform
 class RecordingScreen extends StatefulWidget {
   const RecordingScreen({super.key});
 
@@ -13,37 +22,133 @@ class RecordingScreen extends StatefulWidget {
   State<RecordingScreen> createState() => _RecordingScreenState();
 }
 
-class _RecordingScreenState extends State<RecordingScreen> {
-  int _secondsRemaining = 42; // Matches Page 7 screenshot "0:42"
-  Timer? _countdownTimer;
-  final int _fillerCount = 2;
-  final double _startTime = 1.2;
+class _RecordingScreenState extends State<RecordingScreen>
+    with TickerProviderStateMixin {
+  ExerciseStage _stage = ExerciseStage.wordByWordReveal;
+
+  // Question words
+  late List<String> _words;
+  int _revealedWordCount = 0;
+  Timer? _wordRevealTimer;
+
+  // 5-second countdown
+  int _prepSecondsRemaining = 5;
+  Timer? _prepCountdownTimer;
+  late AnimationController _prepArcController;
+
+  // Recording countdown
+  int _speakingSecondsRemaining = 41; // Matches doc_images/img_1.png (0:41)
+  Timer? _speakingTimer;
+  late AnimationController _waveAnimController;
 
   @override
   void initState() {
     super.initState();
-    _startTimer();
+
+    _prepArcController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
+    );
+
+    _waveAnimController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initSessionPrompt();
+    });
   }
 
-  void _startTimer() {
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_secondsRemaining > 0) {
-        setState(() => _secondsRemaining -= 1);
+  void _initSessionPrompt() {
+    final state = Provider.of<AppStateProvider>(context, listen: false);
+    final promptText = state.selectedPrompt?.promptText ??
+        'How would you handle a difficult stakeholder?';
+
+    _words = promptText.split(' ');
+    _startWordByWordReveal();
+  }
+
+  // -------------------------------------------------------------
+  // PHASE 1: WORD-BY-WORD REVEAL (doc_images/img_0.png)
+  // -------------------------------------------------------------
+  void _startWordByWordReveal() {
+    _revealedWordCount = 1; // start with first word
+    setState(() {});
+
+    _wordRevealTimer = Timer.periodic(const Duration(milliseconds: 280), (timer) {
+      if (_revealedWordCount < _words.length) {
+        setState(() {
+          _revealedWordCount++;
+        });
       } else {
-        _finishDrill();
+        _wordRevealTimer?.cancel();
+        // Wait brief beat after last word, then start 5s countdown
+        Future.delayed(const Duration(milliseconds: 400), () {
+          if (mounted) {
+            _start5sCountdown();
+          }
+        });
       }
     });
   }
 
-  void _finishDrill() {
-    _countdownTimer?.cancel();
-    final state = Provider.of<AppStateProvider>(context, listen: false);
+  // -------------------------------------------------------------
+  // PHASE 2: 5-SECOND PREPARATION COUNTDOWN (doc_images/img_2.png)
+  // -------------------------------------------------------------
+  void _start5sCountdown() {
+    setState(() {
+      _stage = ExerciseStage.countdown5s;
+      _prepSecondsRemaining = 5;
+    });
 
-    // Evaluate speech using exact prompt and realistic transcription
+    _prepArcController.reset();
+    _prepArcController.forward();
+
+    _prepCountdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_prepSecondsRemaining > 1) {
+        setState(() {
+          _prepSecondsRemaining--;
+        });
+      } else {
+        _prepCountdownTimer?.cancel();
+        if (mounted) {
+          _startRecording();
+        }
+      }
+    });
+  }
+
+  // -------------------------------------------------------------
+  // PHASE 3: RECORDING SCREEN (doc_images/img_1.png)
+  // -------------------------------------------------------------
+  void _startRecording() {
+    setState(() {
+      _stage = ExerciseStage.recordingScreen;
+      _speakingSecondsRemaining = 41;
+    });
+
+    _speakingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_speakingSecondsRemaining > 0) {
+        setState(() {
+          _speakingSecondsRemaining--;
+        });
+      } else {
+        _finishSession();
+      }
+    });
+  }
+
+  void _finishSession() {
+    _wordRevealTimer?.cancel();
+    _prepCountdownTimer?.cancel();
+    _speakingTimer?.cancel();
+
+    final state = Provider.of<AppStateProvider>(context, listen: false);
     state.evaluateCurrentSession(
       transcript:
-          'Pick up the phone when the deal matters. A call shows real effort, and you hear subtle hesitation you’d miss in an email. Then send a short recap email so basically there are no misaligned expectations.',
-      durationSeconds: 60 - _secondsRemaining,
+          'I would start by listening to understand their concerns, acknowledge their perspective, and then align on shared objectives.',
+      durationSeconds: 41 - _speakingSecondsRemaining,
     );
 
     Navigator.pushReplacement(
@@ -54,26 +159,263 @@ class _RecordingScreenState extends State<RecordingScreen> {
 
   @override
   void dispose() {
-    _countdownTimer?.cancel();
+    _wordRevealTimer?.cancel();
+    _prepCountdownTimer?.cancel();
+    _speakingTimer?.cancel();
+    _prepArcController.dispose();
+    _waveAnimController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final m = _secondsRemaining ~/ 60;
-    final s = _secondsRemaining % 60;
+    switch (_stage) {
+      case ExerciseStage.wordByWordReveal:
+        return _buildWordByWordRevealScreen();
+      case ExerciseStage.countdown5s:
+        return _buildCountdown5sScreen();
+      case ExerciseStage.recordingScreen:
+        return _buildRecordingScreen();
+    }
+  }
+
+  // =============================================================
+  // SCREEN 1: WORD-BY-WORD REVEAL (doc_images/img_0.png)
+  // =============================================================
+  Widget _buildWordByWordRevealScreen() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFBFBF9),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Back Button
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: const Icon(
+                  Icons.chevron_left_rounded,
+                  color: Color(0xFF0F172A),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Lightning bolt icon badge + THINK FAST
+              Row(
+                children: const [
+                  Icon(
+                    Icons.bolt_rounded,
+                    color: Color(0xFF2563EB),
+                    size: 24,
+                  ),
+                  SizedBox(width: 8),
+                  Text(
+                    'THINK FAST',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.5,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 28),
+
+              // Question revealed word-by-word with karaoke style highlight
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 10,
+                    children: List.generate(_words.length, (index) {
+                      final word = _words[index];
+                      final isRevealed = index < _revealedWordCount;
+                      final isCurrentWord = index == _revealedWordCount - 1;
+
+                      Color wordColor;
+                      if (!isRevealed) {
+                        wordColor = const Color(0xFFCBD5E1).withValues(alpha: 0.35);
+                      } else if (isCurrentWord) {
+                        wordColor = const Color(0xFF2563EB); // Royal blue active
+                      } else {
+                        wordColor = const Color(0xFF0F172A); // Dark navy for past
+                      }
+
+                      return AnimatedDefaultTextStyle(
+                        duration: const Duration(milliseconds: 200),
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 34,
+                          fontWeight: FontWeight.w800,
+                          color: wordColor,
+                          letterSpacing: -0.6,
+                          height: 1.25,
+                        ),
+                        child: Text(word),
+                      );
+                    }),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // =============================================================
+  // SCREEN 2: 5-SECOND COUNTDOWN (doc_images/img_2.png)
+  // =============================================================
+  Widget _buildCountdown5sScreen() {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFBFBF9),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Back Button
+              GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: const Icon(
+                  Icons.chevron_left_rounded,
+                  color: Color(0xFF0F172A),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Lightning bolt icon badge + THINK FAST
+              Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFDBEAFE), width: 1),
+                    ),
+                    child: const Icon(
+                      Icons.bolt_rounded,
+                      color: Color(0xFF2563EB),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'THINK FAST',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.5,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Question with "difficult stakeholder?" highlighted in blue
+              RichText(
+                text: const TextSpan(
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 27,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.6,
+                    height: 1.22,
+                  ),
+                  children: [
+                    TextSpan(text: 'How would you handle\na '),
+                    TextSpan(
+                      text: 'difficult stakeholder?',
+                      style: TextStyle(color: Color(0xFF2563EB)),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Center Circular 5s Countdown Timer
+              Expanded(
+                child: Center(
+                  child: SizedBox(
+                    width: 220,
+                    height: 220,
+                    child: AnimatedBuilder(
+                      animation: _prepArcController,
+                      builder: (context, child) {
+                        return CustomPaint(
+                          painter: _CountdownCirclePainter(
+                            progress: 1.0 - _prepArcController.value,
+                          ),
+                          child: Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  '$_prepSecondsRemaining',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 64,
+                                    fontWeight: FontWeight.w900,
+                                    color: Color(0xFF0F172A),
+                                    letterSpacing: -1.0,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  'SECONDS',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.6,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // =============================================================
+  // SCREEN 3: DARK MODE RECORDING SCREEN (doc_images/img_1.png)
+  // =============================================================
+  Widget _buildRecordingScreen() {
+    final m = _speakingSecondsRemaining ~/ 60;
+    final s = _speakingSecondsRemaining % 60;
     final timeFormatted = '$m:${s < 10 ? '0' : ''}$s';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF10111A), // Dark mode canvas as in Page 7
+      backgroundColor: const Color(0xFF0B101D),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Top Bar
+              // Top Bar with centered THINK FIRST & horizontal progress
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -89,185 +431,97 @@ class _RecordingScreenState extends State<RecordingScreen> {
                         ),
                       ),
                       const Text(
-                        'THINK FIRST  ·  1 OF 3',
+                        'THINK FIRST',
                         style: TextStyle(
+                          fontFamily: 'Inter',
                           color: Color(0xFFA0A3B5),
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
+                          letterSpacing: 1.6,
                         ),
                       ),
-                      const Text(
-                        'SALES',
-                        style: TextStyle(
-                          color: Color(0xFFA0A3B5),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
+                      const SizedBox(width: 28), // balance chevron
                     ],
                   ),
                   const SizedBox(height: 12),
-                  // Progress line
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: const LinearProgressIndicator(
-                      value: 0.33,
-                      minHeight: 2.5,
-                      backgroundColor: Color(0xFF26283D),
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF4C5CFF)),
-                    ),
-                  ),
-                ],
-              ),
 
-              // Question Section
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'YOUR QUESTION',
-                    style: TextStyle(
-                      color: Color(0xFF8B8FA3),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  SizedBox(height: 10),
-                  Text(
-                    'Is it better to follow up with a\nclient by email or pick up the\nphone?',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      height: 1.25,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                ],
-              ),
-
-              // Timer & Waveform Section
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.end,
+                  // Horizontal Progress Bar
+                  Stack(
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      Container(
+                        height: 2.5,
+                        width: double.infinity,
+                        color: const Color(0xFF1E293B),
+                      ),
+                      Container(
+                        height: 2.5,
+                        width: MediaQuery.of(context).size.width * 0.40,
+                        color: const Color(0xFF818CF8),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+
+              // YOUR QUESTION
+              const Text(
+                'YOUR QUESTION',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  color: Color(0xFF818CF8),
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.4,
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Question Headline
+              const Text(
+                'How would you handle a difficult stakeholder?',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                  letterSpacing: -0.6,
+                  height: 1.25,
+                ),
+              ),
+              const SizedBox(height: 36),
+
+              // Central Circular Speak Timer
+              Center(
+                child: SizedBox(
+                  width: 210,
+                  height: 210,
+                  child: CustomPaint(
+                    painter: _RecordingCirclePainter(
+                      progress: _speakingSecondsRemaining / 60.0,
+                    ),
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text(
-                            'TIME LEFT',
-                            style: TextStyle(
-                              color: Color(0xFF8B8FA3),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.0,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
                           Text(
                             timeFormatted,
                             style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 54,
+                              fontFamily: 'Inter',
+                              fontSize: 52,
                               fontWeight: FontWeight.w900,
-                              letterSpacing: -1.0,
-                              fontFeatures: [FontFeature.tabularFigures()],
-                            ),
-                          ),
-                        ],
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 8,
-                              height: 8,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppColors.coralRed,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            const Text(
-                              'REC',
-                              style: TextStyle(
-                                color: AppColors.coralRed,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Live animated dynamic waveform
-                  const LiveWaveformBars(
-                    barCount: 24,
-                    maxHeight: 60,
-                    color: Color(0xFF5B6BFF),
-                    isAnimated: true,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // 3 Telemetry Cards (START, PACE, FILLERS)
-                  Row(
-                    children: [
-                      Expanded(child: _buildTelemetryCard('START', '${_startTime}s')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _buildTelemetryCard('PACE', 'Steady')),
-                      const SizedBox(width: 8),
-                      Expanded(child: _buildTelemetryCard('FILLERS', '$_fillerCount')),
-                    ],
-                  ),
-                ],
-              ),
-
-              // Bottom Button (Finish answer)
-              SizedBox(
-                height: 56,
-                child: Material(
-                  color: const Color(0xFFECEAE2),
-                  borderRadius: BorderRadius.circular(16),
-                  child: InkWell(
-                    onTap: _finishDrill,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Finish answer',
-                            style: TextStyle(
-                              color: Color(0xFF13141F),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: AppColors.royalBlue,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            alignment: Alignment.center,
-                            child: const Icon(
-                              Icons.arrow_forward_rounded,
                               color: Colors.white,
-                              size: 18,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'left to speak',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFFA0A3B5),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                         ],
@@ -276,44 +530,242 @@ class _RecordingScreenState extends State<RecordingScreen> {
                   ),
                 ),
               ),
+              const SizedBox(height: 24),
+
+              // REC Pill Badge
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2E1116),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFEF4444),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'REC',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          color: Color(0xFFEF4444),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Live Waveform Visualizer
+              Center(
+                child: AnimatedBuilder(
+                  animation: _waveAnimController,
+                  builder: (context, child) {
+                    return CustomPaint(
+                      size: const Size(220, 48),
+                      painter: _RecordingWaveformPainter(
+                        animationValue: _waveAnimController.value,
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              const Spacer(),
+
+              // Finish answer Button
+              Container(
+                width: double.infinity,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3EFE6),
+                  borderRadius: BorderRadius.circular(30),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.25),
+                      blurRadius: 14,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(30),
+                    onTap: _finishSession,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const SizedBox(width: 38), // balance arrow
+                          const Text(
+                            'Finish answer',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF0F172A),
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF2563EB),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.arrow_forward_rounded,
+                              color: Colors.white,
+                              size: 19,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildTelemetryCard(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161726),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF26283D)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF7E8296),
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
+/// Painter for the 5-second preparation countdown circular arc
+class _CountdownCirclePainter extends CustomPainter {
+  final double progress;
+
+  _CountdownCirclePainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width / 2) - 10;
+
+    // Background circle track
+    final trackPaint = Paint()
+      ..color = const Color(0xFFE2E8F0)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 9;
+
+    canvas.drawCircle(center, radius, trackPaint);
+
+    // Active progress arc
+    final arcPaint = Paint()
+      ..color = const Color(0xFF2563EB)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 9
+      ..strokeCap = StrokeCap.round;
+
+    final sweepAngle = 2 * math.pi * progress.clamp(0.0, 1.0);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      sweepAngle,
+      false,
+      arcPaint,
     );
   }
+
+  @override
+  bool shouldRepaint(covariant _CountdownCirclePainter oldDelegate) =>
+      oldDelegate.progress != progress;
+}
+
+/// Painter for the dark mode recording timer circular arc
+class _RecordingCirclePainter extends CustomPainter {
+  final double progress;
+
+  _RecordingCirclePainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width / 2) - 10;
+
+    // Track
+    final trackPaint = Paint()
+      ..color = const Color(0xFF1E293B)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 9;
+
+    canvas.drawCircle(center, radius, trackPaint);
+
+    // Progress
+    final arcPaint = Paint()
+      ..color = const Color(0xFF818CF8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 9
+      ..strokeCap = StrokeCap.round;
+
+    final sweepAngle = 2 * math.pi * progress.clamp(0.0, 1.0);
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -math.pi / 2,
+      sweepAngle,
+      false,
+      arcPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _RecordingCirclePainter oldDelegate) =>
+      oldDelegate.progress != progress;
+}
+
+/// Dynamic live audio waveform painter
+class _RecordingWaveformPainter extends CustomPainter {
+  final double animationValue;
+
+  _RecordingWaveformPainter({required this.animationValue});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final barPaint = Paint()
+      ..color = const Color(0xFF818CF8)
+      ..strokeCap = StrokeCap.round;
+
+    const barCount = 28;
+    final barWidth = 3.6;
+    final totalWidth = size.width;
+    final spacing = (totalWidth - (barCount * barWidth)) / (barCount - 1);
+    final centerY = size.height / 2;
+
+    for (int i = 0; i < barCount; i++) {
+      final x = i * (barWidth + spacing) + (barWidth / 2);
+      // Symmetrical Gaussian wave modulated by animation
+      final distFromCenter = (i - (barCount / 2)).abs() / (barCount / 2);
+      final envelope = math.exp(-distFromCenter * distFromCenter * 2.5);
+      final wave = math.sin((i * 0.45) + (animationValue * 2 * math.pi)).abs();
+      final h = (size.height * 0.2) + (size.height * 0.75 * envelope * (0.4 + 0.6 * wave));
+
+      canvas.drawLine(
+        Offset(x, centerY - h / 2),
+        Offset(x, centerY + h / 2),
+        barPaint..strokeWidth = barWidth,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RecordingWaveformPainter oldDelegate) =>
+      oldDelegate.animationValue != animationValue;
 }
