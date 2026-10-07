@@ -34,6 +34,7 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
     final state = Provider.of<AppStateProvider>(context);
 
     return SafeArea(
+      bottom: false,
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),

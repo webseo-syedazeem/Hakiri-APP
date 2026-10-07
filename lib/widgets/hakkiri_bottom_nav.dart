@@ -20,58 +20,60 @@ class HakkiriBottomNav extends StatelessWidget {
       {'label': 'Settings', 'icon': Icons.settings_outlined, 'activeIcon': Icons.settings_rounded},
     ];
 
+    final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    // Full SafeArea plus the bar's own padding was stacking on iOS.
+    final bottomPad = isIOS ? (safeBottom > 0 ? 12.0 : 8.0) : safeBottom + 8;
+
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.background,
         border: Border(top: BorderSide(color: AppColors.surfaceBorderLight, width: 1)),
       ),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: List.generate(items.length, (index) {
-            final isSelected = currentIndex == index;
-            final item = items[index];
+      padding: EdgeInsets.only(top: 8, bottom: bottomPad),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(items.length, (index) {
+          final isSelected = currentIndex == index;
+          final item = items[index];
 
-            return InkWell(
-              onTap: () => onTap(index),
-              borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isSelected ? (item['activeIcon'] as IconData) : (item['icon'] as IconData),
+          return InkWell(
+            onTap: () => onTap(index),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    isSelected ? (item['activeIcon'] as IconData) : (item['icon'] as IconData),
+                    color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
+                    size: 22,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item['label'] as String,
+                    style: TextStyle(
                       color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
-                      size: 22,
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item['label'] as String,
-                      style: TextStyle(
-                        color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
-                        fontSize: 11,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                      ),
+                  ),
+                  const SizedBox(height: 2),
+                  // Blue dot indicator below active tab
+                  Container(
+                    width: 4,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isSelected ? AppColors.royalBlue : Colors.transparent,
                     ),
-                    const SizedBox(height: 2),
-                    // Blue dot indicator below active tab
-                    Container(
-                      width: 4,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isSelected ? AppColors.royalBlue : Colors.transparent,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            );
-          }),
-        ),
+            ),
+          );
+        }),
       ),
     );
   }

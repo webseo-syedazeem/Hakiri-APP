@@ -17,11 +17,16 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    final bottomGap = isIOS ? (safeBottom > 0 ? 20.0 : 12.0) : 14.0;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFBFBF9),
       body: SafeArea(
+        bottom: !isIOS,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: EdgeInsets.fromLTRB(24, 14, 24, bottomGap),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -218,7 +223,6 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                   );
                 },
               ),
-              const SizedBox(height: 8),
             ],
           ),
         ),

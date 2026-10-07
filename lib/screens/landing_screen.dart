@@ -3,7 +3,7 @@ import '../widgets/hakkiri_logo.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
 import '../widgets/who_its_for_roadmap_view.dart';
-import 'assessment_intro_screen.dart';
+import 'assessment_screen.dart';
 import 'login_screen.dart';
 
 /// Complete Professional Onboarding Experience matching user's target designs:
@@ -25,6 +25,15 @@ class _LandingScreenState extends State<LandingScreen> {
   late final PageController _trainCardController;
   int _currentPage = 0;
   int _carouselIndex = 0;
+
+  static const _sectionLabels = [
+    'Get started',
+    'Why Hakkiri?',
+    'Is Hakkiri for me?',
+    'Explore exercises',
+    'Explore your learning path',
+    'Start assessment',
+  ];
 
   @override
   void initState() {
@@ -66,7 +75,7 @@ class _LandingScreenState extends State<LandingScreen> {
   void _goToAssessment() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const AssessmentIntroScreen()),
+      MaterialPageRoute(builder: (_) => const AssessmentScreen()),
     );
   }
 
@@ -79,21 +88,81 @@ class _LandingScreenState extends State<LandingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    // iOS SafeArea was leaving a tall empty band under the button.
+    // Keep a small clearance for the home indicator instead of the full inset.
+    final bottomGap = isIOS ? (safeBottom > 0 ? 20.0 : 12.0) : 14.0;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: PageView(
-          controller: _pageController,
-          physics: const BouncingScrollPhysics(),
-          onPageChanged: (idx) => setState(() => _currentPage = idx),
-          children: [
-            _buildWelcomePage(),
-            _buildWhoItsForPage(),
-            _buildTrainCarouselPage(),
-            _buildSeeHowItWorksPage(),
-            _buildTrustedByProfessionalsPage(),
-            _buildSuggestedPracticePathPage(),
-          ],
+        bottom: !isIOS,
+        child: Padding(
+          padding: EdgeInsets.only(bottom: bottomGap),
+          child: Column(
+            children: [
+              Expanded(
+                child: PageView(
+                  controller: _pageController,
+                  physics: const BouncingScrollPhysics(),
+                  onPageChanged: (idx) => setState(() => _currentPage = idx),
+                  children: [
+                    _buildWelcomePage(),
+                    _buildWhoItsForPage(),
+                    _buildTrainCarouselPage(),
+                    _buildSeeHowItWorksPage(),
+                    _buildTrustedByProfessionalsPage(),
+                    _buildSuggestedPracticePathPage(),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                child: Column(
+                  children: [
+                    if (_currentPage > 0) ...[
+                      _buildFiveDotsIndicator(activeIndex: _currentPage - 1),
+                      const SizedBox(height: 14),
+                    ],
+                    ActionPillButton(
+                      label: _sectionLabels[_currentPage],
+                      onTap: _currentPage >= _sectionLabels.length - 1
+                          ? _goToAssessment
+                          : _nextPage,
+                    ),
+                    if (_currentPage == 0) ...[
+                      const SizedBox(height: 14),
+                      Center(
+                        child: GestureDetector(
+                          onTap: _goToLogin,
+                          child: RichText(
+                            text: const TextSpan(
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 13.5,
+                                color: Color(0xFF64748B),
+                              ),
+                              children: [
+                                TextSpan(text: 'I already have an account. '),
+                                TextSpan(
+                                  text: 'Log in',
+                                  style: TextStyle(
+                                    color: Color(0xFF2563EB),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -184,51 +253,6 @@ class _LandingScreenState extends State<LandingScreen> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-
-          // CTA Button: Get started ->
-          ActionPillButton(
-            label: 'Get started',
-            onTap: _nextPage,
-          ),
-          const SizedBox(height: 14),
-
-          // Secondary Link: I already have an account. Log in
-          Center(
-            child: GestureDetector(
-              onTap: _goToLogin,
-              child: RichText(
-                text: const TextSpan(
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 13.5,
-                    color: Color(0xFF64748B),
-                  ),
-                  children: [
-                    TextSpan(text: 'I already have an account. '),
-                    TextSpan(
-                      text: 'Log in',
-                      style: TextStyle(
-                        color: Color(0xFF2563EB),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // 3 Bottom Dots
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _buildDot(isActive: true, activeColor: const Color(0xFF0F172A)),
-              _buildDot(isActive: false),
-              _buildDot(isActive: false),
-            ],
           ),
           const SizedBox(height: 8),
         ],
@@ -321,17 +345,6 @@ class _LandingScreenState extends State<LandingScreen> {
                 height: 1.35,
               ),
             ),
-          ),
-          const SizedBox(height: 14),
-
-          // 5 Pagination Dots (Index 0 active in blue)
-          _buildFiveDotsIndicator(activeIndex: 0),
-          const SizedBox(height: 14),
-
-          // CTA: Why Hakkiri? ->
-          ActionPillButton(
-            label: 'Why Hakkiri?',
-            onTap: _nextPage,
           ),
           const SizedBox(height: 8),
         ],
@@ -511,13 +524,6 @@ class _LandingScreenState extends State<LandingScreen> {
               ],
             ),
           ),
-          const SizedBox(height: 12),
-
-          // CTA: Is Hakkiri for me? ->
-          ActionPillButton(
-            label: 'Is Hakkiri for me?',
-            onTap: _nextPage,
-          ),
           const SizedBox(height: 8),
         ],
       ),
@@ -626,19 +632,6 @@ class _LandingScreenState extends State<LandingScreen> {
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-
-          const SizedBox(height: 8),
-
-          // 5 Pagination Dots (Index 2 active in blue)
-          _buildFiveDotsIndicator(activeIndex: 2),
-          const SizedBox(height: 12),
-
-          // CTA: Explore exercises ->
-          ActionPillButton(
-            label: 'Explore exercises',
-            onTap: _nextPage,
           ),
           const SizedBox(height: 8),
         ],
@@ -765,17 +758,6 @@ class _LandingScreenState extends State<LandingScreen> {
             ),
           ),
           const SizedBox(height: 8),
-
-          // 5 Dots Indicator (Index 3 active)
-          _buildFiveDotsIndicator(activeIndex: 3),
-          const SizedBox(height: 12),
-
-          // CTA: Explore your learning path ->
-          ActionPillButton(
-            label: 'Explore your learning path',
-            onTap: _nextPage,
-          ),
-          const SizedBox(height: 8),
         ],
       ),
     );
@@ -847,17 +829,6 @@ class _LandingScreenState extends State<LandingScreen> {
                 fit: BoxFit.contain,
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-
-          // 5 Dots Indicator (Last dot active)
-          _buildFiveDotsIndicator(activeIndex: 4),
-          const SizedBox(height: 12),
-
-          // CTA: Start assessment ->
-          ActionPillButton(
-            label: 'Start assessment',
-            onTap: _goToAssessment,
           ),
           const SizedBox(height: 8),
         ],
@@ -1003,18 +974,6 @@ class _LandingScreenState extends State<LandingScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildDot({required bool isActive, Color activeColor = const Color(0xFF2563EB)}) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 3),
-      width: isActive ? 20 : 6,
-      height: 6,
-      decoration: BoxDecoration(
-        color: isActive ? activeColor : const Color(0xFFE2E8F0),
-        borderRadius: BorderRadius.circular(3),
-      ),
     );
   }
 

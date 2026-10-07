@@ -17,17 +17,18 @@ class AssessmentScreen extends StatefulWidget {
 
 class _AssessmentScreenState extends State<AssessmentScreen> {
   late int _currentStepIndex;
+  late final PageController _pageController;
   final TextEditingController _nameController = TextEditingController(text: 'Alex Rivera');
   String _selectedOptionId = 'female';
 
   // Default selections matching the user's screenshots exactly
   final Map<int, String> _stepSelections = {
-    1: 'female',            // Step 2/7: Female selected
-    2: 'mid_level',         // Step 3/7: Mid-level professional selected
-    3: 'tech_product',      // Step 4/7: Tech, Engineering & Product selected
-    4: 'fairly',            // Step 5/7: Fairly confident selected
-    5: 'filler_rush',       // Step 6/7: I rush or use too many filler words selected
-    6: 'calmer_confident',  // Step 7/7: Feel calmer and more confident speaking under pressure selected
+    2: 'female',
+    3: 'mid_level',
+    4: 'tech_product',
+    5: 'fairly',
+    6: 'filler_rush',
+    7: 'calmer_confident',
   };
 
   @override
@@ -35,15 +36,27 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     super.initState();
     _currentStepIndex = widget.initialStep;
     _selectedOptionId = _stepSelections[_currentStepIndex] ?? '';
+    _pageController = PageController(initialPage: widget.initialStep);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
+    _pageController.dispose();
     super.dispose();
   }
 
   final List<Map<String, dynamic>> _steps = [
+    {
+      'tag': 'YOUR ASSESSMENT',
+      'stepNum': '01/07',
+      'titleBlack': "Let's personalize\n",
+      'titleBlue': 'your plan',
+      'subtitle':
+          'Answer 7 quick questions to understand how you speak, where you get stuck, and what you want to improve.',
+      'isIntro': true,
+      'buttonLabel': 'Start assessment',
+    },
     // Step 1 / 7 - YOUR PROFILE (Image media_1791301001009.jpg)
     {
       'tag': 'YOUR PROFILE',
@@ -283,30 +296,33 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     },
   ];
 
-  void _onOptionSelected(String optionId) {
+  void _onOptionSelected(String optionId, {int? stepIndex}) {
+    final index = stepIndex ?? _currentStepIndex;
     setState(() {
-      _selectedOptionId = optionId;
-      _stepSelections[_currentStepIndex] = optionId;
+      _stepSelections[index] = optionId;
+      if (index == _currentStepIndex) {
+        _selectedOptionId = optionId;
+      }
     });
   }
 
   void _nextStep() {
     if (_currentStepIndex < _steps.length - 1) {
-      setState(() {
-        _currentStepIndex++;
-        _selectedOptionId = _stepSelections[_currentStepIndex] ??
-            (_steps[_currentStepIndex]['options']?[0]?['id'] ?? '');
-      });
+      _pageController.animateToPage(
+        _currentStepIndex + 1,
+        duration: const Duration(milliseconds: 380),
+        curve: Curves.easeInOutCubic,
+      );
     } else {
       // Completed Assessment -> save to provider and navigate to plan
       final state = Provider.of<AppStateProvider>(context, listen: false);
       state.updateAssessment(
-        gender: _stepSelections[1] ?? 'female',
-        careerStage: _stepSelections[2] ?? 'mid_level',
-        careerType: _stepSelections[3] ?? 'tech_product',
-        confidence: _stepSelections[4] ?? 'fairly',
-        problem: _stepSelections[5] ?? 'filler_rush',
-        goal: _stepSelections[6] ?? 'calmer_confident',
+        gender: _stepSelections[2] ?? 'female',
+        careerStage: _stepSelections[3] ?? 'mid_level',
+        careerType: _stepSelections[4] ?? 'tech_product',
+        confidence: _stepSelections[5] ?? 'fairly',
+        problem: _stepSelections[6] ?? 'filler_rush',
+        goal: _stepSelections[7] ?? 'calmer_confident',
       );
 
       Navigator.pushReplacement(
@@ -318,28 +334,39 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
 
   void _prevStep() {
     if (_currentStepIndex > 0) {
-      setState(() {
-        _currentStepIndex--;
-        _selectedOptionId = _stepSelections[_currentStepIndex] ?? '';
-      });
+      _pageController.animateToPage(
+        _currentStepIndex - 1,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeInOutCubic,
+      );
     } else {
       Navigator.pop(context);
     }
   }
 
+  void _onPageChanged(int index) {
+    final options = (_steps[index]['options'] as List<dynamic>?) ?? [];
+    final fallback = options.isNotEmpty ? options.first['id'] as String : '';
+    setState(() {
+      _currentStepIndex = index;
+      _selectedOptionId = _stepSelections[index] ?? fallback;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final step = _steps[_currentStepIndex];
-    final isNameInput = step['isNameInput'] == true;
-    final hasGauge = step['hasGauge'] == true;
-    final options = (step['options'] as List<dynamic>?) ?? [];
     final buttonLabel = (step['buttonLabel'] as String?) ?? 'Continue';
+    final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+    final safeBottom = MediaQuery.paddingOf(context).bottom;
+    final bottomGap = isIOS ? (safeBottom > 0 ? 20.0 : 12.0) : 14.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBFBF9),
       body: SafeArea(
+        bottom: !isIOS,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: EdgeInsets.fromLTRB(24, 14, 24, bottomGap),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -394,82 +421,46 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               ),
               const SizedBox(height: 8),
 
-              // Step Progress Line
-              ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: LinearProgressIndicator(
-                  value: step['progress'] as double,
-                  minHeight: 3.5,
-                  backgroundColor: const Color(0xFFECEBE4),
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.royalBlue),
-                ),
+              // Step Progress Line — moves with the page, same as onboarding
+              AnimatedBuilder(
+                animation: _pageController,
+                builder: (context, _) {
+                  final page = _pageController.hasClients
+                      ? (_pageController.page ?? _currentStepIndex.toDouble())
+                      : _currentStepIndex.toDouble();
+                  final progress = ((page + 1) / _steps.length).clamp(0.0, 1.0);
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Container(
+                        height: 3.5,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFECEBE4),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          width: constraints.maxWidth * progress,
+                          decoration: BoxDecoration(
+                            color: AppColors.royalBlue,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
               const SizedBox(height: 22),
 
-              // Main Headline with Royal Blue Accent
-              RichText(
-                text: TextSpan(
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
-                    height: 1.15,
-                    letterSpacing: -1.0,
-                  ),
-                  children: [
-                    TextSpan(text: step['titleBlack'] as String),
-                    TextSpan(
-                      text: step['titleBlue'] as String,
-                      style: const TextStyle(color: AppColors.royalBlue),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Subtitle
-              Text(
-                step['subtitle'] as String,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Speedometer / Gauge Widget for Confidence step (Step 5)
-              if (hasGauge) ...[
-                Center(
-                  child: ConfidenceGaugeWidget(level: _selectedOptionId),
-                ),
-                const SizedBox(height: 14),
-              ],
-
-              // Step Content: Name Input or Option Cards
               Expanded(
-                child: isNameInput
-                    ? _buildNameInput()
-                    : ListView.separated(
-                        physics: const BouncingScrollPhysics(),
-                        itemCount: options.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 11),
-                        itemBuilder: (context, index) {
-                          final opt = options[index] as Map<String, dynamic>;
-                          final isSelected = opt['id'] == _selectedOptionId;
-
-                          return _buildOptionCard(
-                            id: opt['id'] as String,
-                            title: opt['title'] as String,
-                            subtitle: (opt['subtitle'] as String?) ?? '',
-                            symbol: opt['symbol'] as String?,
-                            icon: opt['icon'] as IconData?,
-                            isSelected: isSelected,
-                          );
-                        },
-                      ),
+                child: PageView.builder(
+                  controller: _pageController,
+                  physics: const BouncingScrollPhysics(),
+                  onPageChanged: _onPageChanged,
+                  itemCount: _steps.length,
+                  itemBuilder: (context, index) => _buildStepPage(index),
+                ),
               ),
 
               const SizedBox(height: 12),
@@ -479,10 +470,228 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                 label: buttonLabel,
                 onTap: _nextStep,
               ),
-              const SizedBox(height: 6),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStepPage(int index) {
+    final step = _steps[index];
+    if (step['isIntro'] == true) return _buildIntroPage(step);
+    final isNameInput = step['isNameInput'] == true;
+    final hasGauge = step['hasGauge'] == true;
+    final options = (step['options'] as List<dynamic>?) ?? [];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RichText(
+          text: TextSpan(
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+              height: 1.15,
+              letterSpacing: -1.0,
+            ),
+            children: [
+              TextSpan(text: step['titleBlack'] as String),
+              TextSpan(
+                text: step['titleBlue'] as String,
+                style: const TextStyle(color: AppColors.royalBlue),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          step['subtitle'] as String,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 16),
+        if (hasGauge) ...[
+          Center(
+            child: ConfidenceGaugeWidget(
+              level: _stepSelections[index] ?? _selectedOptionId,
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+        Expanded(
+          child: isNameInput
+              ? _buildNameInput()
+              : ListView.separated(
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: options.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 11),
+                  itemBuilder: (context, optionIndex) {
+                    final opt = options[optionIndex] as Map<String, dynamic>;
+                    final selectedId = index == _currentStepIndex
+                        ? _selectedOptionId
+                        : _stepSelections[index];
+                    final isSelected = opt['id'] == selectedId;
+
+                    return _buildOptionCard(
+                      id: opt['id'] as String,
+                      title: opt['title'] as String,
+                      subtitle: (opt['subtitle'] as String?) ?? '',
+                      symbol: opt['symbol'] as String?,
+                      icon: opt['icon'] as IconData?,
+                      isSelected: isSelected,
+                      onTap: () => _onOptionSelected(
+                        opt['id'] as String,
+                        stepIndex: index,
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildIntroPage(Map<String, dynamic> step) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RichText(
+          text: TextSpan(
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 34,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+              height: 1.15,
+              letterSpacing: -1.0,
+            ),
+            children: [
+              TextSpan(text: step['titleBlack'] as String),
+              TextSpan(
+                text: step['titleBlue'] as String,
+                style: const TextStyle(color: AppColors.royalBlue),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          step['subtitle'] as String,
+          style: const TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 14,
+            height: 1.45,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 28),
+        _buildBenefitCard(
+          icon: Icons.bar_chart_rounded,
+          title: 'Find your biggest speaking blockers',
+          subtitle: "Identify what's holding you back.",
+        ),
+        const SizedBox(height: 12),
+        _buildBenefitCard(
+          icon: Icons.article_outlined,
+          title: 'Get a personalized practice plan',
+          subtitle: 'Tailored to your goals and needs.',
+        ),
+        const SizedBox(height: 12),
+        _buildBenefitCard(
+          icon: Icons.auto_awesome_outlined,
+          title: 'Build more clarity, confidence and presence',
+          subtitle: 'Speak with greater impact.',
+        ),
+        const Spacer(),
+        const Row(
+          children: [
+            Icon(
+              Icons.access_time_rounded,
+              color: AppColors.textMuted,
+              size: 16,
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Takes less than 2 minutes.',
+              style: TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBenefitCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEAE9E2), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF3F4F6),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, color: AppColors.textPrimary, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -557,11 +766,12 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     String? symbol,
     IconData? icon,
     required bool isSelected,
+    VoidCallback? onTap,
   }) {
     final hasSubtitle = subtitle.trim().isNotEmpty;
 
     return GestureDetector(
-      onTap: () => _onOptionSelected(id),
+      onTap: onTap ?? () => _onOptionSelected(id),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.symmetric(

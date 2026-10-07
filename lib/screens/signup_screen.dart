@@ -3,7 +3,7 @@ import '../core/constants/app_colors.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/auth_waveform_watermark.dart';
 import '../widgets/hakkiri_logo.dart';
-import 'assessment_intro_screen.dart';
+import 'assessment_screen.dart';
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -30,7 +30,7 @@ class _SignupScreenState extends State<SignupScreen> {
   void _handleSignup() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const AssessmentIntroScreen()),
+      MaterialPageRoute(builder: (_) => const AssessmentScreen()),
     );
   }
 
