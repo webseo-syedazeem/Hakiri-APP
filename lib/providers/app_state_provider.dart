@@ -139,7 +139,51 @@ class AppStateProvider extends ChangeNotifier {
     ];
 
     promptBank = [
-      // Think Fast
+      // Think Fast - Career Specific Prompts (Client Design Requirements)
+      const PromptModel(
+        id: 'tf_stakeholder',
+        activitySlug: 'think_fast',
+        difficulty: 'beginner',
+        promptText: 'How would you handle a difficult stakeholder?',
+        objective: 'Acknowledge concerns calmly, state your boundary with poise, and align on shared objectives.',
+        exemplarResponse: 'I would start by listening to understand their concerns, acknowledge their perspective, and then align on shared objectives.',
+        tags: ['corporate_finance', 'stakeholder_management'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'tf_sales',
+        activitySlug: 'think_fast',
+        difficulty: 'intermediary',
+        promptText: 'How would you respond to a client pushing back aggressively on your pricing?',
+        objective: 'Validate their budget constraint, reframe around ROI, and avoid defensive tone.',
+        exemplarResponse: 'I understand budget sensitivity is top of mind. Rather than cutting core scope, let us review the business outcomes and identify the highest ROI phases first.',
+        tags: ['sales_marketing', 'negotiation'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'tf_tech',
+        activitySlug: 'think_fast',
+        difficulty: 'intermediary',
+        promptText: 'How would you explain the necessity of technical refactoring to a non-technical stakeholder?',
+        objective: 'Translate technical debt into commercial speed and reliability without jargon.',
+        exemplarResponse: 'Think of our codebase like an office building. Over time, extra wiring slows down renovations. Refactoring clears the foundation so our next feature ships in half the time.',
+        tags: ['tech_product', 'engineering'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'tf_healthcare_edu',
+        activitySlug: 'think_fast',
+        difficulty: 'intermediary',
+        promptText: 'How would you deliver critical feedback to an anxious team member?',
+        objective: 'Lead with empathy, separate behavior from character, and co-design a concrete next step.',
+        exemplarResponse: 'I appreciate your dedication to the team. To help you thrive on this project, I want to address one specific area of clarity in communication, and discuss how we can support you.',
+        tags: ['healthcare_edu', 'people_management'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
       const PromptModel(
         id: 'tf_01',
         activitySlug: 'think_fast',
@@ -300,17 +344,30 @@ class AppStateProvider extends ChangeNotifier {
     if (confidence != null) answers.confidence = confidence;
     if (problem != null) answers.roadblock = problem;
     if (goal != null) answers.primaryGoal = goal;
+
+    // Logic determined by assessment:
+    // 1. Level of activities:
+    if (careerStage == 'early' || confidence == 'not_very') {
+      selectedDifficulty = 'beginner';
+    } else if (careerStage == 'exec' || confidence == 'very') {
+      selectedDifficulty = 'pro';
+    } else {
+      selectedDifficulty = 'intermediary';
+    }
+
+    _updateSelectedPrompt();
     completeAssessment();
   }
 
   void completeAssessment() {
-    personalizedPlan = const PersonalizedPlanModel(
+    final track = answers.careerType ?? 'corporate_finance';
+    personalizedPlan = PersonalizedPlanModel(
       headline: 'Filler Elimination & Executive Authority Program',
       summary: 'A curated daily routine engineered to transition you from hesitant thinking to commanding executive clarity.',
-      recommendedTrack: 'corporate_finance',
-      primaryRoadblock: 'excessive_filler_words',
-      initialDrills: ['think_fast', 'cut_it_in_half', 'debate_me'],
-      milestones: [
+      recommendedTrack: track,
+      primaryRoadblock: answers.roadblock ?? 'excessive_filler_words',
+      initialDrills: const ['think_fast', 'cut_it_in_half', 'debate_me'],
+      milestones: const [
         MilestoneItem(week: 1, title: 'Cognitive Agility & Crutch Decoupling', focus: 'Eliminating instinctive "um" and "basically" in 60s drills.'),
         MilestoneItem(week: 2, title: 'Brevity & Bottom-Line-Up-Front (BLUF)', focus: 'Compressing ideas by 50% within first 5 seconds.'),
         MilestoneItem(week: 3, title: 'Executive Presence & Power Silence', focus: 'Commanding meetings with 1–2s power pauses.'),
@@ -353,8 +410,29 @@ class AppStateProvider extends ChangeNotifier {
 
   void _updateSelectedPrompt() {
     if (selectedActivity == null) return;
-    final targetDiff = selectedDifficulty == 'i_dont_know' ? 'intermediary' : selectedDifficulty;
 
+    // Career specific prompt matching based on assessment:
+    final career = answers.careerType;
+    if (career != null && career.isNotEmpty) {
+      final careerMatches = promptBank.where((p) =>
+          p.activitySlug == selectedActivity!.slug &&
+          p.tags.contains(career)).toList();
+      if (careerMatches.isNotEmpty) {
+        selectedPrompt = careerMatches.first;
+        return;
+      }
+    }
+
+    // Default to the flagship client prompt for think_fast
+    if (selectedActivity!.slug == 'think_fast') {
+      final stakeholderPrompt = promptBank.where((p) => p.id == 'tf_stakeholder').toList();
+      if (stakeholderPrompt.isNotEmpty) {
+        selectedPrompt = stakeholderPrompt.first;
+        return;
+      }
+    }
+
+    final targetDiff = selectedDifficulty == 'i_dont_know' ? 'intermediary' : selectedDifficulty;
     final matches = promptBank.where((p) => p.activitySlug == selectedActivity!.slug && p.difficulty == targetDiff).toList();
     if (matches.isNotEmpty) {
       selectedPrompt = matches.first;
