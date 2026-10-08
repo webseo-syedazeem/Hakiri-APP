@@ -6,7 +6,7 @@ import '../widgets/blue_accent_rays.dart';
 import 'recording_screen.dart';
 
 /// Think Fast / Spontaneous Agility Activity Intro Screen
-/// Matches authentic client design (reference-images/img_3.png).
+/// Matches authentic client design (doc_images/img_3.png).
 /// Note: Beginner, intermediate, and pro levels removed as per client decision.
 class ActivityDetailScreen extends StatelessWidget {
   const ActivityDetailScreen({super.key});

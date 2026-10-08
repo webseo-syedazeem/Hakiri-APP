@@ -6,7 +6,7 @@ import 'home_screen.dart';
 import 'recording_screen.dart';
 
 /// Comprehensive, high-fidelity Activity Feedback Screen
-/// Exactly matching client design specification (reference-images/img_4.png).
+/// Exactly matching client design specification (doc_images/img_4.png).
 class FeedbackScreen extends StatelessWidget {
   const FeedbackScreen({super.key});
 
