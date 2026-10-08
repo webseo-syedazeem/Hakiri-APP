@@ -3,6 +3,7 @@ import '../widgets/hakkiri_logo.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
 import '../widgets/who_its_for_roadmap_view.dart';
+import '../widgets/twelve_months_roadmap_view.dart';
 import 'assessment_screen.dart';
 import 'login_screen.dart';
 
@@ -102,6 +103,12 @@ class _LandingScreenState extends State<LandingScreen> {
           padding: EdgeInsets.only(bottom: bottomGap),
           child: Column(
             children: [
+              // Pinned Still Top Bar (< back, Skip) - stays fixed while pages slide
+              if (_currentPage > 0)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 6, 24, 0),
+                  child: _buildTopBar(),
+                ),
               Expanded(
                 child: PageView(
                   controller: _pageController,
@@ -265,14 +272,10 @@ class _LandingScreenState extends State<LandingScreen> {
   // ==========================================
   Widget _buildWhoItsForPage() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Bar (< back, Skip)
-          _buildTopBar(),
-          const SizedBox(height: 10),
-
           // Tag: WHO IT'S FOR
           const Text(
             'WHO IT\'S FOR',
@@ -361,8 +364,7 @@ class _LandingScreenState extends State<LandingScreen> {
         'tag': '01 - 05',
         'title': 'Storytelling\nGym',
         'desc': 'Make people lean in. Shape everyday moments into compelling stories.',
-        'image': 'assets/images/storytelling_graphic_clean.png',
-        'type': 'image',
+        'type': 'storytelling',
       },
       {
         'tag': '02 - 05',
@@ -376,17 +378,25 @@ class _LandingScreenState extends State<LandingScreen> {
         'desc': 'Hold your ground under pressure. Rebut surprise arguments with confidence.',
         'type': 'debate',
       },
+      {
+        'tag': '04 - 05',
+        'title': 'Cut It\nIn Half',
+        'desc': 'Say more with less. Strip away filler and double your message density.',
+        'type': 'cut_it_in_half',
+      },
+      {
+        'tag': '05 - 05',
+        'title': 'Think\nFast',
+        'desc': 'Eliminate awkward pauses. Answer high-stakes surprise questions instantly.',
+        'type': 'think_fast',
+      },
     ];
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Bar (< back, Skip)
-          _buildTopBar(),
-          const SizedBox(height: 10),
-
           // Headline
           RichText(
             text: const TextSpan(
@@ -485,17 +495,17 @@ class _LandingScreenState extends State<LandingScreen> {
                         ),
                         const Spacer(),
 
-                        // Graphic Illustration
+                        // Graphic Illustration (100% Crisp Native Vector Graphics)
                         Center(
-                          child: ex['type'] == 'image'
-                              ? Image.asset(
-                                  ex['image']!,
-                                  height: 110,
-                                  fit: BoxFit.contain,
-                                )
+                          child: ex['type'] == 'storytelling'
+                              ? _buildStorytellingIllustration()
                               : ex['type'] == 'stopwatch'
                                   ? _buildStopwatchIllustration()
-                                  : _buildDebateIllustration(),
+                                  : ex['type'] == 'debate'
+                                      ? _buildDebateIllustration()
+                                      : ex['type'] == 'cut_it_in_half'
+                                          ? _buildCutInHalfIllustration()
+                                          : _buildThinkFastIllustration(),
                         ),
                         const Spacer(),
                       ],
@@ -507,14 +517,17 @@ class _LandingScreenState extends State<LandingScreen> {
           ),
           const SizedBox(height: 8),
 
-          // Pagination Dots + "1 of 12 exercises"
+          // Pagination Dots + "1 of 5 exercises"
           Center(
             child: Column(
               children: [
-                _buildFiveDotsIndicator(activeIndex: _carouselIndex),
+                _buildFiveDotsIndicator(
+                  activeIndex: _carouselIndex,
+                  totalDots: exercises.length,
+                ),
                 const SizedBox(height: 6),
                 Text(
-                  '${_carouselIndex + 1} of 12 exercises',
+                  '${_carouselIndex + 1} of ${exercises.length} exercises',
                   style: const TextStyle(
                     color: Color(0xFF64748B),
                     fontSize: 12.5,
@@ -535,14 +548,10 @@ class _LandingScreenState extends State<LandingScreen> {
   // ==========================================
   Widget _buildSeeHowItWorksPage() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Top Bar (< back, Skip)
-          _buildTopBar(),
-          const SizedBox(height: 8),
-
           // Tag: EXAMPLE ACTIVITY
           const Text(
             'EXAMPLE ACTIVITY',
@@ -644,13 +653,10 @@ class _LandingScreenState extends State<LandingScreen> {
   // ==========================================
   Widget _buildTrustedByProfessionalsPage() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildTopBar(),
-          const SizedBox(height: 10),
-
           // Tag: WHY HAKKIRI?
           const Text(
             'WHY HAKKIRI?',
@@ -768,13 +774,10 @@ class _LandingScreenState extends State<LandingScreen> {
   // ==========================================
   Widget _buildSuggestedPracticePathPage() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildTopBar(),
-          const SizedBox(height: 8),
-
           // Tag: A SUGGESTED PRACTICE PATH
           const Text(
             'A SUGGESTED PRACTICE PATH',
@@ -821,13 +824,10 @@ class _LandingScreenState extends State<LandingScreen> {
           ),
           const SizedBox(height: 8),
 
-          // Winding Roadmap Graphic
-          Expanded(
+          // Winding Roadmap Graphic (100% Crisp Native Vector)
+          const Expanded(
             child: Center(
-              child: Image.asset(
-                'assets/images/twelve_months_roadmap_hd.png',
-                fit: BoxFit.contain,
-              ),
+              child: TwelveMonthsRoadmapView(),
             ),
           ),
           const SizedBox(height: 8),
@@ -977,10 +977,10 @@ class _LandingScreenState extends State<LandingScreen> {
     );
   }
 
-  Widget _buildFiveDotsIndicator({required int activeIndex}) {
+  Widget _buildFiveDotsIndicator({required int activeIndex, int totalDots = 5}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(5, (index) {
+      children: List.generate(totalDots, (index) {
         final isActive = index == activeIndex;
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 3),
@@ -1460,6 +1460,274 @@ class _LandingScreenState extends State<LandingScreen> {
       ),
     );
   }
+
+  Widget _buildStorytellingIllustration() {
+    return const SizedBox(
+      width: 140,
+      height: 100,
+      child: CustomPaint(
+        painter: _Storytelling3dPathPainter(),
+      ),
+    );
+  }
+
+  Widget _buildCutInHalfIllustration() {
+    return SizedBox(
+      width: 120,
+      height: 100,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            left: 6,
+            top: 16,
+            child: Container(
+              width: 88,
+              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFCBD5E1)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    height: 3.5,
+                    width: 60,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF94A3B8),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    height: 3.5,
+                    width: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFCBD5E1),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Positioned(
+            right: 6,
+            bottom: 16,
+            child: Container(
+              width: 66,
+              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2563EB),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    height: 3.5,
+                    width: 45,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    height: 3.5,
+                    width: 26,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0F172A),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.content_cut_rounded, color: Colors.white, size: 15),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThinkFastIllustration() {
+    return Container(
+      width: 92,
+      height: 92,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFF93C5FD), width: 2.5),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: Container(
+        width: 58,
+        height: 58,
+        decoration: const BoxDecoration(
+          color: Color(0xFF2563EB),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 34),
+      ),
+    );
+  }
+}
+
+/// 100% Crisp 3D Isometric Vector Painter for Storytelling Gym
+class _Storytelling3dPathPainter extends CustomPainter {
+  const _Storytelling3dPathPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    // 1. Soft Ambient glow under the path
+    final glowPaint = Paint()
+      ..color = const Color(0xFF60A5FA).withValues(alpha: 0.2)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(w * 0.5, h * 0.72), width: w * 0.85, height: h * 0.35),
+      glowPaint,
+    );
+
+    // 2. Curving 3D Perspective Ribbon / Path
+    final path = Path();
+    path.moveTo(w * 0.1, h * 0.78);
+    path.cubicTo(w * 0.35, h * 0.85, w * 0.65, h * 0.75, w * 0.95, h * 0.52);
+    path.lineTo(w * 0.93, h * 0.44);
+    path.cubicTo(w * 0.65, h * 0.66, w * 0.35, h * 0.75, w * 0.1, h * 0.68);
+    path.close();
+
+    final ribbonPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+        colors: [
+          Color(0xFF2563EB),
+          Color(0xFF60A5FA),
+          Color(0xFFBAE6FD),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+    canvas.drawPath(path, ribbonPaint);
+
+    // 3. Card 3 (Back / Top Right)
+    _draw3dCard(
+      canvas,
+      rect: Rect.fromLTWH(w * 0.68, h * 0.28, w * 0.20, h * 0.32),
+      color: const Color(0xFFDBEAFE),
+      borderColor: const Color(0xFF93C5FD),
+      lineColor: const Color(0xFF60A5FA),
+    );
+
+    // 4. Card 2 (Middle)
+    _draw3dCard(
+      canvas,
+      rect: Rect.fromLTWH(w * 0.42, h * 0.36, w * 0.24, h * 0.38),
+      color: const Color(0xFF38BDF8),
+      borderColor: const Color(0xFF0284C7),
+      lineColor: Colors.white,
+    );
+
+    // 5. Card 1 (Front / Left)
+    _draw3dCard(
+      canvas,
+      rect: Rect.fromLTWH(w * 0.12, h * 0.45, w * 0.28, h * 0.46),
+      color: const Color(0xFF1D4ED8),
+      borderColor: const Color(0xFF1E40AF),
+      lineColor: Colors.white,
+      isFront: true,
+    );
+  }
+
+  void _draw3dCard(
+    Canvas canvas, {
+    required Rect rect,
+    required Color color,
+    required Color borderColor,
+    required Color lineColor,
+    bool isFront = false,
+  }) {
+    // Drop shadow
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: isFront ? 0.15 : 0.08)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect.translate(2, 4), const Radius.circular(8)),
+      shadowPaint,
+    );
+
+    // Card Body
+    final cardRRect = RRect.fromRectAndRadius(rect, const Radius.circular(8));
+    final cardPaint = Paint()..color = color;
+    canvas.drawRRect(cardRRect, cardPaint);
+
+    // Card Border
+    final borderPaint = Paint()
+      ..color = borderColor.withValues(alpha: 0.7)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    canvas.drawRRect(cardRRect, borderPaint);
+
+    // Card Text Lines
+    final linePaint = Paint()
+      ..color = lineColor.withValues(alpha: isFront ? 0.9 : 0.75)
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = isFront ? 2.2 : 1.8;
+
+    final lineX = rect.left + rect.width * 0.18;
+    final lineW1 = rect.width * 0.64;
+    final lineW2 = rect.width * 0.45;
+    final lineW3 = rect.width * 0.55;
+
+    final topOffset = rect.top + rect.height * 0.28;
+    final gap = rect.height * 0.18;
+
+    canvas.drawLine(Offset(lineX, topOffset), Offset(lineX + lineW1, topOffset), linePaint);
+    canvas.drawLine(Offset(lineX, topOffset + gap), Offset(lineX + lineW2, topOffset + gap), linePaint);
+    if (isFront) {
+      canvas.drawLine(Offset(lineX, topOffset + gap * 2), Offset(lineX + lineW3, topOffset + gap * 2), linePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// Ambient soft fluid background bubbles for welcome page

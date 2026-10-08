@@ -6,9 +6,9 @@ import '../providers/app_state_provider.dart';
 import 'feedback_screen.dart';
 
 enum ExerciseStage {
-  wordByWordReveal, // Step 1 (doc_images/img_0.png)
-  countdown5s,       // Step 2 (doc_images/img_2.png)
-  recordingScreen,   // Step 3 (doc_images/img_1.png)
+  wordByWordReveal, // Step 1 (reference-images/img_0.png)
+  countdown5s,       // Step 2 (reference-images/img_2.png)
+  recordingScreen,   // Step 3 (reference-images/img_1.png)
 }
 
 /// Opal-style interactive speaking practice session:
@@ -37,7 +37,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   late AnimationController _prepArcController;
 
   // Recording countdown
-  int _speakingSecondsRemaining = 41; // Matches doc_images/img_1.png (0:41)
+  int _speakingSecondsRemaining = 41; // Matches reference-images/img_1.png (0:41)
   Timer? _speakingTimer;
   late AnimationController _waveAnimController;
 
@@ -70,7 +70,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // -------------------------------------------------------------
-  // PHASE 1: WORD-BY-WORD REVEAL (doc_images/img_0.png)
+  // PHASE 1: WORD-BY-WORD REVEAL (reference-images/img_0.png)
   // -------------------------------------------------------------
   void _startWordByWordReveal() {
     _revealedWordCount = 1; // start with first word
@@ -94,7 +94,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // -------------------------------------------------------------
-  // PHASE 2: 5-SECOND PREPARATION COUNTDOWN (doc_images/img_2.png)
+  // PHASE 2: 5-SECOND PREPARATION COUNTDOWN (reference-images/img_2.png)
   // -------------------------------------------------------------
   void _start5sCountdown() {
     setState(() {
@@ -120,7 +120,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // -------------------------------------------------------------
-  // PHASE 3: RECORDING SCREEN (doc_images/img_1.png)
+  // PHASE 3: RECORDING SCREEN (reference-images/img_1.png)
   // -------------------------------------------------------------
   void _startRecording() {
     setState(() {
@@ -180,7 +180,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // =============================================================
-  // SCREEN 1: WORD-BY-WORD REVEAL (doc_images/img_0.png)
+  // SCREEN 1: WORD-BY-WORD REVEAL (reference-images/img_0.png)
   // =============================================================
   Widget _buildWordByWordRevealScreen() {
     return Scaffold(
@@ -270,7 +270,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // =============================================================
-  // SCREEN 2: 5-SECOND COUNTDOWN (doc_images/img_2.png)
+  // SCREEN 2: 5-SECOND COUNTDOWN (reference-images/img_2.png)
   // =============================================================
   Widget _buildCountdown5sScreen() {
     return Scaffold(
@@ -400,7 +400,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // =============================================================
-  // SCREEN 3: DARK MODE RECORDING SCREEN (doc_images/img_1.png)
+  // SCREEN 3: DARK MODE RECORDING SCREEN (reference-images/img_1.png)
   // =============================================================
   Widget _buildRecordingScreen() {
     final m = _speakingSecondsRemaining ~/ 60;

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    { "source": "/ping", "destination": "/api/ping" },
+    { "source": "/(.*)", "destination": "/api" }
+  ],
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 30,
+      "includeFiles": "{server.js,controllers/**,models/**,routes/**,middleware/**,config/**,helpers/**,data/**,services/**}"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "hakkiri-api",
+  "version": "1.0.0",
+  "description": "Hakkiri communication gym API. Stores users, assessments, drills, and scores. Speech AI stays in the Flutter app.",
+  "license": "ISC",
+  "type": "commonjs",
+  "main": "server.js",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.20.0"
+  }
+}
