@@ -26,8 +26,8 @@ class HakkiriBottomNav extends StatelessWidget {
       },
       {
         'label': 'Practice',
-        'icon': Icons.bookmark_border_rounded,
-        'activeIcon': Icons.bookmark_rounded,
+        'icon': Icons.outlined_flag_rounded,
+        'activeIcon': Icons.flag_rounded,
       },
       {
         'label': 'Profile',

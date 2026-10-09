@@ -90,6 +90,7 @@ class _SplashScreenState extends State<SplashScreen>
                     'assets/images/splash_glowing_logo_hi.png',
                     width: 210,
                     fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
                   ),
                 ),
               );

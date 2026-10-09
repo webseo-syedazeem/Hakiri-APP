@@ -915,6 +915,7 @@ class _LandingScreenState extends State<LandingScreen> {
               width: 44,
               height: 44,
               fit: BoxFit.cover,
+              filterQuality: FilterQuality.high,
             ),
           ),
         ],

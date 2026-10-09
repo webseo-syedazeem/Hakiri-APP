@@ -113,19 +113,11 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
               ),
               child: Row(
                 children: [
-                  // Circular logo icon
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: const HakkiriLogo(
-                      variant: HakkiriLogoVariant.compactMark,
-                      size: 20,
-                    ),
+                  // HD white vector Hakkiri mark
+                  const HakkiriLogo(
+                    variant: HakkiriLogoVariant.iconOnly,
+                    isDark: true,
+                    size: 48,
                   ),
                   const SizedBox(width: 14),
                   Expanded(

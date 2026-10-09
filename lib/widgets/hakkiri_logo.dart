@@ -33,14 +33,16 @@ class HakkiriLogo extends StatelessWidget {
           isDark ? 'assets/images/hakkiri_logo_dark.png' : 'assets/images/hakkiri_logo_master.png',
           height: size,
           fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
         );
 
       case HakkiriLogoVariant.iconOnly:
-        return Image.asset(
-          isDark ? 'assets/images/hakkiri_icon_dark.png' : 'assets/images/hakkiri_mark_master.png',
+        return SizedBox(
           width: size,
           height: size,
-          fit: BoxFit.contain,
+          child: CustomPaint(
+            painter: HakkiriMarkPainter(isDark: isDark),
+          ),
         );
 
       case HakkiriLogoVariant.paywallDarkLockup:
@@ -48,6 +50,7 @@ class HakkiriLogo extends StatelessWidget {
           'assets/images/hakkiri_paywall_master.png',
           height: size,
           fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
         );
 
       case HakkiriLogoVariant.headerPlanLockup:
@@ -59,14 +62,14 @@ class HakkiriLogo extends StatelessWidget {
               width: size * 1.15,
               height: size * 1.15,
               child: CustomPaint(
-                painter: _PlanLogoPainter(),
+                painter: HakkiriMarkPainter(isDark: isDark),
               ),
             ),
             const SizedBox(width: 8),
             Text(
               'hakkiri',
               style: TextStyle(
-                color: const Color(0xFF13141F),
+                color: isDark ? AppColors.textInverse : const Color(0xFF13141F),
                 fontSize: size * 0.95,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.4,
@@ -83,6 +86,7 @@ class HakkiriLogo extends StatelessWidget {
                 : 'assets/images/hakkiri_horizontal_lockup.png',
             height: size,
             fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
           );
         }
         final textColor = isDark ? AppColors.textInverse : AppColors.textPrimary;
@@ -90,11 +94,12 @@ class HakkiriLogo extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Image.asset(
-              isDark ? 'assets/images/hakkiri_icon_dark.png' : 'assets/images/hakkiri_mark_master.png',
+            SizedBox(
               width: size * 1.15,
               height: size * 1.15,
-              fit: BoxFit.contain,
+              child: CustomPaint(
+                painter: HakkiriMarkPainter(isDark: isDark),
+              ),
             ),
             const SizedBox(width: 8),
             Text(
@@ -123,41 +128,91 @@ class HakkiriLogo extends StatelessWidget {
   }
 }
 
-class _PlanLogoPainter extends CustomPainter {
+/// Ultra-sharp vector painter for the Hakkiri circular soundwave mark
+class HakkiriMarkPainter extends CustomPainter {
+  final bool isDark;
+  final Color? color;
+  final Color? dotColor;
+
+  const HakkiriMarkPainter({
+    this.isDark = false,
+    this.color,
+    this.dotColor,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * 0.44, size.height * 0.5);
-    final radius = size.width * 0.40;
+    final fg = color ?? (isDark ? Colors.white : const Color(0xFF13141F));
+    final dot = dotColor ?? const Color(0xFFFF4838);
 
-    // Dark ring
-    final ringPaint = Paint()
-      ..color = const Color(0xFF13141F)
+    final cx = size.width * 0.43;
+    final cy = size.height * 0.50;
+    final radius = size.width * 0.38;
+    final strokeW = size.width * 0.088;
+
+    // Smooth outer C-arc
+    final arcPaint = Paint()
+      ..color = fg
       ..style = PaintingStyle.stroke
-      ..strokeWidth = size.width * 0.13
-      ..strokeCap = StrokeCap.round;
+      ..strokeWidth = strokeW
+      ..strokeCap = StrokeCap.round
+      ..isAntiAlias = true;
+
+    // Opening on the right: ~37 degrees above and below horizontal axis
+    const startAngle = 0.64;
+    const sweepAngle = 2 * pi - 1.28;
 
     canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      0.35,
-      2 * pi - 0.7,
+      Rect.fromCircle(center: Offset(cx, cy), radius: radius),
+      startAngle,
+      sweepAngle,
       false,
-      ringPaint,
+      arcPaint,
     );
 
-    // Center dark solid circle
-    final centerPaint = Paint()
-      ..color = const Color(0xFF13141F)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, radius * 0.38, centerPaint);
+    // Coral/red dot in the opening
+    final dotPaint = Paint()
+      ..color = dot
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
 
-    // Blue accent dot in the opening
-    final blueDotPaint = Paint()
-      ..color = const Color(0xFF3446EB)
-      ..style = PaintingStyle.fill;
-    final dotCenter = Offset(center.dx + radius * 0.98, center.dy);
-    canvas.drawCircle(dotCenter, size.width * 0.10, blueDotPaint);
+    final dotX = cx + radius * 0.98;
+    final dotRadius = size.width * 0.098;
+    canvas.drawCircle(Offset(dotX, cy), dotRadius, dotPaint);
+
+    // 4 vertical soundwave bars
+    final barPaint = Paint()
+      ..color = fg
+      ..style = PaintingStyle.fill
+      ..isAntiAlias = true;
+
+    final barW = size.width * 0.068;
+    final bars = [
+      (cx - size.width * 0.160, size.height * 0.23),
+      (cx - size.width * 0.053, size.height * 0.46),
+      (cx + size.width * 0.053, size.height * 0.35),
+      (cx + size.width * 0.160, size.height * 0.23),
+    ];
+
+    for (final bar in bars) {
+      final bx = bar.$1;
+      final bh = bar.$2;
+      final rect = Rect.fromCenter(
+        center: Offset(bx, cy),
+        width: barW,
+        height: bh,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, Radius.circular(barW / 2)),
+        barPaint,
+      );
+    }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant HakkiriMarkPainter oldDelegate) {
+    return oldDelegate.isDark != isDark ||
+        oldDelegate.color != color ||
+        oldDelegate.dotColor != dotColor;
+  }
 }

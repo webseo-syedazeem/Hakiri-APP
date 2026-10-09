@@ -42,7 +42,6 @@ class SupabaseService {
     required PersonalizedPlanModel plan,
   }) async {
     if (!_isInitialized || client == null) {
-      debugPrint('[Hakkiri Local] Stored assessment and plan locally for $userId');
       return;
     }
 
@@ -72,7 +71,6 @@ class SupabaseService {
     required EvaluationFeedback feedback,
   }) async {
     if (!_isInitialized || client == null) {
-      debugPrint('[Hakkiri Local] Stored practice session score: ${feedback.overallScore}/5');
       return;
     }
 
@@ -104,7 +102,6 @@ class SupabaseService {
     required double priceGbp,
   }) async {
     if (!_isInitialized || client == null) {
-      debugPrint('[Hakkiri Local] Subscription set to $tier ($priceGbp GBP)');
       return;
     }
 
