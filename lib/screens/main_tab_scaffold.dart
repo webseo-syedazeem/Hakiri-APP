@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 import '../widgets/hakkiri_bottom_nav.dart';
 import 'home_screen.dart';
-import 'analytics_dashboard_screen.dart';
-import 'challenges_screen.dart';
-import 'settings_screen.dart';
+import 'progress_screen.dart';
+import 'practice_screen.dart';
+import 'profile_screen.dart';
 
 class MainTabScaffold extends StatefulWidget {
   final int initialIndex;
@@ -31,9 +31,9 @@ class _MainTabScaffoldState extends State<MainTabScaffold> {
   Widget build(BuildContext context) {
     final screens = const [
       HomeScreenContent(),
-      AnalyticsDashboardContent(),
-      ChallengesScreen(),
-      SettingsScreen(),
+      ProgressScreenContent(),
+      PracticeScreenContent(),
+      ProfileScreenContent(),
     ];
 
     return Scaffold(

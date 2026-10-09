@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
-import '../models/session_model.dart';
 import '../providers/app_state_provider.dart';
-import '../widgets/empty_history_widget.dart';
 import '../widgets/hakkiri_logo.dart';
-import '../widgets/week_calendar_strip.dart';
 import 'activity_detail_screen.dart';
-import 'feedback_screen.dart';
 import 'main_tab_scaffold.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -19,256 +15,109 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class HomeScreenContent extends StatefulWidget {
+class HomeScreenContent extends StatelessWidget {
   const HomeScreenContent({super.key});
-
-  @override
-  State<HomeScreenContent> createState() => _HomeScreenContentState();
-}
-
-class _HomeScreenContentState extends State<HomeScreenContent> {
-  int _selectedDayIndex = 3; // THU 4 as in Page 5
 
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
+    final completedCount = state.sessionHistory.length;
+    final bool hasStarted = completedCount > 0;
 
     return SafeArea(
       bottom: false,
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Row
+            // Top App Bar Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const HakkiriLogo(
                   variant: HakkiriLogoVariant.compactMark,
-                  size: 20,
+                  size: 22,
                 ),
+                // Streak Badge Pill
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                   decoration: BoxDecoration(
                     color: AppColors.surfaceWhite,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(20),
                     border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: const Text(
-                    'DAY  4  STREAK',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.0,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        '🔥',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${state.currentStreak > 0 ? state.currentStreak : 4}',
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // Subtag
             const Text(
-              'DAILY ANCHOR  ·  MONDAY',
+              'TODAY',
               style: TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
                 letterSpacing: 1.2,
               ),
             ),
             const SizedBox(height: 6),
 
-            // Heading
+            // Dynamic Heading based on progress
             RichText(
-              text: const TextSpan(
-                style: TextStyle(
+              text: TextSpan(
+                style: const TextStyle(
                   fontFamily: 'Inter',
                   color: AppColors.textPrimary,
-                  fontSize: 34,
+                  fontSize: 32,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: -1.0,
+                  letterSpacing: -0.8,
                   height: 1.15,
                 ),
                 children: [
-                  TextSpan(text: 'Five minutes.\n'),
                   TextSpan(
-                    text: 'Then go speak.',
-                    style: TextStyle(color: AppColors.royalBlue),
+                    text: hasStarted ? 'Nice start.\n' : 'Your plan is ready.\n',
+                  ),
+                  TextSpan(
+                    text: hasStarted ? 'Two to go today.' : "Let's get started.",
+                    style: const TextStyle(color: AppColors.royalBlue),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
 
-            // Calendar Row
-            WeekCalendarStrip(
-              selectedDayIndex: _selectedDayIndex,
-              onDaySelected: (idx) => setState(() => _selectedDayIndex = idx),
-            ),
-            const SizedBox(height: 20),
-
-            // Featured Anchor Card (Dark Navy Card)
-            GestureDetector(
-              onTap: () {
-                state.selectActivity('think_fast');
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF141522),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.12),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
-                            'TODAY  ·  BEGINNER  ·  SALES',
-                            style: TextStyle(
-                              color: Color(0xFFA3A6B8),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          SizedBox(height: 6),
-                          Text(
-                            'Think First',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Answer a surprise client question.',
-                            style: TextStyle(
-                              color: Color(0xFF8E91A6),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        color: AppColors.royalBlue,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Secondary Activities
-            _buildSecondaryActivityRow('02', 'Cut it in Half', '~2 min', () {
-              state.selectActivity('cut_it_in_half');
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-              );
-            }),
-            const SizedBox(height: 14),
-            _buildSecondaryActivityRow('03', 'Debate Me', '60 sec', () {
-              state.selectActivity('debate_me');
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-              );
-            }),
-
-            const SizedBox(height: 24),
-
-            // DRILL & DEBATE HISTORY SECTION
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'DEBATE & DRILL HISTORY',
-                  style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                if (state.sessionHistory.isNotEmpty)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.royalBlue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      '${state.sessionHistory.length} COMPLETED',
-                      style: const TextStyle(
-                        color: AppColors.royalBlue,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // Show Empty State SVG / Vector or History List
-            if (state.sessionHistory.isEmpty)
-              EmptyHistoryWidget(
-                title: 'No Debate History Yet',
-                subtitle:
-                    'You haven\'t completed any debate or speaking drills yet. Challenge your agility under fire to start building your history.',
-                buttonText: 'Start Debate Drill',
-                onButtonPressed: () {
-                  state.selectActivity('debate_me');
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                  );
-                },
-              )
-            else
-              Column(
-                children: state.sessionHistory
-                    .map((item) => _buildHistoryCard(context, state, item))
-                    .toList(),
-              ),
-
-            const SizedBox(height: 24),
-
-            // YOUR FOCUS Card
+            // Weekly Streak Progress Card (from img_2.png)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
               decoration: BoxDecoration(
                 color: AppColors.surfaceWhite,
                 borderRadius: BorderRadius.circular(16),
@@ -276,212 +125,511 @@ class _HomeScreenContentState extends State<HomeScreenContent> {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'YOUR FOCUS',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                    ),
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      RichText(
+                        text: const TextSpan(
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            color: AppColors.textPrimary,
+                            fontSize: 13,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: '4 of 7 days ',
+                              style: TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            TextSpan(
+                              text: 'this week',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.ac_unit_rounded, size: 14, color: AppColors.royalBlue),
+                          SizedBox(width: 4),
+                          Text(
+                            '1 freeze ready',
+                            style: TextStyle(
+                              color: AppColors.royalBlue,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 6),
-                  Text(
-                    'Go blank less, land the point sooner.',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  const SizedBox(height: 10),
+                  // 7 segmented rounded pill bars
+                  Row(
+                    children: List.generate(7, (idx) {
+                      final isCompleted = idx < 4;
+                      return Expanded(
+                        child: Container(
+                          height: 7,
+                          margin: EdgeInsets.only(right: idx < 6 ? 6 : 0),
+                          decoration: BoxDecoration(
+                            color: isCompleted
+                                ? const Color(0xFFF95B3D)
+                                : const Color(0xFFE5E5EA),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                      );
+                    }),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 14),
+
+            // Assessment Personalization Banner Card (from img_0.png)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceWhite,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEDE9FE),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.auto_awesome_rounded,
+                      color: Color(0xFF6366F1),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'Personalised from your assessment',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 2),
+                        Text(
+                          'Focus: thinking on the spot · clarity · confidence',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.textMuted,
+                    size: 22,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // Hero Dark Card (Navy Gradient Card with Circular Progress and Play button)
+            GestureDetector(
+              onTap: () {
+                state.selectActivity(hasStarted ? 'cut_it_in_half' : 'think_fast');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(22),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF1E1B4B).withValues(alpha: 0.25),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    // Circular Progress 1/3
+                    SizedBox(
+                      width: 58,
+                      height: 58,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CircularProgressIndicator(
+                            value: hasStarted ? (2 / 3) : (1 / 3),
+                            strokeWidth: 4,
+                            backgroundColor: Colors.white.withValues(alpha: 0.15),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Color(0xFF10B981),
+                            ),
+                          ),
+                          Text(
+                            hasStarted ? '2/3' : '1/3',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+
+                    // Center Details
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            hasStarted ? 'UP NEXT · ~2 MIN' : 'START HERE · ~2 MIN',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.7),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            hasStarted ? 'Cut it in Half' : 'Think Fast',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            hasStarted
+                                ? 'Get to the point sooner.'
+                                : 'Practise answering clearly when put on the spot.',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.65),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Large Blue Play Button with Concentric Rings
+                    Container(
+                      width: 54,
+                      height: 54,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.45),
+                            blurRadius: 14,
+                            spreadRadius: 2,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.play_arrow_rounded,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Section Heading: TODAY'S PLAN
+            Text(
+              hasStarted ? "TODAY'S PLAN · PERSONALISED FOR YOU" : "TODAY'S PLAN · 3 EXERCISES",
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Exercise 1: Think Fast / Think First
+            _buildExerciseCard(
+              context: context,
+              icon: Icons.bolt_rounded,
+              iconColor: const Color(0xFF3B82F6),
+              iconBgColor: const Color(0xFFEFF6FF),
+              title: hasStarted ? 'Think First' : 'Think Fast',
+              subtitle: hasStarted ? 'You go blank on the spot' : 'Respond on the spot',
+              isCompleted: hasStarted,
+              trailingText: null,
+              onTap: () {
+                state.selectActivity('think_fast');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+
+            // Exercise 2: Cut it in Half
+            _buildExerciseCard(
+              context: context,
+              icon: Icons.content_cut_rounded,
+              iconColor: const Color(0xFFEF4444),
+              iconBgColor: const Color(0xFFFEF2F2),
+              title: 'Cut it in Half',
+              subtitle: hasStarted ? 'Land the point sooner' : 'Get to the point sooner',
+              isCompleted: false,
+              trailingText: hasStarted ? '~2 min' : null,
+              onTap: () {
+                state.selectActivity('cut_it_in_half');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+
+            // Exercise 3: Debate Me
+            _buildExerciseCard(
+              context: context,
+              icon: Icons.chat_bubble_outline_rounded,
+              iconColor: const Color(0xFFF59E0B),
+              iconBgColor: const Color(0xFFFFFBEB),
+              title: 'Debate Me',
+              subtitle: hasStarted ? 'Clients push back on price' : 'Handle pushback confidently',
+              isCompleted: false,
+              trailingText: hasStarted ? '60 sec' : null,
+              onTap: () {
+                state.selectActivity('debate_me');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 18),
+
+            // Bottom Highlight Mint Green Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F5E9),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFC8E6C9), width: 1.0),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFC8E6C9),
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      hasStarted ? Icons.track_changes_rounded : Icons.bar_chart_rounded,
+                      color: const Color(0xFF2E7D32),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          hasStarted ? "THIS WEEK'S PROGRESS" : 'YOUR STARTING POINT',
+                          style: const TextStyle(
+                            color: Color(0xFF2E7D32),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          hasStarted ? 'Fillers down from 5 to 2' : "Complete today's exercises",
+                          style: const TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        Text(
+                          hasStarted ? 'View progress in Insights' : 'to start tracking your progress.',
+                          style: const TextStyle(
+                            color: Color(0xFF2E7D32),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF2E7D32),
+                    size: 22,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHistoryCard(
-      BuildContext context, AppStateProvider state, PracticeSessionRecord item) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceWhite,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
+  static Widget _buildExerciseCard({
+    required BuildContext context,
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBgColor,
+    required String title,
+    required String subtitle,
+    required bool isCompleted,
+    required String? trailingText,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceWhite,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: iconBgColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, color: iconColor, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF141522),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      item.activityName.toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.5,
-                      ),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '${item.durationSeconds}s drill',
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      const Icon(Icons.radio_button_checked, size: 12, color: AppColors.textMuted),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          subtitle,
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
+            ),
+            if (isCompleted)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.royalBlue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
+                width: 26,
+                height: 26,
+                decoration: const BoxDecoration(
+                  color: Color(0xFF10B981),
+                  shape: BoxShape.circle,
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.star_rounded, color: AppColors.royalBlue, size: 14),
-                    const SizedBox(width: 3),
-                    Text(
-                      '${item.feedback.overallScore}/5',
-                      style: const TextStyle(
-                        color: AppColors.royalBlue,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
+                alignment: Alignment.center,
+                child: const Icon(Icons.check, color: Colors.white, size: 16),
+              )
+            else if (trailingText != null)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    trailingText,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            item.promptTitle,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              height: 1.3,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                _formatTimeAgo(item.timestamp),
-                style: const TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              GestureDetector(
-                onTap: () {
-                  state.latestFeedback = item.feedback;
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const FeedbackScreen()),
-                  );
-                },
-                child: Row(
-                  children: const [
-                    Text(
-                      'View Review',
-                      style: TextStyle(
-                        color: AppColors.royalBlue,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
+                ],
+              )
+            else
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0xFFCBD5E1), width: 1.8),
                     ),
-                    SizedBox(width: 2),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      color: AppColors.royalBlue,
-                      size: 16,
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted, size: 20),
+                ],
               ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatTimeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return 'Just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    return '${dt.day}/${dt.month}/${dt.year}';
-  }
-
-  Widget _buildSecondaryActivityRow(String num, String title, String time, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 26,
-              child: Text(
-                num,
-                style: const TextStyle(
-                  color: AppColors.royalBlue,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const Spacer(),
-            Text(
-              time,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
           ],
         ),
       ),
