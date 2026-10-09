@@ -41,14 +41,18 @@ class ActionPillButton extends StatelessWidget {
               border: isSecondary ? Border.all(color: AppColors.surfaceBorder) : null,
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 16.5,
-                    fontWeight: FontWeight.w700,
+                if (showArrow) const SizedBox(width: 36),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: 16.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
                 if (showArrow)

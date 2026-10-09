@@ -50,7 +50,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     {
       'tag': 'YOUR ASSESSMENT',
       'stepNum': '01/07',
-      'titleBlack': "Let's personalize\n",
+      'titleBlack': "Let's personalise\n",
       'titleBlue': 'your plan',
       'subtitle':
           'Answer 7 quick questions to understand how you speak, where you get stuck, and what you want to improve.',
@@ -64,7 +64,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       'progress': 1 / 7,
       'titleBlack': "What's\n",
       'titleBlue': "your name?",
-      'subtitle': "Let's personalize your speaking experience.",
+      'subtitle': "Let's personalise your speaking experience.",
       'isNameInput': true,
       'buttonLabel': 'Continue',
     },
@@ -76,7 +76,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       'progress': 2 / 7,
       'titleBlack': "Which voice profile\n",
       'titleBlue': "fits you best?",
-      'subtitle': "This helps us personalize your voice training.",
+      'subtitle': "This helps us personalise your voice training.",
       'buttonLabel': 'Continue',
       'options': [
         {
@@ -95,7 +95,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           'id': 'non_binary',
           'symbol': '⚧',
           'title': 'Non-binary / Vocal alignment',
-          'subtitle': 'Personalize your pitch and vocal range',
+          'subtitle': 'Personalise your pitch and vocal range',
         },
       ],
     },
@@ -223,7 +223,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           'id': 'blank_pressure',
           'icon': Icons.psychology_outlined,
           'title': 'I go blank under pressure',
-          'subtitle': 'I struggle to organize my thoughts quickly',
+          'subtitle': 'I struggle to organise my thoughts quickly',
         },
         {
           'id': 'too_long',
@@ -600,7 +600,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         const SizedBox(height: 12),
         _buildBenefitCard(
           icon: Icons.article_outlined,
-          title: 'Get a personalized practice plan',
+          title: 'Get a personalised practice plan',
           subtitle: 'Tailored to your goals and needs.',
         ),
         const SizedBox(height: 12),

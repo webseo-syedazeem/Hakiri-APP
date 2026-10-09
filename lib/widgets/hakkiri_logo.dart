@@ -67,7 +67,7 @@ class HakkiriLogo extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Text(
-              'hakkiri',
+              'Hakkiri',
               style: TextStyle(
                 color: isDark ? AppColors.textInverse : const Color(0xFF13141F),
                 fontSize: size * 0.95,

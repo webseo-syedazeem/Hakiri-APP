@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../widgets/hakkiri_logo.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
 import '../widgets/who_its_for_roadmap_view.dart';
@@ -29,9 +28,9 @@ class _LandingScreenState extends State<LandingScreen> {
 
   static const _sectionLabels = [
     'Get started',
-    'Why Hakkiri?',
-    'Is Hakkiri for me?',
     'Explore exercises',
+    'Is Hakkiri for me?',
+    'Why Hakkiri?',
     'Explore your learning path',
     'Start assessment',
   ];
@@ -116,28 +115,48 @@ class _LandingScreenState extends State<LandingScreen> {
                   onPageChanged: (idx) => setState(() => _currentPage = idx),
                   children: [
                     _buildWelcomePage(),
-                    _buildWhoItsForPage(),
-                    _buildTrainCarouselPage(),
                     _buildSeeHowItWorksPage(),
+                    _buildTrainCarouselPage(),
+                    _buildWhoItsForPage(),
                     _buildTrustedByProfessionalsPage(),
                     _buildSuggestedPracticePathPage(),
                   ],
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
+                padding: const EdgeInsets.fromLTRB(24, 6, 24, 0),
                 child: Column(
                   children: [
-                    if (_currentPage > 0) ...[
-                      _buildFiveDotsIndicator(activeIndex: _currentPage - 1),
-                      const SizedBox(height: 14),
+                    // Screen-specific pagination indicators above button
+                    if (_currentPage == 1) ...[
+                      // How it works: 4 dots
+                      _buildDotsIndicator(activeIndex: 0, totalDots: 4),
+                      const SizedBox(height: 12),
+                    ] else if (_currentPage == 3) ...[
+                      // Who it's for: 5 dots
+                      _buildDotsIndicator(activeIndex: 0, totalDots: 5),
+                      const SizedBox(height: 12),
+                    ] else if (_currentPage == 4) ...[
+                      // Testimonials: 4 dots
+                      _buildDotsIndicator(activeIndex: 0, totalDots: 4),
+                      const SizedBox(height: 12),
+                    ] else if (_currentPage == 5) ...[
+                      // Plan: 6 dots left-aligned
+                      _buildDotsIndicator(
+                        activeIndex: 5,
+                        totalDots: 6,
+                        alignment: MainAxisAlignment.start,
+                      ),
+                      const SizedBox(height: 12),
                     ],
+
                     ActionPillButton(
                       label: _sectionLabels[_currentPage],
                       onTap: _currentPage >= _sectionLabels.length - 1
                           ? _goToAssessment
                           : _nextPage,
                     ),
+
                     if (_currentPage == 0) ...[
                       const SizedBox(height: 14),
                       Center(
@@ -164,6 +183,8 @@ class _LandingScreenState extends State<LandingScreen> {
                           ),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      _buildDotsIndicator(activeIndex: 0, totalDots: 3),
                     ],
                   ],
                 ),
@@ -230,7 +251,8 @@ class _LandingScreenState extends State<LandingScreen> {
           Expanded(
             child: Center(
               child: SizedBox(
-                width: double.infinity,
+                width: 290,
+                height: 290,
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
@@ -239,10 +261,22 @@ class _LandingScreenState extends State<LandingScreen> {
                       size: const Size(280, 280),
                       painter: _FluidAmbientBlobsPainter(),
                     ),
-                    // Master Logo
-                    const HakkiriLogo(
-                      variant: HakkiriLogoVariant.fullImage,
-                      size: 160,
+                    // Ambient accent rays to the top left of the mark
+                    Positioned(
+                      top: 40,
+                      left: 32,
+                      child: Transform.rotate(
+                        angle: -0.65,
+                        child: const BlueAccentRays(size: 26),
+                      ),
+                    ),
+                    // Hakkiri Iconic Mark (1:1 with media_1791553946225_6a7d0c13.png)
+                    Image.asset(
+                      'assets/images/hakkiri_icon.png',
+                      width: 155,
+                      height: 155,
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
                     ),
                   ],
                 ),
@@ -975,6 +1009,30 @@ class _LandingScreenState extends State<LandingScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDotsIndicator({
+    required int activeIndex,
+    required int totalDots,
+    Color activeColor = const Color(0xFF0F172A),
+    Color inactiveColor = const Color(0xFFCBD5E1),
+    MainAxisAlignment alignment = MainAxisAlignment.center,
+  }) {
+    return Row(
+      mainAxisAlignment: alignment,
+      children: List.generate(totalDots, (index) {
+        final isActive = index == activeIndex;
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: 7,
+          height: 7,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isActive ? activeColor : inactiveColor,
+          ),
+        );
+      }),
     );
   }
 

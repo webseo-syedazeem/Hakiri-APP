@@ -26,11 +26,11 @@ class AppStrings {
 
   // Fair scoring principles
   static const List<String> fairScoringPrinciples = [
-    'Do not penalize accents; prioritize intelligibility and consonant crispness.',
+    'Do not penalise accents; prioritise intelligibility and consonant crispness.',
     'Do not reward one universal speaking pace; respect individual cadence within 120-175 WPM.',
     'Do not treat all filler words as failures; assess cluster density and crutch reliance.',
     'Do not reward complex vocabulary for its own sake; simplicity and clarity command authority.',
-    'If audio quality is degraded, withhold judgment rather than penalizing.',
+    'If audio quality is degraded, withhold judgement rather than penalising.',
     'Keep streaks and XP strictly separate from 1-5 skill scores.',
   ];
 }
