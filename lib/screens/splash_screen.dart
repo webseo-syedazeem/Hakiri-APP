@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:video_player/video_player.dart';
 import 'landing_screen.dart';
 
-/// Cinematic Splash Screen with live tech bioluminescent aurora movement
-/// matching user specification and media_1791553918548_044104b3.png
+/// Cinematic Splash Screen.
+///
+/// Plays the real bioluminescent live-animation video ([_kSplashVideoAsset])
+/// when it is bundled, and otherwise falls back to a fully code-drawn
+/// bioluminescent aurora so the splash never shows a dead black screen.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -12,13 +16,21 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
+/// Drop the live-animation file here and declare it in pubspec.yaml under
+/// `assets:` to make it play. Until then the painter fallback is used.
+const String _kSplashVideoAsset = 'assets/video/splash.mp4';
+
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
   late final AnimationController _entryController;
   late final AnimationController _ambientController;
   late final Animation<double> _scaleAnimation;
   late final Animation<double> _opacityAnimation;
+  VideoPlayerController? _videoController;
+  bool _videoReady = false;
+  bool _videoFailed = false;
   Timer? _timer;
+  Timer? _fallbackTimer;
   bool _hasNavigated = false;
 
   @override
@@ -39,16 +51,56 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _entryController, curve: Curves.easeIn),
     );
 
-    // Live continuous ambient fluid / tech aurora loop
+    // Live continuous ambient fluid / tech aurora loop (fallback painter)
     _ambientController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 7),
     )..repeat();
 
     _entryController.forward();
+    _initVideo();
 
-    // Navigate to Onboarding after splash duration
-    _timer = Timer(const Duration(milliseconds: 2800), _navigateToNext);
+    // Hang guard only: in the rare case the video neither initialises nor
+    // throws, still leave the splash. Real load/fail paths set their own,
+    // shorter timers below — this must be long enough NOT to cut off a slow
+    // (cold-start) video before it has had a chance to appear.
+    _fallbackTimer = Timer(const Duration(milliseconds: 7000), _navigateToNext);
+  }
+
+  /// Tries to load the live-animation video. Silently keeps the painter
+  /// fallback if the asset is not bundled or fails to initialise.
+  Future<void> _initVideo() async {
+    final controller = VideoPlayerController.asset(_kSplashVideoAsset);
+    try {
+      await controller.initialize();
+      await controller.setLooping(true);
+      await controller.setVolume(0);
+      await controller.play();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      setState(() {
+        _videoController = controller;
+        _videoReady = true;
+      });
+      // Video is up: give it a generous, guaranteed window of screen time so
+      // the live animation is clearly seen (and still visible after a device's
+      // first-frame surface warm-up), replacing the short fallback delay.
+      _fallbackTimer?.cancel();
+      _timer?.cancel();
+      _timer = Timer(const Duration(milliseconds: 4000), _navigateToNext);
+    } catch (_) {
+      await controller.dispose();
+      // Video is unavailable: reveal the code-drawn aurora as the fallback and
+      // move on promptly instead of waiting out the long hang guard.
+      if (mounted) {
+        setState(() => _videoFailed = true);
+        _fallbackTimer?.cancel();
+        _timer?.cancel();
+        _timer = Timer(const Duration(milliseconds: 2200), _navigateToNext);
+      }
+    }
   }
 
   void _navigateToNext() {
@@ -69,8 +121,10 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _timer?.cancel();
+    _fallbackTimer?.cancel();
     _entryController.dispose();
     _ambientController.dispose();
+    _videoController?.dispose();
     super.dispose();
   }
 
@@ -81,19 +135,82 @@ class _SplashScreenState extends State<SplashScreen>
       child: Scaffold(
         backgroundColor: const Color(0xFF000512),
         body: Stack(
+          fit: StackFit.expand,
           children: [
-            // Live Bioluminescent Tech Background Painter
-            AnimatedBuilder(
-              animation: _ambientController,
-              builder: (context, _) {
-                return CustomPaint(
-                  size: Size.infinite,
-                  painter: BioluminescentTechBackgroundPainter(
-                    animationValue: _ambientController.value,
-                  ),
-                );
-              },
+            // Static deep-space base. Shown instantly and while the video
+            // decodes, so the splash opens clean — no animated rings/waves
+            // flash before the video appears.
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment(0.0, -0.05),
+                  radius: 1.15,
+                  colors: [
+                    Color(0xFF0A1C44),
+                    Color(0xFF04102B),
+                    Color(0xFF010818),
+                    Color(0xFF00030A),
+                  ],
+                  stops: [0.0, 0.4, 0.78, 1.0],
+                ),
+              ),
+              child: SizedBox.expand(),
             ),
+
+            // Code-drawn aurora — revealed ONLY if the video genuinely fails
+            // to load, as the animated fallback.
+            if (_videoFailed)
+              AnimatedBuilder(
+                animation: _ambientController,
+                builder: (context, _) {
+                  return CustomPaint(
+                    size: Size.infinite,
+                    painter: BioluminescentTechBackgroundPainter(
+                      animationValue: _ambientController.value,
+                    ),
+                  );
+                },
+              ),
+
+            // Real live-animation video, crossfaded in over the base once
+            // it is initialised so there is never a hard pop or black frame.
+            if (_videoController != null)
+              AnimatedOpacity(
+                opacity: _videoReady ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 500),
+                child: FittedBox(
+                  fit: BoxFit.cover,
+                  clipBehavior: Clip.hardEdge,
+                  child: SizedBox(
+                    width: _videoController!.value.size.width,
+                    height: _videoController!.value.size.height,
+                    child: VideoPlayer(_videoController!),
+                  ),
+                ),
+              ),
+
+            // Gentle veil so the brand mark stays legible over the bright live
+            // video, while keeping the bioluminescent motion visible throughout.
+            if (_videoReady)
+              AnimatedOpacity(
+                opacity: _videoReady ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 500),
+                child: const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.center,
+                      radius: 1.2,
+                      colors: [
+                        Color(0x4D000512),
+                        Color(0x1A000512),
+                        Color(0x00000512),
+                      ],
+                      stops: [0.0, 0.55, 0.9],
+                    ),
+                  ),
+                  child: SizedBox.expand(),
+                ),
+              ),
 
             // Glowing Hakkiri Logo in Center
             Center(

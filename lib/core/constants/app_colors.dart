@@ -14,16 +14,17 @@ class AppColors {
   static const Color darkSurfaceCard = Color(0xFF1A1C2B);
   static const Color darkBorder = Color(0xFF26283D);
 
-  // Brand Accents
-  static const Color royalBlue = Color(0xFF3446EB);
-  static const Color royalBlueLight = Color(0xFF495BFF);
-  static const Color royalBlueSoft = Color(0xFFEBEFFF);
+  // Brand Accents — unified to the #2563EB family used across onboarding & the
+  // reference design, so every screen shares one brand blue.
+  static const Color royalBlue = Color(0xFF2563EB);
+  static const Color royalBlueLight = Color(0xFF3B82F6);
+  static const Color royalBlueSoft = Color(0xFFEFF6FF);
   static const Color coralRed = Color(0xFFFF443A);
   static const Color coralBadge = Color(0xFFE55745);
 
   // Chart & Metric Tints
   static const Color chartLavender = Color(0xFF9EA7FA);
-  static const Color chartBlue = Color(0xFF3446EB);
+  static const Color chartBlue = Color(0xFF2563EB);
   static const Color chartMuted = Color(0xFFE4E2D8);
 
   // Text Colors
