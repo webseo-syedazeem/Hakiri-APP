@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'core/constants/app_colors.dart';
+import 'core/smooth_page_transitions.dart';
 import 'core/services/supabase_service.dart';
 import 'providers/app_state_provider.dart';
 import 'screens/splash_screen.dart';
@@ -39,6 +40,16 @@ class HakkiriApp extends StatelessWidget {
           ),
           textTheme: GoogleFonts.interTextTheme(
             ThemeData.light().textTheme,
+          ),
+          // Smooth fade + slide transition for every screen navigation.
+          pageTransitionsTheme: const PageTransitionsTheme(
+            builders: {
+              TargetPlatform.android: SmoothPageTransitionsBuilder(),
+              TargetPlatform.iOS: SmoothPageTransitionsBuilder(),
+              TargetPlatform.macOS: SmoothPageTransitionsBuilder(),
+              TargetPlatform.windows: SmoothPageTransitionsBuilder(),
+              TargetPlatform.linux: SmoothPageTransitionsBuilder(),
+            },
           ),
           useMaterial3: true,
         ),
