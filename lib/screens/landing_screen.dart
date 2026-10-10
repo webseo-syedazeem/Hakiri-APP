@@ -200,104 +200,130 @@ class _LandingScreenState extends State<LandingScreen> {
   // PAGE 0: WELCOME (media_1791376750433.png)
   // ==========================================
   Widget _buildWelcomePage() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 12),
-
-          // Heading
-          Column(
+    return Stack(
+      children: [
+        // Subtle ambient top-right pastel organic gradient backdrop (Image 2)
+        Positioned(
+          top: -40,
+          right: -40,
+          child: IgnorePointer(
+            child: Container(
+              width: 240,
+              height: 240,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(0xFFE8F2FE).withValues(alpha: 0.60),
+                    const Color(0xFFF1F6FF).withValues(alpha: 0.35),
+                    const Color(0x00FFFFFF),
+                  ],
+                  stops: const [0.0, 0.55, 1.0],
+                ),
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
+              const SizedBox(height: 12),
+
+              // Heading
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const Text(
+                        'Think clearly.',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 38,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF0F172A),
+                          height: 1.15,
+                          letterSpacing: -1.0,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Transform.translate(
+                        offset: const Offset(0, -8),
+                        child: const BlueAccentRays(size: 26),
+                      ),
+                    ],
+                  ),
                   const Text(
-                    'Think clearly.',
+                    'Speak with\npurpose.',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 38,
                       fontWeight: FontWeight.w900,
-                      color: Color(0xFF0F172A),
+                      color: Color(0xFF2563EB),
                       height: 1.15,
                       letterSpacing: -1.0,
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  Transform.translate(
-                    offset: const Offset(0, -8),
-                    child: const BlueAccentRays(size: 26),
-                  ),
                 ],
               ),
-              const Text(
-                'Speak with\npurpose.',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 38,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF2563EB),
-                  height: 1.15,
-                  letterSpacing: -1.0,
+
+              // Center Logo & Clean Pastel Ambient Surrounds (Matching Image 2)
+              Expanded(
+                child: Center(
+                  child: SizedBox(
+                    width: 290,
+                    height: 290,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Soft clean pastel background blobs & floating accent bubbles
+                        CustomPaint(
+                          size: const Size(290, 290),
+                          painter: _FluidAmbientBlobsPainter(),
+                        ),
+                        // Ambient accent rays to the top left of the mark
+                        Positioned(
+                          top: 40,
+                          left: 32,
+                          child: Transform.rotate(
+                            angle: -0.65,
+                            child: const BlueAccentRays(size: 26),
+                          ),
+                        ),
+                        // Hakkiri Iconic Mark
+                        Image.asset(
+                          'assets/images/hakkiri_icon.png',
+                          width: 155,
+                          height: 155,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
+
+              // Subtitle: Exercises. AI feedback. Data insights.
+              const Center(
+                child: Text(
+                  'Exercises. AI feedback. Data insights.',
+                  style: TextStyle(
+                    color: Color(0xFF475569),
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
             ],
           ),
-
-          // Center Logo & Fluid Ambient Background
-          Expanded(
-            child: Center(
-              child: SizedBox(
-                width: 290,
-                height: 290,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Soft fluid pastel background blobs
-                    CustomPaint(
-                      size: const Size(280, 280),
-                      painter: _FluidAmbientBlobsPainter(),
-                    ),
-                    // Ambient accent rays to the top left of the mark
-                    Positioned(
-                      top: 40,
-                      left: 32,
-                      child: Transform.rotate(
-                        angle: -0.65,
-                        child: const BlueAccentRays(size: 26),
-                      ),
-                    ),
-                    // Hakkiri Iconic Mark (1:1 with media_1791553946225_6a7d0c13.png)
-                    Image.asset(
-                      'assets/images/hakkiri_icon.png',
-                      width: 155,
-                      height: 155,
-                      fit: BoxFit.contain,
-                      filterQuality: FilterQuality.high,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // Subtitle: Exercises. AI feedback. Data insights.
-          const Center(
-            child: Text(
-              'Exercises. AI feedback. Data insights.',
-              style: TextStyle(
-                color: Color(0xFF475569),
-                fontSize: 14.5,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1789,29 +1815,93 @@ class _Storytelling3dPathPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// Ambient soft fluid background bubbles for welcome page
+/// Clean, professional ambient pastel surrounds for welcome page matching Image 2
 class _FluidAmbientBlobsPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width * 0.5, size.height * 0.5);
 
+    // 1. Soft organic backdrop shape in the upper-right / behind mark
+    final organicPath = Path()
+      ..moveTo(size.width * 0.45, 0)
+      ..cubicTo(
+        size.width * 0.80, size.height * 0.04,
+        size.width * 1.05, size.height * 0.22,
+        size.width * 0.98, size.height * 0.52,
+      )
+      ..cubicTo(
+        size.width * 0.92, size.height * 0.80,
+        size.width * 0.72, size.height * 0.96,
+        size.width * 0.50, size.height * 0.95,
+      )
+      ..cubicTo(
+        size.width * 0.28, size.height * 0.94,
+        size.width * 0.12, size.height * 0.78,
+        size.width * 0.14, size.height * 0.58,
+      )
+      ..cubicTo(
+        size.width * 0.16, size.height * 0.36,
+        size.width * 0.25, size.height * 0.12,
+        size.width * 0.45, 0,
+      )
+      ..close();
+
+    final organicPaint = Paint()
+      ..color = const Color(0xFFEFF6FF).withValues(alpha: 0.75)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(organicPath, organicPaint);
+
+    // 2. Soft ambient circular glow - Fading to pure transparent white (0x00FFFFFF)
+    // to prevent ANY dirty grey radial banding
     final glowPaint = Paint()
       ..shader = RadialGradient(
         colors: [
-          const Color(0xFFDBEAFE).withValues(alpha: 0.65),
-          const Color(0xFFEFF6FF).withValues(alpha: 0.45),
-          Colors.transparent,
+          const Color(0xFFE2EFFF).withValues(alpha: 0.80),
+          const Color(0xFFEFF6FF).withValues(alpha: 0.50),
+          const Color(0x00FFFFFF), // Pure white transparent, no grey artifacts
         ],
-        stops: const [0.0, 0.65, 1.0],
-      ).createShader(Rect.fromCircle(center: center, radius: size.width * 0.5));
+        stops: const [0.0, 0.60, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: size.width * 0.48));
 
-    canvas.drawCircle(center, size.width * 0.5, glowPaint);
+    canvas.drawCircle(center, size.width * 0.48, glowPaint);
 
-    final blobPaint1 = Paint()
-      ..color = const Color(0xFFEFF6FF)
+    // 3. Clean crisp central circular base behind mark
+    final baseDiscPaint = Paint()
+      ..color = const Color(0xFFF3F8FE)
       ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, 78.0, baseDiscPaint);
 
-    canvas.drawCircle(center, size.width * 0.38, blobPaint1);
+    // 4. Floating pastel accent bubbles (1:1 with Image 2)
+    final bubblePaint = Paint()..style = PaintingStyle.fill;
+
+    // Bubble 1: Top-Right
+    bubblePaint.color = const Color(0xFFDBEAFE).withValues(alpha: 0.85);
+    canvas.drawCircle(Offset(center.dx + 84, center.dy - 68), 10.5, bubblePaint);
+
+    // Bubble 2: Mid-Right
+    bubblePaint.color = const Color(0xFFBFDBFE).withValues(alpha: 0.75);
+    canvas.drawCircle(Offset(center.dx + 110, center.dy + 24), 8.0, bubblePaint);
+
+    // Bubble 3: Lower-Right
+    bubblePaint.color = const Color(0xFF93C5FD).withValues(alpha: 0.70);
+    canvas.drawCircle(Offset(center.dx + 78, center.dy + 96), 6.0, bubblePaint);
+
+    // Bubble 4: Lower-Left (soft larger accent bubble)
+    bubblePaint.color = const Color(0xFFEFF6FF);
+    canvas.drawCircle(Offset(center.dx - 96, center.dy + 78), 15.0, bubblePaint);
+    final bubbleBorder = Paint()
+      ..color = const Color(0xFFDBEAFE).withValues(alpha: 0.60)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+    canvas.drawCircle(Offset(center.dx - 96, center.dy + 78), 15.0, bubbleBorder);
+
+    // Bubble 5: Far-Left small dot
+    bubblePaint.color = const Color(0xFFDBEAFE).withValues(alpha: 0.65);
+    canvas.drawCircle(Offset(center.dx - 106, center.dy - 20), 5.0, bubblePaint);
+
+    // Bubble 6: Top Center-Right
+    bubblePaint.color = const Color(0xFFDBEAFE).withValues(alpha: 0.60);
+    canvas.drawCircle(Offset(center.dx + 26, center.dy - 104), 5.5, bubblePaint);
   }
 
   @override

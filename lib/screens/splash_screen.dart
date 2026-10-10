@@ -123,7 +123,7 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-/// Ultra-smooth bioluminescent tech background with fluid aurora filaments
+/// Ultra-smooth bioluminescent tech background with elegant acoustic resonance
 class BioluminescentTechBackgroundPainter extends CustomPainter {
   final double animationValue;
 
@@ -151,7 +151,7 @@ class BioluminescentTechBackgroundPainter extends CustomPainter {
       ).createShader(rect);
     canvas.drawRect(rect, bgPaint);
 
-    // 2. Center bioluminescent core bloom (behind the logo)
+    // 2. Center bioluminescent core bloom (directly behind the glowing logo)
     final pulseScale = 1.0 + 0.08 * sin(t);
     final coreGlowPaint = Paint()
       ..shader = RadialGradient(
@@ -159,22 +159,25 @@ class BioluminescentTechBackgroundPainter extends CustomPainter {
         radius: 0.65 * pulseScale,
         colors: [
           const Color(0xFF00D2FF).withValues(alpha: 0.16 + 0.04 * cos(t)),
-          const Color(0xFF3B82F6).withValues(alpha: 0.09),
-          Colors.transparent,
+          const Color(0xFF3B82F6).withValues(alpha: 0.08),
+          const Color(0x00010818), // Clean fade into deep space
         ],
         stops: const [0.0, 0.45, 1.0],
       ).createShader(rect);
     canvas.drawCircle(Offset(w * 0.5, h * 0.5), w * 0.62 * pulseScale, coreGlowPaint);
 
-    // 3. Fluid bioluminescent aurora ribbons
+    // 3. Subtle concentric acoustic / orbital resonance rings
+    _drawAcousticRings(canvas, size, phase: t);
+
+    // 4. Fluid acoustic waveform ribbons (positioned below logo so mark remains pristine)
     _drawFluidAuroraRibbon(
       canvas,
       size,
       phase: t,
-      amplitude: h * 0.055,
-      baseY: h * 0.42,
-      strokeWidth: 4.0,
-      glowWidth: 18.0,
+      amplitude: h * 0.035,
+      baseY: h * 0.69,
+      strokeWidth: 2.5,
+      glowWidth: 14.0,
       color: const Color(0xFF38BDF8),
     );
 
@@ -182,39 +185,50 @@ class BioluminescentTechBackgroundPainter extends CustomPainter {
       canvas,
       size,
       phase: t + 2.1,
-      amplitude: h * 0.075,
-      baseY: h * 0.55,
-      strokeWidth: 3.5,
-      glowWidth: 22.0,
+      amplitude: h * 0.045,
+      baseY: h * 0.75,
+      strokeWidth: 2.2,
+      glowWidth: 16.0,
       color: const Color(0xFF00E5FF),
     );
 
-    _drawEtherealFilament(
-      canvas,
-      size,
-      phase: t * 1.15,
-      baseX: w * 0.52,
-    );
-
-    // 4. Floating bioluminescent light particles/motes
+    // 5. Floating bioluminescent light particles/motes
     final particlePaint = Paint()..style = PaintingStyle.fill;
     final particles = [
-      (0.24, 0.34, 3.0, 0.8),
-      (0.78, 0.28, 2.6, 1.4),
-      (0.18, 0.62, 2.2, 2.0),
-      (0.82, 0.68, 3.2, 0.5),
-      (0.35, 0.76, 2.0, 1.8),
-      (0.65, 0.78, 2.8, 2.7),
-      (0.48, 0.22, 2.4, 0.3),
-      (0.55, 0.85, 2.0, 1.1),
+      (0.24, 0.34, 2.5, 0.8),
+      (0.78, 0.28, 2.2, 1.4),
+      (0.18, 0.62, 1.8, 2.0),
+      (0.82, 0.68, 2.8, 0.5),
+      (0.35, 0.76, 1.8, 1.8),
+      (0.65, 0.78, 2.4, 2.7),
+      (0.48, 0.22, 2.0, 0.3),
+      (0.55, 0.85, 1.8, 1.1),
     ];
 
     for (final p in particles) {
       final px = (p.$1 * w + sin(t + p.$4) * 14) % w;
-      final py = (p.$2 * h - (animationValue * h * 0.12) + cos(t * 0.7 + p.$4) * 8) % h;
+      final py = (p.$2 * h - (animationValue * h * 0.10) + cos(t * 0.7 + p.$4) * 8) % h;
       final alpha = (0.35 + 0.30 * sin(t * 1.5 + p.$4)).clamp(0.0, 1.0);
       particlePaint.color = const Color(0xFF67E8F9).withValues(alpha: alpha);
       canvas.drawCircle(Offset(px, py), p.$3, particlePaint);
+    }
+  }
+
+  void _drawAcousticRings(Canvas canvas, Size size, {required double phase}) {
+    final center = Offset(size.width * 0.5, size.height * 0.5);
+    final ringPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    final rings = [
+      (size.width * 0.36, 0.07 + 0.02 * sin(phase)),
+      (size.width * 0.52, 0.05 + 0.02 * cos(phase)),
+      (size.width * 0.70, 0.03 + 0.01 * sin(phase * 1.3)),
+    ];
+
+    for (final (radius, alpha) in rings) {
+      ringPaint.color = const Color(0xFF38BDF8).withValues(alpha: alpha);
+      canvas.drawCircle(center, radius, ringPaint);
     }
   }
 
@@ -244,56 +258,20 @@ class BioluminescentTechBackgroundPainter extends CustomPainter {
 
     // Outer soft glow
     final glowPaint = Paint()
-      ..color = color.withValues(alpha: 0.12)
+      ..color = color.withValues(alpha: 0.10)
       ..style = PaintingStyle.stroke
       ..strokeWidth = glowWidth
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
-    canvas.drawPath(path, glowPaint);
-
-    // Inner bright core
-    final corePaint = Paint()
-      ..color = color.withValues(alpha: 0.55)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(path, corePaint);
-  }
-
-  void _drawEtherealFilament(
-    Canvas canvas,
-    Size size, {
-    required double phase,
-    required double baseX,
-  }) {
-    final h = size.height;
-
-    final path = Path();
-    final startY = h * 0.18;
-    final endY = h * 0.82;
-    path.moveTo(baseX + sin(phase) * 18, startY);
-
-    final cp1x = baseX + sin(phase + 1.2) * 55;
-    final cp1y = h * 0.38;
-    final cp2x = baseX - cos(phase * 0.8) * 60;
-    final cp2y = h * 0.62;
-    final endX = baseX + sin(phase * 1.4) * 25;
-    path.cubicTo(cp1x, cp1y, cp2x, cp2y, endX, endY);
-
-    final glowPaint = Paint()
-      ..color = const Color(0xFF00E5FF).withValues(alpha: 0.16)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 14
       ..strokeCap = StrokeCap.round
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
     canvas.drawPath(path, glowPaint);
 
-    final filamentPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.60)
+    // Inner bright core
+    final corePaint = Paint()
+      ..color = color.withValues(alpha: 0.45)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
-    canvas.drawPath(path, filamentPaint);
+    canvas.drawPath(path, corePaint);
   }
 
   @override
