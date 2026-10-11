@@ -106,13 +106,31 @@ class _SplashScreenState extends State<SplashScreen>
   void _navigateToNext() {
     if (_hasNavigated || !mounted) return;
     _hasNavigated = true;
+
+    // Pause the video before transitioning so its codec/GPU work doesn't
+    // collide with the fade and cause a frame hitch ("jerk") as we leave.
+    _videoController?.pause();
+
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 600),
+        transitionDuration: const Duration(milliseconds: 700),
+        reverseTransitionDuration: const Duration(milliseconds: 500),
         pageBuilder: (_, __, ___) => const LandingScreen(),
         transitionsBuilder: (_, animation, __, child) {
-          return FadeTransition(opacity: animation, child: child);
+          // Cross-fade with a gentle settle-in scale so the next screen opens
+          // smoothly instead of popping in.
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeInOutCubic,
+          );
+          return FadeTransition(
+            opacity: curved,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 1.03, end: 1.0).animate(curved),
+              child: child,
+            ),
+          );
         },
       ),
     );

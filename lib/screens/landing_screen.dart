@@ -20,9 +20,12 @@ class LandingScreen extends StatefulWidget {
   State<LandingScreen> createState() => _LandingScreenState();
 }
 
-class _LandingScreenState extends State<LandingScreen> {
+class _LandingScreenState extends State<LandingScreen>
+    with SingleTickerProviderStateMixin {
   late final PageController _pageController;
   late final PageController _trainCardController;
+  late final AnimationController _entryController;
+  late final Animation<Offset> _entrySlide;
   int _currentPage = 0;
   int _carouselIndex = 0;
 
@@ -41,12 +44,29 @@ class _LandingScreenState extends State<LandingScreen> {
     _currentPage = widget.initialPage;
     _pageController = PageController(initialPage: widget.initialPage);
     _trainCardController = PageController(viewportFraction: 0.76);
+
+    // Smooth entrance: the screen fades in and gently rises into place as it
+    // opens, so it never pops in abruptly after the splash transition.
+    _entryController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _entrySlide = Tween<Offset>(
+      begin: const Offset(0.0, 0.04),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic));
+
+    // Start just after first frame so the opening is seen, not skipped.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _entryController.forward();
+    });
   }
 
   @override
   void dispose() {
     _pageController.dispose();
     _trainCardController.dispose();
+    _entryController.dispose();
     super.dispose();
   }
 
@@ -98,7 +118,9 @@ class _LandingScreenState extends State<LandingScreen> {
       backgroundColor: Colors.white,
       body: SafeArea(
         bottom: !isIOS,
-        child: Padding(
+        child: SlideTransition(
+          position: _entrySlide,
+          child: Padding(
           padding: EdgeInsets.only(bottom: bottomGap),
           child: Column(
             children: [
@@ -192,6 +214,7 @@ class _LandingScreenState extends State<LandingScreen> {
             ],
           ),
         ),
+            ),
       ),
     );
   }
