@@ -483,34 +483,53 @@ class _LandingScreenState extends State<LandingScreen>
   Widget _buildTrainCarouselPage() {
     final exercises = [
       {
-        'tag': '01 - 05',
-        'title': 'Storytelling\nGym',
-        'desc': 'Make people lean in. Shape everyday moments into compelling stories.',
-        'type': 'storytelling',
+        'tag': '01 - 07',
+        'title': 'Think Fast',
+        'tagline': 'Think clearly under pressure.',
+        'desc': 'Answer an unexpected question with a few seconds to prepare, then speak for 60 seconds.',
+        'type': 'think_fast',
       },
       {
-        'tag': '02 - 05',
-        'title': 'One\nMinute\nExpert',
-        'desc': 'Know it. Explain it. Give a confident one minute explanation.',
-        'type': 'stopwatch',
+        'tag': '02 - 07',
+        'title': 'Connect\nthe Dots',
+        'tagline': 'Make unexpected connections.',
+        'desc': 'Link two unrelated topics into one clear, logical idea.',
+        'type': 'connect_dots',
       },
       {
-        'tag': '03 - 05',
-        'title': 'Debate\nMe',
-        'desc': 'Hold your ground under pressure. Rebut surprise arguments with confidence.',
-        'type': 'debate',
+        'tag': '03 - 07',
+        'title': 'Explain\nIt Simply',
+        'tagline': 'Make complex ideas easy to understand.',
+        'desc': 'Take a complicated topic and explain it clearly to someone without specialist knowledge.',
+        'type': 'explain',
       },
       {
-        'tag': '04 - 05',
-        'title': 'Cut It\nIn Half',
-        'desc': 'Say more with less. Strip away filler and double your message density.',
+        'tag': '04 - 07',
+        'title': 'Cut It\nin Half',
+        'tagline': 'Get to the point faster.',
+        'desc': 'Turn a long message into a shorter, clearer summary without losing the meaning.',
         'type': 'cut_it_in_half',
       },
       {
-        'tag': '05 - 05',
-        'title': 'Think\nFast',
-        'desc': 'Eliminate awkward pauses. Answer high-stakes surprise questions instantly.',
-        'type': 'think_fast',
+        'tag': '05 - 07',
+        'title': 'Storytelling\nGym',
+        'tagline': 'Make people lean in.',
+        'desc': 'Turn information into a structured, memorable story with a clear point.',
+        'type': 'storytelling',
+      },
+      {
+        'tag': '06 - 07',
+        'title': 'One Minute\nExpert',
+        'tagline': 'Know it. Explain it.',
+        'desc': 'Choose a topic and explain it clearly, confidently and coherently in 60 seconds.',
+        'type': 'stopwatch',
+      },
+      {
+        'tag': '07 - 07',
+        'title': 'Debate\nMe',
+        'tagline': 'Hold your ground.',
+        'desc': 'Respond to a challenging position with a clear, confident rebuttal under pressure.',
+        'type': 'debate',
       },
     ];
 
@@ -605,6 +624,18 @@ class _LandingScreenState extends State<LandingScreen>
                         ),
                         const SizedBox(height: 6),
 
+                        // Tagline (blue)
+                        Text(
+                          ex['tagline']!,
+                          style: const TextStyle(
+                            color: Color(0xFF2563EB),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            height: 1.25,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+
                         // Description
                         Text(
                           ex['desc']!,
@@ -619,15 +650,7 @@ class _LandingScreenState extends State<LandingScreen>
 
                         // Graphic Illustration (100% Crisp Native Vector Graphics)
                         Center(
-                          child: ex['type'] == 'storytelling'
-                              ? _buildStorytellingIllustration()
-                              : ex['type'] == 'stopwatch'
-                                  ? _buildStopwatchIllustration()
-                                  : ex['type'] == 'debate'
-                                      ? _buildDebateIllustration()
-                                      : ex['type'] == 'cut_it_in_half'
-                                          ? _buildCutInHalfIllustration()
-                                          : _buildThinkFastIllustration(),
+                          child: _buildExerciseIllustration(ex['type']!),
                         ),
                         const Spacer(),
                       ],
@@ -1553,6 +1576,72 @@ class _LandingScreenState extends State<LandingScreen>
     );
   }
 
+  /// Dispatches to the right exercise illustration for the onboarding carousel.
+  Widget _buildExerciseIllustration(String type) {
+    switch (type) {
+      case 'storytelling':
+        return _buildStorytellingIllustration();
+      case 'stopwatch':
+        return _buildStopwatchIllustration();
+      case 'debate':
+        return _buildDebateIllustration();
+      case 'cut_it_in_half':
+        return _buildCutInHalfIllustration();
+      case 'connect_dots':
+        return _buildConnectDotsIllustration();
+      case 'explain':
+        return _buildExplainIllustration();
+      case 'think_fast':
+      default:
+        return _buildThinkFastIllustration();
+    }
+  }
+
+  /// "Connect the Dots" — three linked nodes (molecule) in blue tints.
+  Widget _buildConnectDotsIllustration() {
+    return const SizedBox(
+      width: 130,
+      height: 100,
+      child: CustomPaint(painter: _ConnectDotsPainter()),
+    );
+  }
+
+  /// "Explain It Simply" — a glowing lightbulb with a soft blue halo.
+  Widget _buildExplainIllustration() {
+    return Container(
+      width: 100,
+      height: 100,
+      decoration: BoxDecoration(
+        gradient: const RadialGradient(
+          colors: [Color(0xFFEFF6FF), Color(0xFFDBEAFE)],
+        ),
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2563EB).withValues(alpha: 0.18),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      alignment: Alignment.center,
+      child: Container(
+        width: 58,
+        height: 58,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+          ),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: const Icon(Icons.lightbulb_rounded, color: Colors.white, size: 32),
+      ),
+    );
+  }
+
   Widget _buildStopwatchIllustration() {
     return Container(
       width: 100,
@@ -1754,6 +1843,61 @@ class _LandingScreenState extends State<LandingScreen>
       ),
     );
   }
+}
+
+/// "Connect the Dots" — three nodes joined by soft links, like a molecule.
+class _ConnectDotsPainter extends CustomPainter {
+  const _ConnectDotsPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final nodes = [
+      Offset(w * 0.20, h * 0.68),
+      Offset(w * 0.52, h * 0.30),
+      Offset(w * 0.82, h * 0.62),
+    ];
+    const radii = [16.0, 22.0, 13.0];
+
+    // Links between the nodes.
+    final linkPaint = Paint()
+      ..color = const Color(0xFF93C5FD)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(nodes[0], nodes[1], linkPaint);
+    canvas.drawLine(nodes[1], nodes[2], linkPaint);
+
+    // Soft glow behind the nodes.
+    for (int i = 0; i < nodes.length; i++) {
+      final glow = Paint()
+        ..color = const Color(0xFF2563EB).withValues(alpha: 0.18)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
+      canvas.drawCircle(nodes[i], radii[i] + 4, glow);
+    }
+
+    // Node spheres with a top-left highlight for a 3D feel.
+    for (int i = 0; i < nodes.length; i++) {
+      final sphere = Paint()
+        ..shader = RadialGradient(
+          center: const Alignment(-0.4, -0.5),
+          colors: const [Color(0xFF60A5FA), Color(0xFF1D4ED8)],
+        ).createShader(Rect.fromCircle(center: nodes[i], radius: radii[i]));
+      canvas.drawCircle(nodes[i], radii[i], sphere);
+
+      final highlight = Paint()..color = Colors.white.withValues(alpha: 0.55);
+      canvas.drawCircle(
+        nodes[i].translate(-radii[i] * 0.3, -radii[i] * 0.35),
+        radii[i] * 0.28,
+        highlight,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// 100% Crisp 3D Isometric Vector Painter for Storytelling Gym
