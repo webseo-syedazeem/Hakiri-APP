@@ -7,8 +7,8 @@ import '../widgets/action_pill_button.dart';
 import '../widgets/auth_waveform_watermark.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/hakkiri_logo.dart';
-import 'assessment_screen.dart';
 import 'home_screen.dart';
+import 'landing_screen.dart';
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -73,9 +73,12 @@ class _SignupScreenState extends State<SignupScreen> {
             ),
       );
       if (!mounted) return;
+      // New account: Signup → Onboarding → Assessment → Home
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const AssessmentScreen()),
+        MaterialPageRoute(
+          builder: (_) => const LandingScreen(postSignup: true),
+        ),
         (route) => false,
       );
     } on HakkiriApiException catch (e) {
@@ -99,14 +102,13 @@ class _SignupScreenState extends State<SignupScreen> {
         action: () => state.continueWithGoogle(),
       );
       if (!mounted) return;
-      // New Google account → assessment funnel; returning user → home.
+      // Returning onboarded → Home. New → Onboarding → Assessment.
+      final next = state.isOnboarded
+          ? const HomeScreen()
+          : const LandingScreen(postSignup: true);
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (_) => state.isOnboarded
-              ? const HomeScreen()
-              : const AssessmentScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => next),
         (route) => false,
       );
     } on HakkiriApiException catch (e) {

@@ -8,15 +8,23 @@ import 'assessment_screen.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
 
-/// Complete Professional Onboarding Experience matching user's target designs:
-/// - Page 0: Welcome ("Think clearly. Speak with purpose.")
-/// - Page 1: Who it's for ("Built for meetings, interviews and everyday conversations.")
-/// - Page 2: Train carousel ("Train the way you think and speak.")
-/// - Page 3: See how it works ("Storytelling Gym" prompt & "Your feedback" card)
+/// Onboarding experience.
+///
+/// New-account funnel:
+///   Welcome (Get started) → Signup → onboarding pages → Assessment → Home
+///
+/// [postSignup] = true starts at page 1 (skip welcome) after account create.
 class LandingScreen extends StatefulWidget {
   final int initialPage;
 
-  const LandingScreen({super.key, this.initialPage = 0});
+  /// After signup: show onboarding pages then Assessment (not Signup again).
+  final bool postSignup;
+
+  const LandingScreen({
+    super.key,
+    this.initialPage = 0,
+    this.postSignup = false,
+  });
 
   @override
   State<LandingScreen> createState() => _LandingScreenState();
@@ -40,8 +48,12 @@ class _LandingScreenState extends State<LandingScreen> {
   @override
   void initState() {
     super.initState();
-    _currentPage = widget.initialPage;
-    _pageController = PageController(initialPage: widget.initialPage);
+    // Post-signup onboarding skips the welcome/signup page.
+    final start = widget.postSignup
+        ? (widget.initialPage > 0 ? widget.initialPage : 1)
+        : widget.initialPage;
+    _currentPage = start;
+    _pageController = PageController(initialPage: start);
     _trainCardController = PageController(viewportFraction: 0.76);
   }
 
@@ -53,10 +65,6 @@ class _LandingScreenState extends State<LandingScreen> {
   }
 
   void _nextPage() {
-    if (_currentPage == 0) {
-      _goToSignup();
-      return;
-    }
     if (_currentPage < 5) {
       _pageController.animateToPage(
         _currentPage + 1,
@@ -173,7 +181,7 @@ class _LandingScreenState extends State<LandingScreen> {
 
                     ActionPillButton(
                       label: _sectionLabels[_currentPage],
-                      onTap: _currentPage == 0
+                      onTap: _currentPage == 0 && !widget.postSignup
                           ? _goToSignup
                           : (_currentPage >= _sectionLabels.length - 1
                               ? _goToAssessment

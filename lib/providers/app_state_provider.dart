@@ -247,13 +247,15 @@ class AppStateProvider extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
+    // Wipe previous member's assessment so a fresh account never looks "done".
+    _resetAssessmentLocalState();
     final data = await _api.register(
       fullName: name,
       email: email,
       password: password,
     );
     _applyAuthPayload(data);
-    // Signup starts the assessment funnel in this session only.
+    // Signup always starts the assessment funnel.
     isOnboarded = false;
     await _api.persistOnboarded(false);
     notifyListeners();
@@ -263,9 +265,10 @@ class AppStateProvider extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
+    _resetAssessmentLocalState();
     final data = await _api.login(email: email, password: password);
     _applyAuthPayload(data);
-    // Returning members always resume on Home.
+    // Login always resumes on Home — mark session ready locally.
     isOnboarded = true;
     await _api.persistOnboarded(true);
     unawaited(refreshFromApi());
@@ -274,15 +277,29 @@ class AppStateProvider extends ChangeNotifier {
 
   Future<Map<String, dynamic>> continueWithGoogle() async {
     final google = await GoogleAuthService.signIn();
+    _resetAssessmentLocalState();
     final data = await _api.loginWithGoogle(idToken: google.idToken);
     _applyAuthPayload(data);
     final created = data['created'] == true;
+    final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
+    final done = !created && profile['onboarding_complete'] == true;
+    isOnboarded = done;
+    await _api.persistOnboarded(done);
     if (!created) {
-      isOnboarded = true;
-      await _api.persistOnboarded(true);
+      unawaited(refreshFromApi());
     }
-    unawaited(refreshFromApi());
     return data;
+  }
+
+  void _resetAssessmentLocalState() {
+    answers.voiceProfile = null;
+    answers.careerStage = null;
+    answers.careerType = null;
+    answers.confidence = null;
+    answers.roadblock = null;
+    answers.primaryGoal = null;
+    personalizedPlan = null;
+    isOnboarded = false;
   }
 
   Future<void> markOnboardedComplete() async {
@@ -424,26 +441,45 @@ class AppStateProvider extends ChangeNotifier {
 
   void _applyProfile(Map<String, dynamic> profile) {
     if (profile.isEmpty) return;
-    answers.voiceProfile = (profile['voice_profile'] ?? answers.voiceProfile)?.toString();
-    answers.careerStage = (profile['career_stage'] ?? answers.careerStage)?.toString();
-    answers.careerType = (profile['career_type'] ?? answers.careerType)?.toString();
-    answers.confidence = (profile['speaking_confidence'] ?? answers.confidence)?.toString();
-    answers.roadblock = (profile['primary_roadblock'] ?? answers.roadblock)?.toString();
-    answers.primaryGoal = (profile['primary_goal'] ?? answers.primaryGoal)?.toString();
+    // Only overwrite fields that the API actually sent (null = not set yet).
+    if (profile.containsKey('voice_profile')) {
+      final v = profile['voice_profile'];
+      answers.voiceProfile = v == null ? null : v.toString();
+    }
+    if (profile.containsKey('career_stage')) {
+      final v = profile['career_stage'];
+      answers.careerStage = v == null ? null : v.toString();
+    }
+    if (profile.containsKey('career_type')) {
+      final v = profile['career_type'];
+      answers.careerType = v == null ? null : v.toString();
+    }
+    if (profile.containsKey('speaking_confidence')) {
+      final v = profile['speaking_confidence'];
+      answers.confidence = v == null ? null : v.toString();
+    }
+    if (profile.containsKey('primary_roadblock')) {
+      final v = profile['primary_roadblock'];
+      answers.roadblock = v == null ? null : v.toString();
+    }
+    if (profile.containsKey('primary_goal')) {
+      final v = profile['primary_goal'];
+      answers.primaryGoal = v == null ? null : v.toString();
+    }
     final plan = profile['personalized_plan'];
     if (plan is Map<String, dynamic>) {
       personalizedPlan = PersonalizedPlanModel.fromJson(plan);
       if (personalizedPlan!.focusLine.isNotEmpty) {
         focusLine = personalizedPlan!.focusLine;
       }
+    } else if (profile.containsKey('personalized_plan') && plan == null) {
+      personalizedPlan = null;
     }
-    final looksOnboarded = profile['onboarding_complete'] == true ||
-        plan is Map<String, dynamic> ||
-        (answers.careerStage != null && answers.careerStage!.isNotEmpty) ||
-        (answers.careerType != null && answers.careerType!.isNotEmpty);
-    if (looksOnboarded) {
-      isOnboarded = true;
-      unawaited(_api.persistOnboarded(true));
+    // Server is source of truth — do NOT infer from leftover local answers.
+    if (profile.containsKey('onboarding_complete')) {
+      final done = profile['onboarding_complete'] == true;
+      isOnboarded = done;
+      unawaited(_api.persistOnboarded(done));
     }
   }
 

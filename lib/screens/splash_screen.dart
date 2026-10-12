@@ -117,8 +117,12 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
 
     final Widget next;
-    if (state.isLoggedIn) {
+    if (state.isLoggedIn && state.isOnboarded) {
       next = const HomeScreen();
+      unawaited(state.refreshFromApi());
+    } else if (state.isLoggedIn && !state.isOnboarded) {
+      // Mid-funnel: finish onboarding → assessment (already signed up).
+      next = const LandingScreen(postSignup: true);
       unawaited(state.refreshFromApi());
     } else {
       next = const LandingScreen();

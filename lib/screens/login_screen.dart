@@ -8,6 +8,7 @@ import '../widgets/auth_waveform_watermark.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/hakkiri_logo.dart';
 import 'home_screen.dart';
+import 'landing_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -57,6 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
         action: () => state.loginAccount(email: email, password: password),
       );
       if (!mounted) return;
+      // Login → Home (simple).
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -83,9 +85,14 @@ class _LoginScreenState extends State<LoginScreen> {
         action: () => state.continueWithGoogle(),
       );
       if (!mounted) return;
+      // Login → Home (simple). New Google accounts still go signup funnel.
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(
+          builder: (_) => state.isOnboarded
+              ? const HomeScreen()
+              : const LandingScreen(postSignup: true),
+        ),
         (route) => false,
       );
     } on HakkiriApiException catch (e) {
