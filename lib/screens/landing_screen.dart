@@ -7,7 +7,6 @@ import '../widgets/who_its_for_roadmap_view.dart';
 import '../widgets/twelve_months_roadmap_view.dart';
 import 'assessment_screen.dart';
 import 'login_screen.dart';
-import 'signup_screen.dart';
 
 /// Onboarding experience.
 ///
@@ -106,13 +105,6 @@ class _LandingScreenState extends State<LandingScreen>
         curve: Curves.easeInOutCubic,
       );
     }
-  }
-
-  void _goToSignup() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const SignupScreen()),
-    );
   }
 
   void _goToAssessment() {
@@ -214,12 +206,13 @@ class _LandingScreenState extends State<LandingScreen>
                     ],
 
                     ActionPillButton(
+                      // Walk through every onboarding screen in order; the last
+                      // one ("Start assessment") goes to the assessment, which
+                      // prompts sign-up on completion if needed.
                       label: _sectionLabels[_currentPage],
-                      onTap: _currentPage == 0 && !widget.postSignup
-                          ? _goToSignup
-                          : (_currentPage >= _sectionLabels.length - 1
-                              ? _goToAssessment
-                              : _nextPage),
+                      onTap: _currentPage >= _sectionLabels.length - 1
+                          ? _goToAssessment
+                          : _nextPage,
                     ),
 
                     if (_currentPage == 0) ...[
