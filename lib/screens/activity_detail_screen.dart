@@ -6,16 +6,18 @@ import '../widgets/blue_accent_rays.dart';
 import 'live_conversation_screen.dart';
 import 'recording_screen.dart';
 
-/// Think Fast / Spontaneous Agility Activity Intro Screen
-/// Matches authentic client design (doc_images/img_3.png).
-/// Note: Beginner, intermediate, and pro levels removed as per client decision.
+/// Activity intro screen, rendered per-activity to match the design spec
+/// (the 7 MVP "Begin exercise" screens). Each activity has its own icon,
+/// label, two-tone title, subtitle, HOW IT WORKS steps and strategy card.
+/// Note: Beginner / intermediate / pro levels removed as per client decision.
 class ActivityDetailScreen extends StatelessWidget {
   const ActivityDetailScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
-    final activity = state.selectedActivity;
+    final slug = state.selectedActivity?.slug ?? 'think_fast';
+    final spec = _activitySpecs[slug] ?? _activitySpecs['think_fast']!;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBFBF9),
@@ -46,10 +48,10 @@ class ActivityDetailScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Lightning Bolt Card Badge
+                      // Activity icon badge
                       Container(
-                        width: 52,
-                        height: 52,
+                        width: 56,
+                        height: 56,
                         decoration: BoxDecoration(
                           color: const Color(0xFFEFF6FF),
                           borderRadius: BorderRadius.circular(16),
@@ -58,18 +60,18 @@ class ActivityDetailScreen extends StatelessWidget {
                             width: 1.2,
                           ),
                         ),
-                        child: const Icon(
-                          Icons.bolt_rounded,
-                          color: Color(0xFF2563EB),
-                          size: 28,
+                        child: Icon(
+                          spec.icon,
+                          color: const Color(0xFF2563EB),
+                          size: 30,
                         ),
                       ),
                       const SizedBox(height: 14),
 
-                      // Tag: ON-THE-SPOT PRACTICE
-                      const Text(
-                        'ON-THE-SPOT PRACTICE',
-                        style: TextStyle(
+                      // Tag: e.g. "1. THINK FAST"
+                      Text(
+                        spec.label,
+                        style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
@@ -79,25 +81,36 @@ class ActivityDetailScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
 
-                      // Heading: Think Fast. with 2 Blue Accent Rays
+                      // Two-tone heading + accent rays
                       Row(
                         mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            activity?.name ?? 'Think Fast.',
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 34,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF0F172A),
-                              letterSpacing: -1.0,
+                          Flexible(
+                            child: RichText(
+                              text: TextSpan(
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w900,
+                                  color: Color(0xFF0F172A),
+                                  letterSpacing: -1.0,
+                                  height: 1.1,
+                                ),
+                                children: [
+                                  TextSpan(text: spec.titleBlack),
+                                  TextSpan(
+                                    text: spec.titleBlue,
+                                    style: const TextStyle(color: Color(0xFF2563EB)),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                           const SizedBox(width: 4),
                           Transform.translate(
-                            offset: const Offset(0, -6),
-                            child: const BlueAccentRays(size: 24),
+                            offset: const Offset(0, 2),
+                            child: const BlueAccentRays(size: 22),
                           ),
                         ],
                       ),
@@ -105,9 +118,7 @@ class ActivityDetailScreen extends StatelessWidget {
 
                       // Subtitle
                       Text(
-                        activity?.slug == 'debate_me'
-                            ? 'Defend your position against assertive stakeholder pushback with confidence.'
-                            : 'Answer a surprise question clearly, the way you would in a real meeting.',
+                        spec.subtitle,
                         style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 14,
@@ -119,18 +130,18 @@ class ActivityDetailScreen extends StatelessWidget {
                       const SizedBox(height: 20),
 
                       // CARD 1: HOW IT WORKS
-                      _buildHowItWorksCard(context),
+                      _buildHowItWorksCard(spec.steps),
                       const SizedBox(height: 16),
 
-                      // CARD 2: USE YOUR 5 SECONDS
-                      _buildUseYour5SecondsCard(),
+                      // CARD 2: strategy (USE YOUR 5 SECONDS / BUILD THE CONNECTION / ...)
+                      _buildStrategyCard(spec.strategyTitle, spec.strategy),
                       const SizedBox(height: 16),
                     ],
                   ),
                 ),
               ),
 
-              // Bottom CTAs: record drill + live coach (same activity prompt context)
+              // Bottom CTAs
               ActionPillButton(
                 label: 'Begin exercise',
                 onPressed: () async {
@@ -141,9 +152,7 @@ class ActivityDetailScreen extends StatelessWidget {
                   }
                   if (!context.mounted) return;
                   nav.push(
-                    MaterialPageRoute(
-                      builder: (_) => const RecordingScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const RecordingScreen()),
                   );
                 },
               ),
@@ -159,9 +168,7 @@ class ActivityDetailScreen extends StatelessWidget {
                   }
                   if (!context.mounted) return;
                   nav.push(
-                    MaterialPageRoute(
-                      builder: (_) => const LiveConversationScreen(),
-                    ),
+                    MaterialPageRoute(builder: (_) => const LiveConversationScreen()),
                   );
                 },
               ),
@@ -173,15 +180,11 @@ class ActivityDetailScreen extends StatelessWidget {
     );
   }
 
-  /// CARD 1: HOW IT WORKS (Connected 4-Step Timeline)
-  Widget _buildHowItWorksCard(BuildContext context) {
-    final activity = context.watch<AppStateProvider>().selectedActivity;
-    final prep = activity?.prepDurationSeconds ?? 5;
-    final speak = activity?.defaultDurationSeconds ?? 60;
-
+  /// CARD 1: HOW IT WORKS — a connected 3- or 4-step timeline.
+  Widget _buildHowItWorksCard(List<_Step> steps) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
       decoration: BoxDecoration(
         color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(20),
@@ -190,57 +193,36 @@ class ActivityDetailScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'HOW IT WORKS',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-              color: Color(0xFF64748B),
+          const Padding(
+            padding: EdgeInsets.only(left: 4),
+            child: Text(
+              'HOW IT WORKS',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+                color: Color(0xFF64748B),
+              ),
             ),
           ),
           const SizedBox(height: 16),
-
-          // 4 Connected Step Icons Row
           Stack(
             alignment: Alignment.center,
             children: [
-              // Connecting horizontal line
+              // Connecting horizontal line behind the icons.
               Positioned(
                 top: 22,
-                left: 24,
-                right: 24,
-                child: Container(
-                  height: 2,
-                  color: const Color(0xFFDBEAFE),
-                ),
+                left: 30,
+                right: 30,
+                child: Container(height: 2, color: const Color(0xFFDBEAFE)),
               ),
-
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildTimelineStep(
-                    icon: Icons.format_list_bulleted_rounded,
-                    title: '1. Question',
-                    subtitle: 'A question\nappears.',
-                  ),
-                  _buildTimelineStep(
-                    icon: Icons.timer_outlined,
-                    title: '2. Think',
-                    subtitle: 'You\'ll have\n$prep seconds.',
-                  ),
-                  _buildTimelineStep(
-                    icon: Icons.mic_none_rounded,
-                    title: '3. Speak',
-                    subtitle: '${speak}s speak\nwindow.',
-                  ),
-                  _buildTimelineStep(
-                    icon: Icons.bar_chart_rounded,
-                    title: '4. Feedback',
-                    subtitle: 'Get custom\nfeedback.',
-                  ),
+                  for (final s in steps)
+                    _buildTimelineStep(icon: s.icon, title: s.title, subtitle: s.sub),
                 ],
               ),
             ],
@@ -256,7 +238,7 @@ class ActivityDetailScreen extends StatelessWidget {
     required String subtitle,
   }) {
     return SizedBox(
-      width: 72,
+      width: 74,
       child: Column(
         children: [
           Container(
@@ -274,11 +256,7 @@ class ActivityDetailScreen extends StatelessWidget {
                 ),
               ],
             ),
-            child: Icon(
-              icon,
-              color: const Color(0xFF2563EB),
-              size: 21,
-            ),
+            child: Icon(icon, color: const Color(0xFF2563EB), size: 21),
           ),
           const SizedBox(height: 8),
           Text(
@@ -286,7 +264,7 @@ class ActivityDetailScreen extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 12,
+              fontSize: 11.5,
               fontWeight: FontWeight.w800,
               color: Color(0xFF0F172A),
             ),
@@ -297,7 +275,7 @@ class ActivityDetailScreen extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w500,
               color: Color(0xFF64748B),
               height: 1.2,
@@ -308,8 +286,31 @@ class ActivityDetailScreen extends StatelessWidget {
     );
   }
 
-  /// CARD 2: USE YOUR 5 SECONDS (3 Mini Cards with Arrow Connectors)
-  Widget _buildUseYour5SecondsCard() {
+  /// CARD 2: strategy — 3 mini cards (blue / red / green) with arrows.
+  Widget _buildStrategyCard(String title, List<String> steps) {
+    const bgColors = [Color(0xFFEFF6FF), Color(0xFFFEF2F2), Color(0xFFF0FDF4)];
+    const numColors = [Color(0xFF2563EB), Color(0xFFEF4444), Color(0xFF10B981)];
+
+    final children = <Widget>[];
+    for (int i = 0; i < steps.length; i++) {
+      children.add(
+        Expanded(
+          child: _buildMiniStepCard(
+            number: '${i + 1}',
+            text: steps[i],
+            bgColor: bgColors[i % bgColors.length],
+            numColor: numColors[i % numColors.length],
+          ),
+        ),
+      );
+      if (i < steps.length - 1) {
+        children.add(const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4),
+          child: Icon(Icons.arrow_forward_rounded, color: Color(0xFF94A3B8), size: 15),
+        ));
+      }
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
@@ -321,9 +322,9 @@ class ActivityDetailScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'USE YOUR 5 SECONDS',
-            style: TextStyle(
+          Text(
+            title,
+            style: const TextStyle(
               fontFamily: 'Inter',
               fontSize: 11,
               fontWeight: FontWeight.w800,
@@ -332,57 +333,7 @@ class ActivityDetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-
-          // 3 Step Cards Row
-          Row(
-            children: [
-              // Step 1: Pick your point
-              Expanded(
-                child: _buildMiniStepCard(
-                  number: '1',
-                  text: 'Pick\nyour point',
-                  bgColor: const Color(0xFFEFF6FF),
-                  numColor: const Color(0xFF2563EB),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(
-                  Icons.arrow_forward_rounded,
-                  color: Color(0xFF94A3B8),
-                  size: 15,
-                ),
-              ),
-
-              // Step 2: Choose why
-              Expanded(
-                child: _buildMiniStepCard(
-                  number: '2',
-                  text: 'Choose\nwhy',
-                  bgColor: const Color(0xFFFEF2F2),
-                  numColor: const Color(0xFFEF4444),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Icon(
-                  Icons.arrow_forward_rounded,
-                  color: Color(0xFF94A3B8),
-                  size: 15,
-                ),
-              ),
-
-              // Step 3: Add one example
-              Expanded(
-                child: _buildMiniStepCard(
-                  number: '3',
-                  text: 'Add one\nexample',
-                  bgColor: const Color(0xFFF0FDF4),
-                  numColor: const Color(0xFF10B981),
-                ),
-              ),
-            ],
-          ),
+          IntrinsicHeight(child: Row(children: children)),
         ],
       ),
     );
@@ -401,15 +352,12 @@ class ActivityDetailScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Container(
             width: 22,
             height: 22,
-            decoration: BoxDecoration(
-              color: numColor,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: numColor, shape: BoxShape.circle),
             child: Center(
               child: Text(
                 number,
@@ -428,7 +376,7 @@ class ActivityDetailScreen extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 11.5,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
               color: Color(0xFF0F172A),
               height: 1.2,
@@ -439,3 +387,144 @@ class ActivityDetailScreen extends StatelessWidget {
     );
   }
 }
+
+// ── Per-activity content ─────────────────────────────────────────────────────
+
+class _Step {
+  final IconData icon;
+  final String title;
+  final String sub;
+  const _Step(this.icon, this.title, this.sub);
+}
+
+class _ActivitySpec {
+  final IconData icon;
+  final String label;
+  final String titleBlack;
+  final String titleBlue;
+  final String subtitle;
+  final List<_Step> steps;
+  final String strategyTitle;
+  final List<String> strategy;
+  const _ActivitySpec({
+    required this.icon,
+    required this.label,
+    required this.titleBlack,
+    required this.titleBlue,
+    required this.subtitle,
+    required this.steps,
+    required this.strategyTitle,
+    required this.strategy,
+  });
+}
+
+const _questionStep = _Step(Icons.format_list_bulleted_rounded, '1. Question', 'A random question appears.');
+const _thinkStep = _Step(Icons.timer_outlined, '2. Think', 'You have 5 seconds.');
+const _feedbackStep = _Step(Icons.bar_chart_rounded, '4. Feedback', 'Get personalised feedback.');
+
+final Map<String, _ActivitySpec> _activitySpecs = {
+  'think_fast': const _ActivitySpec(
+    icon: Icons.bolt_rounded,
+    label: '1. THINK FAST',
+    titleBlack: 'Think ',
+    titleBlue: 'Fast.',
+    subtitle: 'Answer a surprise question clearly, the way you would in a real meeting.',
+    steps: [
+      _questionStep,
+      _thinkStep,
+      _Step(Icons.mic_none_rounded, '3. Speak', 'Record for 60 seconds.'),
+      _feedbackStep,
+    ],
+    strategyTitle: 'USE YOUR 5 SECONDS',
+    strategy: ['Pick\nyour point', 'Choose\nwhy', 'Add one\nexample'],
+  ),
+  'connect_the_dots': const _ActivitySpec(
+    icon: Icons.hub_rounded,
+    label: '2. CONNECT THE DOTS',
+    titleBlack: 'Connect the ',
+    titleBlue: 'Dots.',
+    subtitle: 'Link two random ideas into a clear, compelling story.',
+    steps: [
+      _Step(Icons.link_rounded, '1. Two topics', "You'll see two unrelated ideas."),
+      _thinkStep,
+      _Step(Icons.mic_none_rounded, '3. Connect', 'Speak for 60 seconds.'),
+      _feedbackStep,
+    ],
+    strategyTitle: 'BUILD THE CONNECTION',
+    strategy: ['Start with\nthe first idea', 'Find the\nlink or bridge', 'Land on\nthe second idea'],
+  ),
+  'explain_it_simply': const _ActivitySpec(
+    icon: Icons.lightbulb_outline_rounded,
+    label: '3. EXPLAIN IT SIMPLY',
+    titleBlack: 'Explain It ',
+    titleBlue: 'Simply.',
+    subtitle: 'Take a complex topic and explain it in clear, simple language.',
+    steps: [
+      _Step(Icons.description_outlined, '1. Topic + audience', 'Who to explain it to.'),
+      _thinkStep,
+      _Step(Icons.mic_none_rounded, '3. Explain', 'Speak clearly.'),
+      _feedbackStep,
+    ],
+    strategyTitle: 'KEEP IT SIMPLE',
+    strategy: ['What is it?\n(in simple terms)', 'Make it\nrelatable', 'Why does\nit matter?'],
+  ),
+  'cut_it_in_half': const _ActivitySpec(
+    icon: Icons.content_cut_rounded,
+    label: '4. CUT IT IN HALF',
+    titleBlack: 'Cut It in ',
+    titleBlue: 'Half.',
+    subtitle: 'Read a longer message and make it shorter, clearer and more impactful.',
+    steps: [
+      _Step(Icons.description_outlined, '1. Read', 'A longer text appears.'),
+      _Step(Icons.search_rounded, '2. Find the point', 'Identify what matters.'),
+      _Step(Icons.mic_none_rounded, '3. Summarise', 'Speak your shorter version.'),
+      _feedbackStep,
+    ],
+    strategyTitle: 'CUT THE CLUTTER',
+    strategy: ["Main point\n(key message?)", 'Essential\ndetail', 'Action\n(what next?)'],
+  ),
+  'storytelling_gym': const _ActivitySpec(
+    icon: Icons.menu_book_rounded,
+    label: '5. STORYTELLING GYM',
+    titleBlack: 'Storytelling ',
+    titleBlue: 'Gym.',
+    subtitle: 'Turn a scenario into a clear, memorable story.',
+    steps: [
+      _Step(Icons.description_outlined, '1. Scenario', 'A scenario appears.'),
+      _Step(Icons.mic_none_rounded, '2. Speak', 'You have 60 seconds.'),
+      _Step(Icons.bar_chart_rounded, '3. Feedback', 'Get personalised feedback.'),
+    ],
+    strategyTitle: 'BUILD YOUR STORY',
+    strategy: ['Set the\nscene', 'Show what\nhappened', 'Land\nthe point'],
+  ),
+  'one_minute_expert': const _ActivitySpec(
+    icon: Icons.school_outlined,
+    label: '6. ONE MINUTE EXPERT',
+    titleBlack: 'One Minute ',
+    titleBlue: 'Expert.',
+    subtitle: 'Choose a topic you want to speak about and explain it confidently in one minute.',
+    steps: [
+      _Step(Icons.format_list_bulleted_rounded, '1. Choose a topic', 'Pick what to speak about.'),
+      _thinkStep,
+      _Step(Icons.mic_none_rounded, '3. Speak', 'You have 60 seconds.'),
+      _feedbackStep,
+    ],
+    strategyTitle: 'MAKE IT LAND',
+    strategy: ['Hook\n(get attention)', 'Two clear\npoints', 'Strong\nfinish'],
+  ),
+  'debate_me': const _ActivitySpec(
+    icon: Icons.forum_outlined,
+    label: '7. DEBATE ME',
+    titleBlack: 'Debate ',
+    titleBlue: 'Me.',
+    subtitle: 'See a different perspective and respond with a clear, confident counterpoint.',
+    steps: [
+      _Step(Icons.description_outlined, '1. Position', 'A statement or opposing view.'),
+      _thinkStep,
+      _Step(Icons.mic_none_rounded, '3. Respond', 'Speak for 60 seconds.'),
+      _feedbackStep,
+    ],
+    strategyTitle: 'BUILD YOUR RESPONSE',
+    strategy: ['State your\nposition', 'Give your\nreason', 'Counter\nthe objection'],
+  ),
+};
