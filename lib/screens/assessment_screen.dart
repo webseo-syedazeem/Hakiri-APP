@@ -199,21 +199,11 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       'hasGauge': true,
       'buttonLabel': 'Continue',
       'options': [
-        {
-          'id': 'not_very',
-          'title': 'Not very confident',
-          'subtitle': 'I get nervous, rush or struggle to find my words',
-        },
-        {
-          'id': 'fairly',
-          'title': 'Fairly confident',
-          'subtitle': 'I communicate well but sometimes rely on filler words',
-        },
-        {
-          'id': 'very',
-          'title': 'Very confident',
-          'subtitle': "I'm comfortable speaking, but want to sharpen my delivery",
-        },
+        {'id': 'not_at_all', 'title': 'Not at all confident', 'subtitle': ''},
+        {'id': 'slightly', 'title': 'Slightly confident', 'subtitle': ''},
+        {'id': 'fairly', 'title': 'Fairly confident', 'subtitle': ''},
+        {'id': 'confident', 'title': 'Confident', 'subtitle': ''},
+        {'id': 'very', 'title': 'Very confident', 'subtitle': ''},
       ],
     },
 
@@ -300,9 +290,51 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           'title': 'Speak more clearly and confidently every day',
           'subtitle': '',
         },
+        {
+          'id': 'keep_engaged',
+          'icon': Icons.groups_2_outlined,
+          'title': 'Keep people engaged and make an impact',
+          'subtitle': '',
+        },
+        {
+          'id': 'other',
+          'icon': Icons.gps_fixed_rounded,
+          'title': 'Other',
+          'subtitle': '',
+        },
       ],
     },
   ];
+
+  /// Maps the 5 UI confidence levels onto the 3 values the backend understands
+  /// (not_very → beginner, fairly → intermediate, very → professional), so the
+  /// screen matches the screenshots exactly while the API/plan stays correct.
+  String _mapConfidenceForApi(String id) {
+    switch (id) {
+      case 'not_at_all':
+      case 'slightly':
+        return 'not_very';
+      case 'confident':
+        return 'fairly';
+      case 'fairly':
+      case 'very':
+        return id;
+      default:
+        return 'fairly';
+    }
+  }
+
+  /// Maps the two extra goal options onto the backend's nearest supported goal.
+  String _mapGoalForApi(String id) {
+    switch (id) {
+      case 'keep_engaged':
+        return 'persuasive_arguments';
+      case 'other':
+        return 'clear_daily';
+      default:
+        return id;
+    }
+  }
 
   void _onOptionSelected(String optionId, {int? stepIndex}) {
     final index = stepIndex ?? _currentStepIndex;
@@ -350,9 +382,9 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           gender: _stepSelections[2] ?? 'female',
           careerStage: _stepSelections[3] ?? 'mid_level',
           careerType: _stepSelections[4] ?? 'tech_product',
-          confidence: _stepSelections[5] ?? 'fairly',
+          confidence: _mapConfidenceForApi(_stepSelections[5] ?? 'fairly'),
           problem: _stepSelections[6] ?? 'filler_rush',
-          goal: _stepSelections[7] ?? 'calmer_confident',
+          goal: _mapGoalForApi(_stepSelections[7] ?? 'calmer_confident'),
         ),
       );
       if (!mounted) return;

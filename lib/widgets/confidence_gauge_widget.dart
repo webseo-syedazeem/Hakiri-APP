@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 
 class ConfidenceGaugeWidget extends StatelessWidget {
-  final String level; // 'not_very', 'fairly', 'very'
+  // 'not_at_all', 'slightly', 'fairly', 'confident', 'very'
+  // ('not_very' kept for backwards compatibility).
+  final String level;
 
   const ConfidenceGaugeWidget({
     super.key,
@@ -14,15 +16,22 @@ class ConfidenceGaugeWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     double targetAngle;
     switch (level) {
+      case 'not_at_all':
       case 'not_very':
-        targetAngle = -0.55 * pi; // pointing left
+        targetAngle = -0.55 * pi; // far left — lowest
+        break;
+      case 'slightly':
+        targetAngle = -0.35 * pi;
+        break;
+      case 'confident':
+        targetAngle = 0.10 * pi;
         break;
       case 'very':
-        targetAngle = 0.35 * pi; // pointing right
+        targetAngle = 0.35 * pi; // far right — highest
         break;
       case 'fairly':
       default:
-        targetAngle = -0.15 * pi; // pointing center-left, exact to screenshot
+        targetAngle = -0.15 * pi; // centre
         break;
     }
 
