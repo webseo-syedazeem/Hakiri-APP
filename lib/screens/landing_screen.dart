@@ -42,6 +42,7 @@ class _LandingScreenState extends State<LandingScreen>
 
   static const _sectionLabels = [
     'Get started',
+    'See feedback',
     'Explore exercises',
     'Is Hakkiri for me?',
     'Why Hakkiri?',
@@ -86,7 +87,7 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   void _nextPage() {
-    if (_currentPage < 5) {
+    if (_currentPage < 6) {
       _pageController.animateToPage(
         _currentPage + 1,
         duration: const Duration(milliseconds: 380),
@@ -173,6 +174,7 @@ class _LandingScreenState extends State<LandingScreen>
                   children: [
                     _buildWelcomePage(),
                     _buildSeeHowItWorksPage(),
+                    _buildSeeFeedbackPage(),
                     _buildTrainCarouselPage(),
                     _buildWhoItsForPage(),
                     _buildTrustedByProfessionalsPage(),
@@ -186,18 +188,22 @@ class _LandingScreenState extends State<LandingScreen>
                   children: [
                     // Screen-specific pagination indicators above button
                     if (_currentPage == 1) ...[
-                      // How it works: 4 dots
-                      _buildDotsIndicator(activeIndex: 0, totalDots: 4),
+                      // See how it works: 2-dot sub-flow (prompt)
+                      _buildDotsIndicator(activeIndex: 0, totalDots: 2),
                       const SizedBox(height: 12),
-                    ] else if (_currentPage == 3) ...[
+                    ] else if (_currentPage == 2) ...[
+                      // See your feedback: 2-dot sub-flow (feedback)
+                      _buildDotsIndicator(activeIndex: 1, totalDots: 2),
+                      const SizedBox(height: 12),
+                    ] else if (_currentPage == 4) ...[
                       // Who it's for: 5 dots
                       _buildDotsIndicator(activeIndex: 0, totalDots: 5),
                       const SizedBox(height: 12),
-                    ] else if (_currentPage == 4) ...[
+                    ] else if (_currentPage == 5) ...[
                       // Testimonials: 4 dots
                       _buildDotsIndicator(activeIndex: 0, totalDots: 4),
                       const SizedBox(height: 12),
-                    ] else if (_currentPage == 5) ...[
+                    ] else if (_currentPage == 6) ...[
                       // Plan: 6 dots left-aligned
                       _buildDotsIndicator(
                         activeIndex: 5,
@@ -762,28 +768,94 @@ class _LandingScreenState extends State<LandingScreen>
           ),
           const SizedBox(height: 10),
 
-          // Scrollable area for Card 1 + Chevron + Card 2
+          // Single card, centred — this is its own swipe-screen (no scroll).
           Expanded(
-            child: SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: Column(
-                children: [
-                  // CARD 1: Storytelling Gym Prompt Card
-                  _buildPromptExerciseCard(),
+            child: Center(
+              child: SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                child: _buildPromptExerciseCard(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
 
-                  // Down Arrow Connector
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4),
-                    child: Icon(
-                      Icons.keyboard_arrow_down_rounded,
+  // ==========================================
+  // PAGE 2: SEE YOUR FEEDBACK (own swipe-screen, no scroll)
+  // ==========================================
+  Widget _buildSeeFeedbackPage() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'EXAMPLE FEEDBACK',
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.2,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'See your',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                  height: 1.15,
+                  letterSpacing: -0.8,
+                ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Text(
+                    'feedback.',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
                       color: Color(0xFF2563EB),
-                      size: 26,
+                      height: 1.15,
+                      letterSpacing: -0.8,
                     ),
                   ),
-
-                  // CARD 2: "Your feedback" Card
-                  _buildFeedbackResultCard(),
+                  const SizedBox(width: 4),
+                  Transform.translate(
+                    offset: const Offset(0, -6),
+                    child: const BlueAccentRays(size: 26),
+                  ),
                 ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Clear, personalised feedback grounded in research.',
+            style: TextStyle(
+              color: Color(0xFF64748B),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: Center(
+              child: SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                child: _buildFeedbackResultCard(),
               ),
             ),
           ),
