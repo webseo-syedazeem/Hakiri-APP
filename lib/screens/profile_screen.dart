@@ -4,8 +4,11 @@ import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/orbital_background_painter.dart';
+import 'edit_profile_screen.dart';
+import 'landing_screen.dart';
 import 'main_tab_scaffold.dart';
 import 'paywall_screen.dart';
+import 'profile_section_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -25,10 +28,88 @@ class ProfileScreenContent extends StatefulWidget {
 
 class _ProfileScreenContentState extends State<ProfileScreenContent> {
   bool _reminderEnabled = true;
+  bool _loggingOut = false;
+
+  Future<void> _openProfileEditor() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+    );
+  }
+
+  Future<void> _openGoals() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ProfileSectionScreen(
+          focus: ProfileSectionFocus.goals,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openPracticeContext() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ProfileSectionScreen(
+          focus: ProfileSectionFocus.practiceContext,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openDailyPractice() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ProfileSectionScreen(
+          focus: ProfileSectionFocus.dailyPractice,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _logout() async {
+    if (_loggingOut) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Log out?'),
+        content: const Text('You can sign back in anytime with the same account.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _loggingOut = true);
+    try {
+      await context.read<AppStateProvider>().logout();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LandingScreen()),
+        (route) => false,
+      );
+    } finally {
+      if (mounted) setState(() => _loggingOut = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
+    final displayName = state.fullName.isNotEmpty ? state.fullName : 'Your profile';
+    final displayEmail = state.email.isNotEmpty ? state.email : 'Tap to complete your details';
 
     return SafeArea(
       bottom: false,
@@ -90,7 +171,86 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 18),
+
+            // Openable profile section
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              child: InkWell(
+                onTap: _openProfileEditor,
+                borderRadius: BorderRadius.circular(18),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: AppColors.surfaceBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFDBEAFE),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          state.initials,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.royalBlue,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayName,
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              displayEmail,
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'View & edit assessment details',
+                              style: TextStyle(
+                                color: AppColors.royalBlue.withValues(alpha: 0.9),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.textMuted,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
 
             // Hero Dark Card: Hakkiri Pro Subscription
             Container(
@@ -124,9 +284,9 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'HAKKIRI PRO · YEARLY',
-                          style: TextStyle(
+                        Text(
+                          state.subscriptionTitle,
+                          style: const TextStyle(
                             color: Color(0xFF93C5FD),
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
@@ -137,7 +297,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                         Text(
                           state.subscriptionPriceFormatted.isNotEmpty
                               ? state.subscriptionPriceFormatted
-                              : '£69.99/yr',
+                              : '7-day trial',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -145,9 +305,13 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        const Text(
-                          'Renews 12 Oct 2027',
-                          style: TextStyle(
+                        Text(
+                          state.subscriptionRenewalLabel.isNotEmpty
+                              ? state.subscriptionRenewalLabel
+                              : (state.isSubscribed
+                                  ? 'Manage your plan anytime'
+                                  : '7-day free trial active'),
+                          style: const TextStyle(
                             color: Color(0xFF94A3B8),
                             fontSize: 11,
                           ),
@@ -207,24 +371,27 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     iconColor: const Color(0xFF3B82F6),
                     iconBgColor: const Color(0xFFEFF6FF),
                     title: 'Your goals',
-                    subtitle: 'Think faster, be more concise, speak confidently',
+                    subtitle: state.primaryGoalLabel,
                     showDivider: true,
+                    onTap: _openGoals,
                   ),
                   _buildSettingRow(
                     icon: Icons.business_center_outlined,
                     iconColor: const Color(0xFF10B981),
                     iconBgColor: const Color(0xFFECFDF5),
                     title: 'Practice context',
-                    subtitle: 'Work & interviews',
+                    subtitle: state.careerTypeLabel,
                     showDivider: true,
+                    onTap: _openPracticeContext,
                   ),
                   _buildSettingRow(
                     icon: Icons.calendar_today_outlined,
                     iconColor: const Color(0xFF8B5CF6),
                     iconBgColor: const Color(0xFFF5F3FF),
                     title: 'Daily practice',
-                    subtitle: '5 minutes a day',
+                    subtitle: '${state.dailyAnchorMinutes} minutes a day',
                     showDivider: true,
+                    onTap: _openDailyPractice,
                   ),
                   _buildSettingSwitchRow(
                     icon: Icons.notifications_none_rounded,
@@ -266,6 +433,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     title: 'Progress & insights',
                     subtitle: 'Track your improvement and view your stats',
                     showDivider: true,
+                    onTap: () => MainTabScaffold.switchTab(context, 1),
                   ),
                   _buildSettingRow(
                     icon: Icons.volume_up_outlined,
@@ -273,14 +441,6 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     iconBgColor: const Color(0xFFECFDF5),
                     title: 'Coach voice',
                     subtitle: 'Choose the voice you hear',
-                    showDivider: true,
-                  ),
-                  _buildSettingRow(
-                    icon: Icons.translate_rounded,
-                    iconColor: const Color(0xFF8B5CF6),
-                    iconBgColor: const Color(0xFFF5F3FF),
-                    title: 'Language',
-                    subtitle: 'English (UK)',
                     showDivider: false,
                   ),
                 ],
@@ -344,11 +504,37 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
             ),
             const SizedBox(height: 24),
 
+            // Log out
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton.icon(
+                onPressed: _loggingOut ? null : _logout,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFDC2626),
+                  side: const BorderSide(color: Color(0xFFFECACA), width: 1.2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  backgroundColor: const Color(0xFFFEF2F2),
+                ),
+                icon: const Icon(Icons.logout_rounded, size: 18),
+                label: Text(
+                  _loggingOut ? 'Logging out…' : 'Log out',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // Footer Links
-            Center(
+            const Center(
               child: Text(
                 'Privacy Policy  ·  Terms  ·  Delete account',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 11.5,
                   fontWeight: FontWeight.w500,
@@ -369,11 +555,12 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
     required String title,
     required String subtitle,
     required bool showDivider,
+    VoidCallback? onTap,
   }) {
     return Column(
       children: [
         InkWell(
-          onTap: () {},
+          onTap: onTap ?? () {},
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Row(

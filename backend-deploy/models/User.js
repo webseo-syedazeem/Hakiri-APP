@@ -16,8 +16,28 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, "Password is required"],
+    required: [
+      function () {
+        return this.authProvider !== "google";
+      },
+      "Password is required",
+    ],
     minlength: 6,
+  },
+  googleId: {
+    type: String,
+    sparse: true,
+    unique: true,
+    trim: true,
+  },
+  authProvider: {
+    type: String,
+    enum: ["password", "google"],
+    default: "password",
+  },
+  avatarUrl: {
+    type: String,
+    default: "",
   },
   isDeleted: {
     type: Boolean,
@@ -30,12 +50,13 @@ const userSchema = new mongoose.Schema({
 });
 
 userSchema.pre("save", async function () {
-  if (!this.isModified("password")) return;
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  if (!this.password || !this.isModified("password")) return;
+  // 8 rounds keeps signup snappy on serverless without weakening auth much.
+  this.password = await bcrypt.hash(this.password, 8);
 });
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
+  if (!this.password) return false;
   return bcrypt.compare(enteredPassword, this.password);
 };
 

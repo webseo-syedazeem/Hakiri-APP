@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../core/services/hakkiri_api_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/confidence_gauge_widget.dart';
+import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/hakkiri_logo.dart';
 import 'personalized_plan_screen.dart';
+import 'signup_screen.dart';
 
 class AssessmentScreen extends StatefulWidget {
   final int initialStep;
@@ -18,8 +21,9 @@ class AssessmentScreen extends StatefulWidget {
 class _AssessmentScreenState extends State<AssessmentScreen> {
   late int _currentStepIndex;
   late final PageController _pageController;
-  final TextEditingController _nameController = TextEditingController(text: 'Alex Rivera');
+  late final TextEditingController _nameController;
   String _selectedOptionId = 'female';
+  bool _isSubmitting = false;
 
   // Default selections matching the user's screenshots exactly
   final Map<int, String> _stepSelections = {
@@ -34,6 +38,10 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   @override
   void initState() {
     super.initState();
+    final savedName = Provider.of<AppStateProvider>(context, listen: false).fullName.trim();
+    _nameController = TextEditingController(
+      text: savedName.isNotEmpty ? savedName : 'Alex Rivera',
+    );
     _currentStepIndex = widget.initialStep;
     _selectedOptionId = _stepSelections[_currentStepIndex] ?? '';
     _pageController = PageController(initialPage: widget.initialStep);
@@ -306,29 +314,64 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     });
   }
 
-  void _nextStep() {
+  Future<void> _nextStep() async {
+    if (_isSubmitting) return;
+
     if (_currentStepIndex < _steps.length - 1) {
       _pageController.animateToPage(
         _currentStepIndex + 1,
         duration: const Duration(milliseconds: 380),
         curve: Curves.easeInOutCubic,
       );
-    } else {
-      // Completed Assessment -> save to provider and navigate to plan
-      final state = Provider.of<AppStateProvider>(context, listen: false);
-      state.updateAssessment(
-        gender: _stepSelections[2] ?? 'female',
-        careerStage: _stepSelections[3] ?? 'mid_level',
-        careerType: _stepSelections[4] ?? 'tech_product',
-        confidence: _stepSelections[5] ?? 'fairly',
-        problem: _stepSelections[6] ?? 'filler_rush',
-        goal: _stepSelections[7] ?? 'calmer_confident',
-      );
+      return;
+    }
 
+    final state = Provider.of<AppStateProvider>(context, listen: false);
+    if (!state.isLoggedIn) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Create an account first.')),
+      );
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SignupScreen()),
+      );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      await HakkiriLoadingOverlay.run(
+        context,
+        message: 'Getting your information…',
+        detail: 'Building your personalised speaking plan.',
+        action: () => state.submitAssessmentToApi(
+          name: _nameController.text.trim(),
+          gender: _stepSelections[2] ?? 'female',
+          careerStage: _stepSelections[3] ?? 'mid_level',
+          careerType: _stepSelections[4] ?? 'tech_product',
+          confidence: _stepSelections[5] ?? 'fairly',
+          problem: _stepSelections[6] ?? 'filler_rush',
+          goal: _stepSelections[7] ?? 'calmer_confident',
+        ),
+      );
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const PersonalizedPlanScreen()),
       );
+    } on HakkiriApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save assessment. Check your connection.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
@@ -467,8 +510,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
 
               // Bottom Action Pill Button
               ActionPillButton(
-                label: buttonLabel,
-                onTap: _nextStep,
+                label: _isSubmitting ? 'Saving...' : buttonLabel,
+                onTap: _isSubmitting ? null : _nextStep,
               ),
             ],
           ),

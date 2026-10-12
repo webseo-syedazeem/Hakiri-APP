@@ -2,7 +2,7 @@ name: hakkiri_app
 description: "Hakkiri - Daily Communication Gym for Real-Life Professional Agility"
 publish_to: 'none'
 
-version: 1.0.1+1
+version: 1.0.2+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -17,6 +17,14 @@ dependencies:
   intl: ^0.19.0
   uuid: ^4.4.0
   video_player: ^2.9.2
+  http: ^1.6.0
+  shared_preferences: ^2.5.6
+  firebase_core: ^4.15.0
+  firebase_auth: ^6.7.0
+  google_sign_in: ^7.2.0
+  record: ^6.2.1
+  path_provider: ^2.1.6
+  speech_to_text: ">=7.4.0 <7.5.0"
 
 dev_dependencies:
   flutter_test:

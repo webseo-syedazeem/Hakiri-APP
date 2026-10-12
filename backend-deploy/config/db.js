@@ -4,8 +4,11 @@ const Prompt = require("../models/Prompt");
 const { ACTIVITIES, PROMPTS } = require("../data/catalog");
 
 let cachedPromise = null;
+let seedPromise = null;
+let seedDone = false;
 
 const connectDB = async () => {
+  if (mongoose.connection.readyState === 1) return mongoose.connection;
   if (cachedPromise) return cachedPromise;
 
   const mongoUri = process.env.MONGO_URI;
@@ -17,7 +20,14 @@ const connectDB = async () => {
   console.log(`Connecting to MongoDB: ${maskedUri}`);
 
   cachedPromise = mongoose
-    .connect(mongoUri, { serverSelectionTimeoutMS: 15000 })
+    .connect(mongoUri, {
+      serverSelectionTimeoutMS: 8000,
+      connectTimeoutMS: 8000,
+      maxPoolSize: 5,
+      minPoolSize: 0,
+      // Fail fast in serverless instead of queueing forever.
+      bufferCommands: false,
+    })
     .then((conn) => {
       console.log(`MongoDB Connected: ${conn.connection.host}/${conn.connection.name}`);
       return conn;
@@ -31,17 +41,52 @@ const connectDB = async () => {
   return cachedPromise;
 };
 
+/** Seed only when catalog is missing — never re-write on every cold start. */
 const seedCatalog = async () => {
-  for (const activity of ACTIVITIES) {
-    await Activity.updateOne({ slug: activity.slug }, { $set: activity }, { upsert: true });
-  }
-  for (const prompt of PROMPTS) {
-    await Prompt.updateOne({ code: prompt.code }, { $set: prompt }, { upsert: true });
-  }
-  const slugs = ACTIVITIES.map((a) => a.slug);
-  const codes = PROMPTS.map((p) => p.code);
-  await Activity.deleteMany({ slug: { $nin: slugs } });
-  await Prompt.deleteMany({ code: { $nin: codes } });
+  if (seedDone) return;
+  if (seedPromise) return seedPromise;
+
+  seedPromise = (async () => {
+    try {
+      const [activityCount, promptCount] = await Promise.all([
+        Activity.estimatedDocumentCount(),
+        Prompt.estimatedDocumentCount(),
+      ]);
+      if (activityCount >= ACTIVITIES.length && promptCount >= PROMPTS.length) {
+        seedDone = true;
+        return;
+      }
+
+      await Promise.all([
+        Activity.bulkWrite(
+          ACTIVITIES.map((activity) => ({
+            updateOne: {
+              filter: { slug: activity.slug },
+              update: { $set: activity },
+              upsert: true,
+            },
+          })),
+          { ordered: false }
+        ),
+        Prompt.bulkWrite(
+          PROMPTS.map((prompt) => ({
+            updateOne: {
+              filter: { code: prompt.code },
+              update: { $set: prompt },
+              upsert: true,
+            },
+          })),
+          { ordered: false }
+        ),
+      ]);
+      seedDone = true;
+    } catch (error) {
+      seedPromise = null;
+      throw error;
+    }
+  })();
+
+  return seedPromise;
 };
 
 module.exports = { connectDB, seedCatalog };

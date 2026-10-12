@@ -5,119 +5,13 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="5806d13a-207c-45e3-bc31-34302040450d" name="Changes" comment="initial commit">
-      <change afterPath="$PROJECT_DIR$/android/app/src/main/kotlin/com/hakkiri/app/MainActivity.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/android/app/src/main/res/drawable-hdpi/ic_launcher_foreground.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/android/app/src/main/res/drawable-mdpi/ic_launcher_foreground.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/android/app/src/main/res/drawable-xhdpi/ic_launcher_foreground.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/android/app/src/main/res/drawable-xxhdpi/ic_launcher_foreground.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/android/app/src/main/res/drawable-xxxhdpi/ic_launcher_foreground.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/android/app/src/main/res/values/colors.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/assets/icon/app_icon.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/.env.example" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/api/index.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/api/ping.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/config/db.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/controllers/authController.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/controllers/catalogController.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/controllers/challengeController.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/controllers/profileController.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/controllers/sessionController.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/controllers/subscriptionController.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/data/catalog.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/helpers/response.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/middleware/authMiddleware.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/middleware/errorMiddleware.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/models/Activity.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/models/ChallengeProgress.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/models/PracticeSession.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/models/Profile.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/models/Prompt.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/models/Settings.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/models/Streak.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/models/Subscription.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/models/User.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/package-lock.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/package.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/routes/index.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/server.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/services/plan.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/services/progress.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/services/serializers.js" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend-deploy/vercel.json" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ios/Podfile" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ios/Podfile.lock" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-50x50@1x.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-50x50@2x.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-57x57@1x.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-57x57@2x.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-72x72@1x.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-72x72@2x.png" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/widgets/twelve_months_roadmap_view.dart" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/macos/Podfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.dart_tool/package_config.json" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_config.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.dart_tool/package_graph.json" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_graph.json" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.dart_tool/version" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/version" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.flutter-plugins-dependencies" beforeDir="false" afterPath="$PROJECT_DIR$/.flutter-plugins-dependencies" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/avatar_consultant.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/avatar_consultant.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/avatar_economist.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/avatar_economist.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/avatar_student.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/avatar_student.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/hakkiri_horizontal_dark.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/hakkiri_horizontal_dark.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/hakkiri_horizontal_lockup.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/hakkiri_horizontal_lockup.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/hakkiri_icon.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/hakkiri_icon.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/hakkiri_icon_dark.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/hakkiri_icon_dark.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/hakkiri_logo.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/hakkiri_logo.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/hakkiri_logo_dark.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/hakkiri_logo_dark.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/hakkiri_logo_master.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/hakkiri_logo_master.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/hakkiri_mark_master.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/hakkiri_mark_master.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/hakkiri_paywall_master.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/hakkiri_paywall_master.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/splash_glowing_logo_hi.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/splash_glowing_logo_hi.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/storytelling_graphic_clean.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/storytelling_graphic_clean.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/twelve_months_roadmap_hd.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/twelve_months_roadmap_hd.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/assets/images/who_its_for_roadmap_clean.png" beforeDir="false" afterPath="$PROJECT_DIR$/assets/images/who_its_for_roadmap_clean.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/doc_images/img_0.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/img_0.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/doc_images/img_1.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/img_1.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/doc_images/img_2.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/img_2.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/doc_images/img_3.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/img_3.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/doc_images/img_4.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/img_4.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/emulator_assessment_intro.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/emulator_assessment_intro.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/emulator_login.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/emulator_login.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/emulator_login2.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/emulator_login2.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/emulator_page1.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/emulator_page1.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/emulator_page2.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/emulator_page2.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/emulator_page3.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/emulator_page3.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/emulator_splash.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/emulator_splash.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/emulator_welcome.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/emulator_welcome.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/activity_detail_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/activity_detail_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/feedback_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/feedback_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/providers/app_state_provider.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/providers/app_state_provider.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/landing_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/landing_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/recording_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/recording_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/live_p0_welcome.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/live_p0_welcome.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/live_p4_trusted.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/live_p4_trusted.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pubspec.lock" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_pdf_img_0.jpg" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_pdf_img_0.jpg" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_pdf_img_1.jpg" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_pdf_img_1.jpg" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_pdf_img_2.jpg" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_pdf_img_2.jpg" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_pdf_img_3.jpg" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_pdf_img_3.jpg" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_pdf_img_4.jpg" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_pdf_img_4.jpg" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_pdf_img_5.jpg" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_pdf_img_5.jpg" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_pdf_img_6.jpg" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_pdf_img_6.jpg" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_pdf_img_7.jpg" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_pdf_img_7.jpg" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_pdf_img_8.jpg" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_pdf_img_8.jpg" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_thumb_0.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_thumb_0.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_thumb_1.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_thumb_1.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_thumb_2.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_thumb_2.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_thumb_3.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_thumb_3.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_thumb_4.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_thumb_4.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_thumb_5.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_thumb_5.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_thumb_6.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_thumb_6.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_thumb_7.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_thumb_7.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/scratch_thumb_8.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/scratch_thumb_8.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test_flutter_splash.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/test_flutter_splash.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test_splash.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/test_splash.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/test_splash_real.png" beforeDir="false" afterPath="$PROJECT_DIR$/reference-images/test_splash_real.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/login_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/login_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/profile_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/profile_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/signup_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/signup_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/splash_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/splash_screen.dart" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -225,7 +119,23 @@
       <option name="project" value="LOCAL" />
       <updated>1791392313551</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="initial commit">
+      <option name="closed" value="true" />
+      <created>1791450689696</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1791450689696</updated>
+    </task>
+    <task id="LOCAL-00004" summary="initial commit">
+      <option name="closed" value="true" />
+      <created>1791800494632</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1791800494632</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="ToolWindowManager">

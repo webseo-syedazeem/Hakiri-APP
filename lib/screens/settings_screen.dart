@@ -4,6 +4,7 @@ import '../core/constants/app_colors.dart';
 import '../core/constants/app_strings.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_logo.dart';
+import 'main_tab_scaffold.dart';
 import 'paywall_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -68,9 +69,9 @@ class SettingsScreen extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'HAKKIRI PRO MEMBERSHIP',
-                          style: TextStyle(
+                        Text(
+                          state.subscriptionTitle,
+                          style: const TextStyle(
                             color: Color(0xFF7A89FF),
                             fontSize: 10,
                             fontWeight: FontWeight.w800,
@@ -87,9 +88,11 @@ class SettingsScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 2),
-                        const Text(
-                          'Unlimited drills & full 4-pillar analytics',
-                          style: TextStyle(color: Color(0xFF8E91A6), fontSize: 12),
+                        Text(
+                          state.fullName.isNotEmpty
+                              ? state.fullName
+                              : 'Unlimited drills & full 4-pillar analytics',
+                          style: const TextStyle(color: Color(0xFF8E91A6), fontSize: 12),
                         ),
                       ],
                     ),
@@ -111,17 +114,23 @@ class SettingsScreen extends StatelessWidget {
               _buildSectionHeader('TRAINING CALIBRATION'),
               _buildSettingTile(
                 title: 'Industry Track',
-                value: 'Sales & Marketing',
+                value: state.careerTypeLabel,
                 icon: Icons.business_center_outlined,
               ),
               _buildSettingTile(
                 title: 'Voice Resonance Profile',
-                value: 'Biological Resonance',
+                value: state.voiceProfileLabel,
                 icon: Icons.mic_none_outlined,
               ),
               _buildSettingTile(
+                title: 'Progress & Insights',
+                value: 'View stats',
+                icon: Icons.bar_chart_rounded,
+                onTap: () => MainTabScaffold.switchTab(context, 1),
+              ),
+              _buildSettingTile(
                 title: 'Daily Anchor Duration',
-                value: '5 Minutes / Day',
+                value: '${state.dailyAnchorMinutes} Minutes / Day',
                 icon: Icons.timer_outlined,
               ),
 
@@ -135,7 +144,7 @@ class SettingsScreen extends StatelessWidget {
               ),
               _buildSettingTile(
                 title: 'Audio Privacy & Telemetry',
-                value: 'Encrypted on device',
+                value: state.audioPrivacy.replaceAll('_', ' '),
                 icon: Icons.security_outlined,
               ),
 

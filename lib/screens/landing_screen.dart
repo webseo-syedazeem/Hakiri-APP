@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
 import '../widgets/who_its_for_roadmap_view.dart';
 import '../widgets/twelve_months_roadmap_view.dart';
 import 'assessment_screen.dart';
 import 'login_screen.dart';
+import 'signup_screen.dart';
 
-/// Complete Professional Onboarding Experience matching user's target designs:
-/// - Page 0: Welcome ("Think clearly. Speak with purpose.")
-/// - Page 1: Who it's for ("Built for meetings, interviews and everyday conversations.")
-/// - Page 2: Train carousel ("Train the way you think and speak.")
-/// - Page 3: See how it works ("Storytelling Gym" prompt & "Your feedback" card)
+/// Onboarding experience.
+///
+/// New-account funnel:
+///   Welcome (Get started) → Signup → onboarding pages → Assessment → Home
+///
+/// [postSignup] = true starts at page 1 (skip welcome) after account create.
 class LandingScreen extends StatefulWidget {
   final int initialPage;
 
-  const LandingScreen({super.key, this.initialPage = 0});
+  /// After signup: show onboarding pages then Assessment (not Signup again).
+  final bool postSignup;
+
+  const LandingScreen({
+    super.key,
+    this.initialPage = 0,
+    this.postSignup = false,
+  });
 
   @override
   State<LandingScreen> createState() => _LandingScreenState();
@@ -41,8 +51,12 @@ class _LandingScreenState extends State<LandingScreen>
   @override
   void initState() {
     super.initState();
-    _currentPage = widget.initialPage;
-    _pageController = PageController(initialPage: widget.initialPage);
+    // Post-signup onboarding skips the welcome/signup page.
+    final start = widget.postSignup
+        ? (widget.initialPage > 0 ? widget.initialPage : 1)
+        : widget.initialPage;
+    _currentPage = start;
+    _pageController = PageController(initialPage: start);
     _trainCardController = PageController(viewportFraction: 0.76);
 
     // Smooth entrance: the screen fades in and gently rises into place as it
@@ -92,6 +106,13 @@ class _LandingScreenState extends State<LandingScreen>
     }
   }
 
+  void _goToSignup() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SignupScreen()),
+    );
+  }
+
   void _goToAssessment() {
     Navigator.push(
       context,
@@ -114,15 +135,23 @@ class _LandingScreenState extends State<LandingScreen>
     // Keep a small clearance for the home indicator instead of the full inset.
     final bottomGap = isIOS ? (safeBottom > 0 ? 20.0 : 12.0) : 14.0;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        bottom: !isIOS,
-        child: SlideTransition(
-          position: _entrySlide,
-          child: Padding(
-          padding: EdgeInsets.only(bottom: bottomGap),
-          child: Column(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark, // Dark text/icons on Android
+        statusBarBrightness: Brightness.light,    // Dark text/icons on iOS
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          bottom: !isIOS,
+          child: SlideTransition(
+            position: _entrySlide,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: bottomGap),
+              child: Column(
             children: [
               // Pinned Still Top Bar (< back, Skip) - stays fixed while pages slide
               if (_currentPage > 0)
@@ -174,9 +203,11 @@ class _LandingScreenState extends State<LandingScreen>
 
                     ActionPillButton(
                       label: _sectionLabels[_currentPage],
-                      onTap: _currentPage >= _sectionLabels.length - 1
-                          ? _goToAssessment
-                          : _nextPage,
+                      onTap: _currentPage == 0 && !widget.postSignup
+                          ? _goToSignup
+                          : (_currentPage >= _sectionLabels.length - 1
+                              ? _goToAssessment
+                              : _nextPage),
                     ),
 
                     if (_currentPage == 0) ...[
@@ -216,7 +247,7 @@ class _LandingScreenState extends State<LandingScreen>
         ),
             ),
       ),
-    );
+    ));
   }
 
   // ==========================================

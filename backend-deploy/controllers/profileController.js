@@ -75,28 +75,31 @@ const submitAssessment = async (req, res) => {
   }
 
   const fullName = readFullName(req.body || {});
+  if (fullName && fullName.length < 2) return error(res, "Enter your name.");
+
+  const plan = buildPlan(answers);
+  const writes = [
+    Profile.findOneAndUpdate(
+      { user: req.user._id },
+      { ...answers, onboardingComplete: true, plan },
+      { new: true, upsert: true }
+    ),
+    Settings.findOneAndUpdate(
+      { user: req.user._id },
+      {
+        industryTrack: answers.careerType,
+        voiceProfile: answers.voiceProfile,
+        dailyAnchorMinutes: 5,
+      },
+      { upsert: true }
+    ),
+  ];
   if (fullName) {
-    if (fullName.length < 2) return error(res, "Enter your name.");
-    await User.updateOne({ _id: req.user._id }, { fullName });
+    writes.push(User.updateOne({ _id: req.user._id }, { fullName }));
     req.user.fullName = fullName;
   }
 
-  const plan = buildPlan(answers);
-  const profile = await Profile.findOneAndUpdate(
-    { user: req.user._id },
-    { ...answers, onboardingComplete: true, plan },
-    { new: true, upsert: true }
-  );
-
-  await Settings.findOneAndUpdate(
-    { user: req.user._id },
-    {
-      industryTrack: answers.careerType,
-      voiceProfile: answers.voiceProfile,
-      dailyAnchorMinutes: 5,
-    },
-    { upsert: true }
-  );
+  const [profile] = await Promise.all(writes);
 
   return success(res, "Assessment saved. Plan is ready.", {
     profile: profileJson(profile),
@@ -121,7 +124,25 @@ const updateProfile = async (req, res) => {
     await User.updateOne({ _id: req.user._id }, { fullName });
     req.user.fullName = fullName;
   }
-  const profile = await Profile.findOneAndUpdate({ user: req.user._id }, patch, { new: true, upsert: true });
+
+  const existing = await Profile.findOne({ user: req.user._id });
+  const merged = {
+    voiceProfile: patch.voiceProfile || existing?.voiceProfile,
+    careerStage: patch.careerStage || existing?.careerStage,
+    careerType: patch.careerType || existing?.careerType,
+    speakingConfidence: patch.speakingConfidence || existing?.speakingConfidence,
+    primaryRoadblock: patch.primaryRoadblock || existing?.primaryRoadblock,
+    primaryGoal: patch.primaryGoal || existing?.primaryGoal,
+  };
+  if (Object.values(merged).every(Boolean)) {
+    patch.plan = buildPlan(merged);
+    patch.onboardingComplete = true;
+  }
+
+  const profile = await Profile.findOneAndUpdate({ user: req.user._id }, patch, {
+    new: true,
+    upsert: true,
+  });
   if (patch.careerType || patch.voiceProfile) {
     await Settings.findOneAndUpdate(
       { user: req.user._id },
@@ -132,7 +153,10 @@ const updateProfile = async (req, res) => {
       { upsert: true }
     );
   }
-  return success(res, "Profile updated.", { profile: profileJson(profile) });
+  return success(res, "Profile updated.", {
+    profile: profileJson(profile),
+    full_name: req.user.fullName,
+  });
 };
 
 const getPlan = async (req, res) => {

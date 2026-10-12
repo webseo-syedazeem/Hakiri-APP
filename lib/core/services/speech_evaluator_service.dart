@@ -3,16 +3,68 @@ import '../../models/activity_model.dart';
 import '../../models/session_model.dart';
 
 class SpeechEvaluatorService {
-  /// Evaluates speech input against Hakkiri's 4-pillar executive communication rubric
+  static const _noiseWords = {
+    'hello',
+    'hi',
+    'hey',
+    'hola',
+    'test',
+    'testing',
+    'ok',
+    'okay',
+    'um',
+    'uh',
+    'uhm',
+    'hmm',
+    'yeah',
+    'yes',
+    'no',
+    'nah',
+    'right',
+    'like',
+    'so',
+    'and',
+    'the',
+    'a',
+    'an',
+    'to',
+    'of',
+    'in',
+    'on',
+    'i',
+    'me',
+    'my',
+  };
+
+  /// Evaluates speech input against Hakkiri's 4-pillar executive communication rubric.
+  /// Scores from the actual transcript — short / filler-only answers stay low.
   static EvaluationFeedback evaluateSpeech({
     required PromptModel prompt,
     required String transcript,
     required int durationSeconds,
     bool isRetry = false,
   }) {
-    final lower = transcript.toLowerCase();
+    final cleaned = transcript.trim();
+    final lower = cleaned.toLowerCase();
+    final words = cleaned
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .toList();
+    final wordCount = words.length;
+    final minutes = (durationSeconds > 0 ? durationSeconds : 60) / 60.0;
+    final wpm = wordCount == 0 ? 0 : (wordCount / minutes).round();
 
-    // 1. Detect corporate crutch phrases
+    final unique = words
+        .map((w) => w.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), ''))
+        .where((w) => w.isNotEmpty)
+        .toSet();
+    final uniqueRatio =
+        wordCount == 0 ? 0.0 : unique.length / wordCount.toDouble();
+    final meaningfulCount = _meaningfulWords(words).length;
+    final isNonAnswer =
+        cleaned.isEmpty || meaningfulCount < 4 || uniqueRatio < 0.35;
+    final isThin = wordCount < 18 || meaningfulCount < 8;
+
     final detectedCrutches = <String>[];
     for (final crutch in AppStrings.corporateCrutches) {
       if (lower.contains(crutch)) {
@@ -20,75 +72,153 @@ class SpeechEvaluatorService {
       }
     }
 
-    // 2. Count words and words per minute
-    final words = transcript.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
-    final wordCount = words.length;
-    final minutes = (durationSeconds > 0 ? durationSeconds : 60) / 60.0;
-    final wpm = (wordCount / minutes).round();
+    final promptTokens = _tokenSet('${prompt.promptText} ${prompt.objective}');
+    final spokenTokens = _tokenSet(cleaned);
+    final overlap = spokenTokens.isEmpty
+        ? 0.0
+        : spokenTokens.intersection(promptTokens).length /
+            spokenTokens.length.clamp(1, 9999);
 
-    // 3. Simulating acoustic telemetry metrics
-    final int powerPauseCount = (durationSeconds > 25) ? 2 : 1;
-    final bool uptalk = lower.endsWith('?') || lower.contains('right?');
-    final bool isMonotone = wordCount < 30;
+    final uptalk = lower.endsWith('?') || lower.contains('right?');
+    final isMonotone = wordCount < 30;
 
-    // 4. Calculate Pillar Scores (1 to 5)
-    int execScore = 4;
-    if (detectedCrutches.length > 2 || uptalk) {
+    int execScore;
+    int clarityScore;
+    int impactScore;
+    int engagementScore;
+
+    if (isNonAnswer) {
+      execScore = 1;
+      clarityScore = 1;
+      impactScore = 1;
+      engagementScore = 1;
+    } else if (isThin) {
+      execScore = detectedCrutches.isNotEmpty || uptalk ? 1 : 2;
+      clarityScore = wpm > 0 && wpm < 80 ? 2 : 2;
+      impactScore = overlap >= 0.08 ? 2 : 1;
+      engagementScore = 2;
+    } else {
       execScore = 3;
-    } else if (detectedCrutches.isEmpty && powerPauseCount >= 2) {
-      execScore = 5;
-    }
+      if (detectedCrutches.length > 2 || uptalk) {
+        execScore = 2;
+      } else if (detectedCrutches.isEmpty && wordCount >= 40) {
+        execScore = 4;
+      }
+      if (detectedCrutches.isEmpty && wordCount >= 55 && !uptalk) {
+        execScore = 5;
+      }
 
-    int clarityScore = 4;
-    if (wpm > 180 || wpm < 110) {
       clarityScore = 3;
-    } else if (wpm >= 130 && wpm <= 160) {
-      clarityScore = 5;
-    }
+      if (wpm > 180 || wpm < 90) {
+        clarityScore = 2;
+      } else if (wpm >= 120 && wpm <= 165 && wordCount >= 35) {
+        clarityScore = 4;
+      }
+      if (wpm >= 130 && wpm <= 155 && wordCount >= 50) {
+        clarityScore = 5;
+      }
 
-    int impactScore = 4;
-    if (prompt.activitySlug == 'cut_it_in_half' && prompt.secondaryText != null) {
-      final origCount = prompt.secondaryText!.split(RegExp(r'\s+')).length;
-      final compressionPct = ((origCount - wordCount) / origCount * 100).round();
-      if (compressionPct >= 50) {
+      impactScore = overlap >= 0.12 ? 3 : 2;
+      if (prompt.activitySlug == 'cut_it_in_half' &&
+          prompt.secondaryText != null) {
+        final origCount =
+            prompt.secondaryText!.split(RegExp(r'\s+')).length.clamp(1, 9999);
+        final compressionPct =
+            ((origCount - wordCount) / origCount * 100).round();
+        if (compressionPct >= 50 && wordCount >= 15) {
+          impactScore = 5;
+        } else if (compressionPct < 30) {
+          impactScore = 2;
+        } else {
+          impactScore = 3;
+        }
+      } else if (wordCount >= 40 && overlap >= 0.1) {
+        impactScore = 4;
+      } else if (wordCount >= 55 && overlap >= 0.15) {
         impactScore = 5;
-      } else if (compressionPct < 30) {
-        impactScore = 3;
+      }
+
+      engagementScore = isMonotone ? 2 : 3;
+      if (!isMonotone && wordCount >= 35 && uniqueRatio >= 0.55) {
+        engagementScore = 4;
+      }
+      if (wordCount >= 50 && uniqueRatio >= 0.6 && detectedCrutches.isEmpty) {
+        engagementScore = 5;
       }
     }
 
-    int engagementScore = isMonotone ? 3 : 5;
-
-    final overall = ((execScore + clarityScore + impactScore + engagementScore) / 4.0).round().clamp(1, 5);
-
-    // 5. Strict Feedback Structure
-    String strength = 'Composed baseline cadence with clear vocal projection.';
-    if (powerPauseCount >= 2) {
-      strength = 'Commanded authority by utilizing $powerPauseCount deliberate power pauses before strategic points.';
+    if (isRetry && !isNonAnswer) {
+      execScore = (execScore + 1).clamp(1, 5);
+      engagementScore = (engagementScore + 1).clamp(1, 5);
     }
 
-    String improvement = 'Reduce subtle permission-seeking crutches at sentence ends.';
-    String retryInstruction = 'Lead with the decisive conclusion in the first 5 seconds and maintain flat statement tone.';
-    HighlightedPhrase highlight = const HighlightedPhrase(
-      timestampRange: '00:14 - 00:20',
-      phrase: '...so basically, if that makes sense...',
-      critique: 'Uptalk and crutch words dilute executive presence.',
-    );
+    final overall = ((execScore + clarityScore + impactScore + engagementScore) /
+            4.0)
+        .round()
+        .clamp(1, 5);
 
-    if (detectedCrutches.isNotEmpty) {
-      final firstCrutch = detectedCrutches.first;
-      improvement = 'Eliminate the crutch phrase "$firstCrutch" to project unwavering executive conviction.';
-      retryInstruction = 'Replace "$firstCrutch" with a 1-second silent power pause before stating your proposal.';
-      highlight = HighlightedPhrase(
-        timestampRange: '00:18 - 00:24',
-        phrase: '...$firstCrutch...',
-        critique: 'Crutch word signals cognitive hesitation during unscripted delivery.',
-      );
+    final spokenSnippet = _snippet(words, maxWords: 10);
+    final heard = spokenSnippet.isEmpty
+        ? '(no clear speech captured)'
+        : '...$spokenSnippet...';
+
+    String strength;
+    String improvement;
+    String retryInstruction;
+    String critique;
+
+    if (isNonAnswer) {
+      strength =
+          'Mic worked — we heard you — but this was not an answer to the prompt.';
+      improvement =
+          'Answer the question with a real point: decision first, then one reason.';
+      retryInstruction =
+          'Ignore filler. State your answer in one sentence, then add one example.';
+      critique =
+          'Captured filler/noise only ($wordCount words). Score stays low until you address the prompt.';
+    } else if (isThin) {
+      strength =
+          'You started speaking ($wordCount words) — that is the right instinct under pressure.';
+      improvement =
+          'Stretch to ~40–80 words: open with the conclusion, then one supporting detail.';
+      retryInstruction =
+          'Lead with your bottom-line answer in under 5 seconds, then explain why.';
+      critique =
+          'Too thin to show executive presence — expand beyond a short opener.';
+    } else {
+      strength = wordCount >= 40
+          ? 'You sustained a full answer ($wordCount words) under time pressure.'
+          : 'Clear spoken start on record — extend the middle of the answer.';
+      improvement =
+          'Lead with the conclusion in the first sentence, then support it with one concrete example.';
+      retryInstruction =
+          'Open with your bottom-line answer in under 5 seconds, then add one supporting point.';
+      critique = 'Tighten openings so the first clause carries the decision.';
+
+      if (detectedCrutches.isNotEmpty) {
+        final firstCrutch = detectedCrutches.first;
+        improvement =
+            'Eliminate the crutch phrase "$firstCrutch" to project unwavering executive conviction.';
+        retryInstruction =
+            'Replace "$firstCrutch" with a 1-second silent power pause before stating your proposal.';
+        critique =
+            'Crutch word signals cognitive hesitation during unscripted delivery.';
+      } else if (uptalk) {
+        improvement =
+            'End statements flat — avoid rising intonation that sounds like permission-seeking.';
+        retryInstruction =
+            'Re-say your closing line as a firm statement, not a question.';
+        critique = 'Uptalk softens authority at the end of the point.';
+      }
     }
 
-    if (isRetry) {
-      strength = 'Coached Retry: Noticeable reduction in filler words and crisper sentence closures.';
+    if (isRetry && !isNonAnswer) {
+      strength =
+          'Coached Retry: Noticeable reduction in filler words and crisper sentence closures.';
     }
+
+    final powerPauseCount =
+        isNonAnswer || isThin ? 0 : (durationSeconds > 25 ? 2 : 1);
 
     final pillars = FourPillarsScore(
       executiveScore: execScore,
@@ -98,9 +228,17 @@ class SpeechEvaluatorService {
       crutchCount: detectedCrutches.length,
       powerPauseCount: powerPauseCount,
       pacingWpm: wpm,
-      intelligibilityPercentage: 94,
-      actionVerbPercentage: 70,
-      isMonotoneWarning: isMonotone,
+      intelligibilityPercentage: isNonAnswer
+          ? 40
+          : isThin
+              ? 65
+              : 90,
+      actionVerbPercentage: isNonAnswer
+          ? 10
+          : isThin
+              ? 35
+              : 70,
+      isMonotoneWarning: isMonotone || isNonAnswer,
     );
 
     return EvaluationFeedback(
@@ -108,10 +246,54 @@ class SpeechEvaluatorService {
       pillars: pillars,
       oneStrength: strength,
       oneSpecificImprovement: improvement,
-      highlightedPhrase: highlight,
+      highlightedPhrase: HighlightedPhrase(
+        timestampRange: _rangeFor(
+          durationSeconds,
+          startFrac: 0.1,
+          endFrac: 0.35,
+        ),
+        phrase: heard,
+        critique: critique,
+      ),
       retryInstruction: retryInstruction,
       exemplarResponse: prompt.exemplarResponse,
       isCoachedRetry: isRetry,
     );
+  }
+
+  static List<String> _meaningfulWords(List<String> words) {
+    return words
+        .map((w) => w.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), ''))
+        .where((w) => w.length > 1 && !_noiseWords.contains(w))
+        .toList();
+  }
+
+  static Set<String> _tokenSet(String text) {
+    return text
+        .toLowerCase()
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((w) => w.length > 2 && !_noiseWords.contains(w))
+        .toSet();
+  }
+
+  static String _snippet(List<String> words, {int maxWords = 10}) {
+    if (words.isEmpty) return '';
+    if (words.length <= maxWords) return words.join(' ');
+    final mid = (words.length / 2).floor();
+    final start = (mid - (maxWords ~/ 2)).clamp(0, words.length - maxWords);
+    return words.sublist(start, start + maxWords).join(' ');
+  }
+
+  static String _rangeFor(
+    int durationSeconds, {
+    required double startFrac,
+    required double endFrac,
+  }) {
+    final total = durationSeconds.clamp(1, 600);
+    final start = (total * startFrac).round().clamp(0, total);
+    final end = (total * endFrac).round().clamp(start + 1, total);
+    String fmt(int s) =>
+        '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
+    return '${fmt(start)} - ${fmt(end)}';
   }
 }

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'core/constants/app_colors.dart';
 import 'core/smooth_page_transitions.dart';
+import 'core/services/google_auth_service.dart';
+import 'core/services/hakkiri_api_service.dart';
 import 'core/services/supabase_service.dart';
 import 'providers/app_state_provider.dart';
 import 'screens/splash_screen.dart';
@@ -10,8 +13,12 @@ import 'screens/splash_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Restore JWT before any screen builds so splash never races an empty session.
+  await HakkiriApiService.instance.loadSession();
+
   // Initialize Supabase with remote credentials or safe offline demo fallback
   await SupabaseService.instance.initialize();
+  await GoogleAuthService.bootstrap();
 
   runApp(const HakkiriApp());
 }
@@ -40,6 +47,15 @@ class HakkiriApp extends StatelessWidget {
           ),
           textTheme: GoogleFonts.interTextTheme(
             ThemeData.light().textTheme,
+          ),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            systemOverlayStyle: SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarIconBrightness: Brightness.dark, // Dark icons on Android
+              statusBarBrightness: Brightness.light,    // Dark icons on iOS
+            ),
           ),
           // Smooth fade + slide transition for every screen navigation.
           pageTransitionsTheme: const PageTransitionsTheme(
