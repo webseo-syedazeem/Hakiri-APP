@@ -4,6 +4,7 @@ import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_logo.dart';
 import 'activity_detail_screen.dart';
+import 'live_conversation_screen.dart';
 import 'main_tab_scaffold.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -21,8 +22,46 @@ class HomeScreenContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
-    final completedCount = state.sessionHistory.length;
-    final bool hasStarted = completedCount > 0;
+    final completedCount = state.completedTodayDrills();
+    final bool hasStarted = completedCount > 0 || state.completedSessions > 0;
+    final weekDays = state.practiceDaysThisWeek;
+    final drills = state.todayDrillSlugs;
+    final primarySlug = drills.isNotEmpty ? drills.first : 'think_fast';
+    final primaryActivity = state.activities.firstWhere(
+      (a) => a.slug == primarySlug,
+      orElse: () => state.activities.first,
+    );
+    final nextSlug = drills.length > 1
+        ? drills[completedCount.clamp(0, drills.length - 1)]
+        : primarySlug;
+    final nextActivity = state.activities.firstWhere(
+      (a) => a.slug == nextSlug,
+      orElse: () => primaryActivity,
+    );
+    final planTotal = drills.isEmpty ? 3 : drills.length;
+    final planDone = completedCount.clamp(0, planTotal);
+    final remaining = (planTotal - planDone).clamp(0, planTotal);
+    final latest = state.sessionHistory.isNotEmpty ? state.sessionHistory.first : null;
+    final progressTitle = hasStarted ? "THIS WEEK'S PROGRESS" : 'YOUR STARTING POINT';
+    final String progressHeadline;
+    final String progressSub;
+    if (!hasStarted) {
+      progressHeadline = "Complete today's exercises";
+      progressSub = 'to start tracking your progress.';
+    } else if (state.overallAverage != null) {
+      progressHeadline =
+          'Average ${state.overallAverage!.toStringAsFixed(1)}/5';
+      progressSub = 'from ${state.overallSamples} scored sessions.';
+    } else if (latest != null) {
+      progressHeadline =
+          'Last session ${latest.feedback.overallScore}/5';
+      progressSub = latest.feedback.pillars.crutchCount > 0
+          ? '${latest.feedback.pillars.crutchCount} filler habits flagged.'
+          : 'Keep building your streak.';
+    } else {
+      progressHeadline = '${state.completedSessions} sessions logged';
+      progressSub = 'View progress in Insights.';
+    }
 
     return SafeArea(
       bottom: false,
@@ -64,7 +103,7 @@ class HomeScreenContent extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        '${state.currentStreak > 0 ? state.currentStreak : 4}',
+                        '${state.currentStreak}',
                         style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 13,
@@ -103,10 +142,18 @@ class HomeScreenContent extends StatelessWidget {
                 ),
                 children: [
                   TextSpan(
-                    text: hasStarted ? 'Nice start.\n' : 'Your plan is ready.\n',
+                    text: hasStarted
+                        ? (remaining == 0 ? 'Nice work.\n' : 'Nice start.\n')
+                        : 'Your plan is ready.\n',
                   ),
                   TextSpan(
-                    text: hasStarted ? 'Two to go today.' : "Let's get started.",
+                    text: hasStarted
+                        ? (remaining == 0
+                            ? 'Plan complete today.'
+                            : remaining == 1
+                                ? 'One to go today.'
+                                : '$remaining to go today.')
+                        : "Let's get started.",
                     style: const TextStyle(color: AppColors.royalBlue),
                   ),
                 ],
@@ -130,18 +177,18 @@ class HomeScreenContent extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       RichText(
-                        text: const TextSpan(
-                          style: TextStyle(
+                        text: TextSpan(
+                          style: const TextStyle(
                             fontFamily: 'Inter',
                             color: AppColors.textPrimary,
                             fontSize: 13,
                           ),
                           children: [
                             TextSpan(
-                              text: '4 of 7 days ',
-                              style: TextStyle(fontWeight: FontWeight.w800),
+                              text: '$weekDays of 7 days ',
+                              style: const TextStyle(fontWeight: FontWeight.w800),
                             ),
-                            TextSpan(
+                            const TextSpan(
                               text: 'this week',
                               style: TextStyle(color: AppColors.textSecondary),
                             ),
@@ -150,12 +197,14 @@ class HomeScreenContent extends StatelessWidget {
                       ),
                       Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(Icons.ac_unit_rounded, size: 14, color: AppColors.royalBlue),
-                          SizedBox(width: 4),
+                        children: [
+                          const Icon(Icons.ac_unit_rounded, size: 14, color: AppColors.royalBlue),
+                          const SizedBox(width: 4),
                           Text(
-                            '1 freeze ready',
-                            style: TextStyle(
+                            state.streakFreezeCount > 0
+                                ? '${state.streakFreezeCount} freeze ready'
+                                : 'No freeze left',
+                            style: const TextStyle(
                               color: AppColors.royalBlue,
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
@@ -169,7 +218,7 @@ class HomeScreenContent extends StatelessWidget {
                   // 7 segmented rounded pill bars
                   Row(
                     children: List.generate(7, (idx) {
-                      final isCompleted = idx < 4;
+                      final isCompleted = idx < weekDays;
                       return Expanded(
                         child: Container(
                           height: 7,
@@ -218,8 +267,8 @@ class HomeScreenContent extends StatelessWidget {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
+                      children: [
+                        const Text(
                           'Personalised from your assessment',
                           style: TextStyle(
                             color: AppColors.textPrimary,
@@ -227,10 +276,10 @@ class HomeScreenContent extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
-                          'Focus: thinking on the spot · clarity · confidence',
-                          style: TextStyle(
+                          'Focus: ${state.focusLine}',
+                          style: const TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 11,
                           ),
@@ -251,7 +300,7 @@ class HomeScreenContent extends StatelessWidget {
             // Hero Dark Card (Navy Gradient Card with Circular Progress and Play button)
             GestureDetector(
               onTap: () {
-                state.selectActivity(hasStarted ? 'cut_it_in_half' : 'think_fast');
+                state.selectActivity(nextActivity.slug);
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
@@ -285,7 +334,7 @@ class HomeScreenContent extends StatelessWidget {
                         alignment: Alignment.center,
                         children: [
                           CircularProgressIndicator(
-                            value: hasStarted ? (2 / 3) : (1 / 3),
+                            value: planTotal == 0 ? 0 : (planDone / planTotal).clamp(0.0, 1.0),
                             strokeWidth: 4,
                             backgroundColor: Colors.white.withValues(alpha: 0.15),
                             valueColor: const AlwaysStoppedAnimation<Color>(
@@ -293,7 +342,7 @@ class HomeScreenContent extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            hasStarted ? '2/3' : '1/3',
+                            '$planDone/$planTotal',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 14,
@@ -321,7 +370,7 @@ class HomeScreenContent extends StatelessWidget {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            hasStarted ? 'Cut it in Half' : 'Think Fast',
+                            nextActivity.name,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 20,
@@ -330,9 +379,7 @@ class HomeScreenContent extends StatelessWidget {
                           ),
                           const SizedBox(height: 3),
                           Text(
-                            hasStarted
-                                ? 'Get to the point sooner.'
-                                : 'Practise answering clearly when put on the spot.',
+                            nextActivity.tagline,
                             style: TextStyle(
                               color: Colors.white.withValues(alpha: 0.65),
                               fontSize: 12,
@@ -377,7 +424,9 @@ class HomeScreenContent extends StatelessWidget {
 
             // Section Heading: TODAY'S PLAN
             Text(
-              hasStarted ? "TODAY'S PLAN · PERSONALISED FOR YOU" : "TODAY'S PLAN · 3 EXERCISES",
+              hasStarted
+                  ? "TODAY'S PLAN · PERSONALISED FOR YOU"
+                  : "TODAY'S PLAN · $planTotal EXERCISES",
               style: const TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 11,
@@ -387,65 +436,119 @@ class HomeScreenContent extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            // Exercise 1: Think Fast / Think First
-            _buildExerciseCard(
-              context: context,
-              icon: Icons.bolt_rounded,
-              iconColor: const Color(0xFF3B82F6),
-              iconBgColor: const Color(0xFFEFF6FF),
-              title: hasStarted ? 'Think First' : 'Think Fast',
-              subtitle: hasStarted ? 'You go blank on the spot' : 'Respond on the spot',
-              isCompleted: hasStarted,
-              trailingText: null,
-              onTap: () {
-                state.selectActivity('think_fast');
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                );
-              },
-            ),
-            const SizedBox(height: 10),
-
-            // Exercise 2: Cut it in Half
-            _buildExerciseCard(
-              context: context,
-              icon: Icons.content_cut_rounded,
-              iconColor: const Color(0xFFEF4444),
-              iconBgColor: const Color(0xFFFEF2F2),
-              title: 'Cut it in Half',
-              subtitle: hasStarted ? 'Land the point sooner' : 'Get to the point sooner',
-              isCompleted: false,
-              trailingText: hasStarted ? '~2 min' : null,
-              onTap: () {
-                state.selectActivity('cut_it_in_half');
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                );
-              },
-            ),
-            const SizedBox(height: 10),
-
-            // Exercise 3: Debate Me
-            _buildExerciseCard(
-              context: context,
-              icon: Icons.chat_bubble_outline_rounded,
-              iconColor: const Color(0xFFF59E0B),
-              iconBgColor: const Color(0xFFFFFBEB),
-              title: 'Debate Me',
-              subtitle: hasStarted ? 'Clients push back on price' : 'Handle pushback confidently',
-              isCompleted: false,
-              trailingText: hasStarted ? '60 sec' : null,
-              onTap: () {
-                state.selectActivity('debate_me');
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                );
-              },
-            ),
+            ...drills.take(3).toList().asMap().entries.map((entry) {
+              final index = entry.key;
+              final slug = entry.value;
+              final activity = state.activities.firstWhere(
+                (a) => a.slug == slug,
+                orElse: () => state.activities.first,
+              );
+              final doneToday = state.sessionHistory.any((s) {
+                final now = DateTime.now();
+                return s.activitySlug == slug &&
+                    s.timestamp.year == now.year &&
+                    s.timestamp.month == now.month &&
+                    s.timestamp.day == now.day;
+              });
+              final visuals = _exerciseVisual(slug);
+              return Padding(
+                padding: EdgeInsets.only(bottom: index < drills.take(3).length - 1 ? 10 : 0),
+                child: _buildExerciseCard(
+                  context: context,
+                  icon: visuals.$1,
+                  iconColor: visuals.$2,
+                  iconBgColor: visuals.$3,
+                  title: activity.name,
+                  subtitle: activity.tagline,
+                  isCompleted: doneToday,
+                  trailingText: doneToday ? null : '~2 min',
+                  onTap: () {
+                    state.selectActivity(slug);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
+                    );
+                  },
+                ),
+              );
+            }),
             const SizedBox(height: 18),
+
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LiveConversationScreen()),
+                );
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFBFDBFE), width: 1.0),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFDBEAFE),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.graphic_eq_rounded,
+                        color: Color(0xFF2563EB),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'LIVE COACH',
+                            style: TextStyle(
+                              color: Color(0xFF2563EB),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Back-and-forth voice practice',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            'Native mic + Gemini live conversation',
+                            style: TextStyle(
+                              color: Color(0xFF1D4ED8),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      color: Color(0xFF2563EB),
+                      size: 22,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
 
             // Bottom Highlight Mint Green Card
             Container(
@@ -478,7 +581,7 @@ class HomeScreenContent extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          hasStarted ? "THIS WEEK'S PROGRESS" : 'YOUR STARTING POINT',
+                          progressTitle,
                           style: const TextStyle(
                             color: Color(0xFF2E7D32),
                             fontSize: 10,
@@ -488,7 +591,7 @@ class HomeScreenContent extends StatelessWidget {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          hasStarted ? 'Fillers down from 5 to 2' : "Complete today's exercises",
+                          progressHeadline,
                           style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 14,
@@ -496,7 +599,7 @@ class HomeScreenContent extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          hasStarted ? 'View progress in Insights' : 'to start tracking your progress.',
+                          progressSub,
                           style: const TextStyle(
                             color: Color(0xFF2E7D32),
                             fontSize: 12,
@@ -519,6 +622,21 @@ class HomeScreenContent extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  static (IconData, Color, Color) _exerciseVisual(String slug) {
+    switch (slug) {
+      case 'cut_it_in_half':
+        return (Icons.content_cut_rounded, const Color(0xFFEF4444), const Color(0xFFFEF2F2));
+      case 'debate_me':
+        return (Icons.chat_bubble_outline_rounded, const Color(0xFFF59E0B), const Color(0xFFFFFBEB));
+      case 'storytelling_gym':
+        return (Icons.auto_stories_outlined, const Color(0xFF8B5CF6), const Color(0xFFF5F3FF));
+      case 'explain_it_simply':
+        return (Icons.lightbulb_outline_rounded, const Color(0xFF10B981), const Color(0xFFECFDF5));
+      default:
+        return (Icons.bolt_rounded, const Color(0xFF3B82F6), const Color(0xFFEFF6FF));
+    }
   }
 
   static Widget _buildExerciseCard({

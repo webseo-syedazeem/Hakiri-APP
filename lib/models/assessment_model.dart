@@ -84,6 +84,7 @@ class PersonalizedPlanModel {
   final String summary;
   final String recommendedTrack;
   final String primaryRoadblock;
+  final String focusLine;
   final List<String> initialDrills;
   final List<MilestoneItem> milestones;
 
@@ -92,6 +93,7 @@ class PersonalizedPlanModel {
     required this.summary,
     required this.recommendedTrack,
     required this.primaryRoadblock,
+    this.focusLine = '',
     required this.initialDrills,
     required this.milestones,
   });
@@ -101,6 +103,7 @@ class PersonalizedPlanModel {
         'summary': summary,
         'recommended_track': recommendedTrack,
         'primary_roadblock': primaryRoadblock,
+        'focus_line': focusLine,
         'initial_drills': initialDrills,
         'milestones': milestones.map((m) => m.toJson()).toList(),
       };
@@ -110,9 +113,10 @@ class PersonalizedPlanModel {
         summary: json['summary'] ?? '',
         recommendedTrack: json['recommended_track'] ?? '',
         primaryRoadblock: json['primary_roadblock'] ?? '',
+        focusLine: json['focus_line'] ?? '',
         initialDrills: List<String>.from(json['initial_drills'] ?? []),
         milestones: (json['milestones'] as List<dynamic>? ?? [])
-            .map((e) => MilestoneItem.fromJson(e))
+            .map((e) => MilestoneItem.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
 }

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/session_model.dart';
 import '../providers/app_state_provider.dart';
 import 'home_screen.dart';
 import 'recording_screen.dart';
@@ -14,10 +15,12 @@ class FeedbackScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
     final feedback = state.latestFeedback;
-
+    final overallValue = (feedback?.overallScore ?? 0).toDouble();
     final overallScore = feedback != null
-        ? feedback.overallScore.toDouble().toStringAsFixed(1)
-        : '3.7';
+        ? overallValue.toStringAsFixed(1)
+        : '--';
+    final activityTitle =
+        (state.selectedActivity?.name ?? 'SESSION').toUpperCase();
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBFBF9),
@@ -38,9 +41,9 @@ class FeedbackScreen extends StatelessWidget {
                       size: 28,
                     ),
                   ),
-                  const Text(
-                    'THINK FIRST',
-                    style: TextStyle(
+                  Text(
+                    activityTitle,
+                    style: const TextStyle(
                       fontFamily: 'Inter',
                       color: Color(0xFF0F172A),
                       fontSize: 11.5,
@@ -68,24 +71,41 @@ class FeedbackScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (feedback == null)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 20),
+                        child: Text(
+                          'No scored session yet. Finish a drill to see real feedback here.',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      ),
                     // Overall Score Header
-                    _buildOverallScoreSection(overallScore),
+                    _buildOverallScoreSection(
+                      overallScore: overallScore,
+                      overallValue: overallValue,
+                      feedback: feedback,
+                    ),
                     const SizedBox(height: 20),
 
                     // 3 Metric Cards (Content, Structure, Fluency)
-                    _buildMetricsRow(),
+                    _buildMetricsRow(feedback),
                     const SizedBox(height: 16),
 
                     // WHAT WORKED WELL Card (Green)
-                    _buildWhatWorkedWellCard(),
+                    _buildWhatWorkedWellCard(feedback),
                     const SizedBox(height: 16),
 
                     // SUGGESTED ANSWER Card (Dark Card with Audio Preview)
-                    _buildSuggestedAnswerCard(),
+                    _buildSuggestedAnswerCard(feedback),
                     const SizedBox(height: 16),
 
                     // KEY POINTS TO IMPROVE Card
-                    _buildKeyPointsToImproveCard(),
+                    _buildKeyPointsToImproveCard(feedback),
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -203,8 +223,38 @@ class FeedbackScreen extends StatelessWidget {
     );
   }
 
+  String _effortLabel(int score) {
+    if (score >= 5) return 'EXCELLENT';
+    if (score >= 4) return 'STRONG';
+    if (score >= 3) return 'GOOD EFFORT';
+    if (score >= 2) return 'WEAK';
+    if (score >= 1) return 'RETRY';
+    return 'NO SCORE YET';
+  }
+
+  String _headlineFor(EvaluationFeedback? feedback) {
+    if (feedback == null) {
+      return 'Finish a drill\nto unlock scoring.';
+    }
+    if (feedback.overallScore <= 2) {
+      return 'Not enough answer.\nTry the question again.';
+    }
+    if (feedback.pillars.crutchCount > 0) {
+      return 'Clear answer.\nTidy up the fillers.';
+    }
+    if (feedback.overallScore >= 4) {
+      return 'Solid delivery.\nKeep the momentum.';
+    }
+    return 'Decent baseline.\nTighten the close.';
+  }
+
   /// Overall Score Row (Circle Score Ring + Headline)
-  Widget _buildOverallScoreSection(String overallScore) {
+  Widget _buildOverallScoreSection({
+    required String overallScore,
+    required double overallValue,
+    required EvaluationFeedback? feedback,
+  }) {
+    final score = feedback?.overallScore ?? 0;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -214,7 +264,7 @@ class FeedbackScreen extends StatelessWidget {
           height: 96,
           child: CustomPaint(
             painter: _ScoreRingPainter(
-              scoreFraction: 3.7 / 5.0,
+              scoreFraction: (overallValue <= 0 ? 0 : overallValue) / 5.0,
               trackColor: const Color(0xFFDBEAFE),
               activeColor: const Color(0xFF2563EB),
             ),
@@ -256,16 +306,15 @@ class FeedbackScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Pill: GOOD EFFORT
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEEF2FF),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Text(
-                  'GOOD EFFORT',
-                  style: TextStyle(
+                child: Text(
+                  _effortLabel(score),
+                  style: const TextStyle(
                     fontFamily: 'Inter',
                     color: Color(0xFF4F46E5),
                     fontSize: 10,
@@ -275,11 +324,9 @@ class FeedbackScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 6),
-
-              // Title: Clear answer. Tidy up the fillers.
-              const Text(
-                'Clear answer.\nTidy up the fillers.',
-                style: TextStyle(
+              Text(
+                _headlineFor(feedback),
+                style: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 21,
                   fontWeight: FontWeight.w900,
@@ -289,11 +336,11 @@ class FeedbackScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-
-              // Subtitle
-              const Text(
-                'Here\'s how you did and how to improve.',
-                style: TextStyle(
+              Text(
+                feedback == null
+                    ? 'Scores appear after you complete a practice session.'
+                    : 'Here\'s how you did and how to improve.',
+                style: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 12.5,
                   fontWeight: FontWeight.w500,
@@ -307,48 +354,67 @@ class FeedbackScreen extends StatelessWidget {
     );
   }
 
-  /// 3 Metrics Row (Content, Structure, Fluency)
-  Widget _buildMetricsRow() {
+  /// 3 Metrics Row mapped from the 4-pillar evaluation.
+  Widget _buildMetricsRow(EvaluationFeedback? feedback) {
+    final impact = feedback?.pillars.impactScore ?? 0;
+    final clarity = feedback?.pillars.clarityScore ?? 0;
+    final fluency = feedback?.pillars.executiveScore ?? 0;
+    final crutches = feedback?.pillars.crutchCount ?? 0;
+    final wpm = feedback?.pillars.pacingWpm ?? 0;
+
     return Row(
       children: [
-        // Content
         Expanded(
           child: _buildMetricCard(
             icon: Icons.bolt_rounded,
             iconColor: const Color(0xFF2563EB),
             ringColor: const Color(0xFF2563EB),
-            scoreFraction: 4.0 / 5.0,
+            scoreFraction: impact / 5.0,
             title: 'Content',
-            score: '4/5',
-            desc: 'Clear structure and relevant examples.',
+            score: feedback == null ? '--/5' : '$impact/5',
+            desc: feedback == null
+                ? 'Waiting for your first scored answer.'
+                : impact <= 1
+                    ? 'No real answer to the prompt.'
+                    : impact >= 4
+                        ? 'Point landed with useful detail.'
+                        : 'Lead with the decision sooner.',
           ),
         ),
         const SizedBox(width: 10),
-
-        // Structure
         Expanded(
           child: _buildMetricCard(
             icon: Icons.assignment_outlined,
             iconColor: const Color(0xFF059669),
             ringColor: const Color(0xFF059669),
-            scoreFraction: 4.0 / 5.0,
+            scoreFraction: clarity / 5.0,
             title: 'Structure',
-            score: '4/5',
-            desc: 'Well organised and easy to follow.',
+            score: feedback == null ? '--/5' : '$clarity/5',
+            desc: feedback == null
+                ? 'Waiting for your first scored answer.'
+                : clarity <= 1
+                    ? 'Need a fuller spoken answer.'
+                    : wpm > 0
+                        ? 'Pace around $wpm wpm.'
+                        : 'Keep ideas organised and easy to follow.',
           ),
         ),
         const SizedBox(width: 10),
-
-        // Fluency
         Expanded(
           child: _buildMetricCard(
             icon: Icons.pause_circle_outline_rounded,
             iconColor: const Color(0xFFDC2626),
             ringColor: const Color(0xFFDC2626),
-            scoreFraction: 3.0 / 5.0,
+            scoreFraction: fluency / 5.0,
             title: 'Fluency',
-            score: '3/5',
-            desc: 'Some filler words and hesitations.',
+            score: feedback == null ? '--/5' : '$fluency/5',
+            desc: feedback == null
+                ? 'Waiting for your first scored answer.'
+                : fluency <= 1
+                    ? 'Filler / noise only — retry.'
+                    : crutches > 0
+                        ? '$crutches filler habits spotted.'
+                        : 'Steady delivery with fewer crutches.',
           ),
         ),
       ],
@@ -436,58 +502,68 @@ class FeedbackScreen extends StatelessWidget {
     );
   }
 
-  /// WHAT WORKED WELL Card
-  Widget _buildWhatWorkedWellCard() {
+  /// Strength / coaching note card
+  Widget _buildWhatWorkedWellCard(EvaluationFeedback? feedback) {
+    final score = feedback?.overallScore ?? 0;
+    final isWeak = score > 0 && score <= 2;
+    final strength = feedback?.oneStrength.trim().isNotEmpty == true
+        ? feedback!.oneStrength
+        : 'Complete a drill to unlock a personalised strength note.';
+    final label = isWeak ? 'WHAT TO FIX' : 'WHAT WORKED WELL';
+    final bg = isWeak ? const Color(0xFFFFF7ED) : const Color(0xFFECFDF5);
+    final border = isWeak ? const Color(0xFFFED7AA) : const Color(0xFFA7F3D0);
+    final iconBg = isWeak ? const Color(0xFFFFEDD5) : const Color(0xFFD1FAE5);
+    final iconColor = isWeak ? const Color(0xFFC2410C) : const Color(0xFF059669);
+    final labelColor = isWeak ? const Color(0xFFC2410C) : const Color(0xFF047857);
+    final bodyColor = isWeak ? const Color(0xFF9A3412) : const Color(0xFF065F46);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFECFDF5),
+        color: bg,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFA7F3D0), width: 1.0),
+        border: Border.all(color: border, width: 1.0),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Green Checkmark Icon Circle
           Container(
             width: 28,
             height: 28,
-            decoration: const BoxDecoration(
-              color: Color(0xFFD1FAE5),
+            decoration: BoxDecoration(
+              color: iconBg,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.check_rounded,
-              color: Color(0xFF059669),
+            child: Icon(
+              isWeak ? Icons.priority_high_rounded : Icons.check_rounded,
+              color: iconColor,
               size: 18,
             ),
           ),
           const SizedBox(width: 12),
-
-          // Text content
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
+              children: [
                 Text(
-                  'WHAT WORKED WELL',
+                  label,
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.1,
-                    color: Color(0xFF047857),
+                    color: labelColor,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'You demonstrated a clear and practical approach to handling a difficult stakeholder.',
+                  strength,
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF065F46),
+                    color: bodyColor,
                     height: 1.35,
                   ),
                 ),
@@ -499,8 +575,20 @@ class FeedbackScreen extends StatelessWidget {
     );
   }
 
-  /// SUGGESTED ANSWER Card (Dark Box with Audio Preview & Peach Pill Keywords)
-  Widget _buildSuggestedAnswerCard() {
+  /// SUGGESTED ANSWER — clean exemplar + separate "you said" highlight.
+  Widget _buildSuggestedAnswerCard(EvaluationFeedback? feedback) {
+    final exemplar = feedback?.exemplarResponse.trim().isNotEmpty == true
+        ? feedback!.exemplarResponse
+        : 'Your coached exemplar appears here after a scored session.';
+    final phrase = feedback?.highlightedPhrase.phrase.trim() ?? '';
+    final critique = feedback?.highlightedPhrase.critique.trim() ?? '';
+    final score = feedback?.overallScore ?? 0;
+    final intro = feedback == null
+        ? 'Finish a practice take to unlock a coached rewrite.'
+        : score <= 2
+            ? 'Here is a strong model answer for this prompt:'
+            : 'Here\'s a more refined version you can aim for:';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -522,10 +610,9 @@ class FeedbackScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-
-          const Text(
-            'You said a great start. Here\'s a more refined version you can aim for:',
-            style: TextStyle(
+          Text(
+            intro,
+            style: const TextStyle(
               fontFamily: 'Inter',
               fontSize: 13,
               fontWeight: FontWeight.w500,
@@ -533,9 +620,22 @@ class FeedbackScreen extends StatelessWidget {
               height: 1.35,
             ),
           ),
+          if (phrase.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            const Text(
+              'YOU SAID',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.1,
+                color: Color(0xFF94A3B8),
+              ),
+            ),
+            const SizedBox(height: 6),
+            _buildPeachHighlightPill(phrase),
+          ],
           const SizedBox(height: 14),
-
-          // Audio Player Preview Container
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -545,7 +645,6 @@ class FeedbackScreen extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Play Button
                 Container(
                   width: 36,
                   height: 36,
@@ -560,38 +659,31 @@ class FeedbackScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-
-                // Transcript with Highlighted Pills
                 Expanded(
-                  child: Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'I would start by ',
-                        style: TextStyle(
+                      Text(
+                        exemplar,
+                        style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 12.5,
                           color: Color(0xFFCBD5E1),
+                          height: 1.4,
                         ),
                       ),
-                      _buildPeachHighlightPill('listening'),
-                      const Text(
-                        ' to understand their concerns, ',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 12.5,
-                          color: Color(0xFFCBD5E1),
+                      if (critique.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          critique,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 11.5,
+                            color: Color(0xFF94A3B8),
+                            height: 1.35,
+                          ),
                         ),
-                      ),
-                      _buildPeachHighlightPill('acknowledge'),
-                      const Text(
-                        ' their perspective...',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 12.5,
-                          color: Color(0xFFCBD5E1),
-                        ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
@@ -624,7 +716,19 @@ class FeedbackScreen extends StatelessWidget {
   }
 
   /// KEY POINTS TO IMPROVE Card
-  Widget _buildKeyPointsToImproveCard() {
+  Widget _buildKeyPointsToImproveCard(EvaluationFeedback? feedback) {
+    final improvement = feedback?.oneSpecificImprovement.trim().isNotEmpty == true
+        ? feedback!.oneSpecificImprovement
+        : 'Complete a drill to unlock a specific coaching note.';
+    final retry = feedback?.retryInstruction.trim().isNotEmpty == true
+        ? feedback!.retryInstruction
+        : 'Lead with the decision in the first 5 seconds.';
+    final fluencyNote = feedback == null
+        ? 'Scores unlock after your first practice take.'
+        : feedback.pillars.crutchCount > 0
+            ? 'Cut ${feedback.pillars.crutchCount} filler habit${feedback.pillars.crutchCount == 1 ? '' : 's'} next take.'
+            : 'Keep a steady pace around ${feedback.pillars.pacingWpm} wpm.';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -647,31 +751,25 @@ class FeedbackScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 14),
-
-          // Point 1: FILLERS
           _buildImprovementRow(
-            tag: 'FILLERS',
+            tag: 'FOCUS',
             tagBg: const Color(0xFFFFEDD5),
             tagTextColor: const Color(0xFFC2410C),
-            text: 'Reduce words like “um”, “so” and “I mean”.',
+            text: improvement,
           ),
           const SizedBox(height: 12),
-
-          // Point 2: STRUCTURE
           _buildImprovementRow(
-            tag: 'STRUCTURE',
+            tag: 'RETRY',
             tagBg: const Color(0xFFEDE9FE),
             tagTextColor: const Color(0xFF6D28D9),
-            text: 'Open with a clear approach, then give a specific example.',
+            text: retry,
           ),
           const SizedBox(height: 12),
-
-          // Point 3: FLUENCY
           _buildImprovementRow(
             tag: 'FLUENCY',
             tagBg: const Color(0xFFDCFCE7),
             tagTextColor: const Color(0xFF15803D),
-            text: 'Try to keep a steady pace and avoid long pauses.',
+            text: fluencyNote,
           ),
         ],
       ),

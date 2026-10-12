@@ -44,9 +44,10 @@ async function ensureApi(req, res, next) {
     if (!apiReady) {
       const { connectDB, seedCatalog } = require("./config/db");
       await connectDB();
-      await seedCatalog();
       apiRouter = require("./routes");
       apiReady = true;
+      // Catalog seed must not block signup/login on cold start.
+      seedCatalog().catch((err) => console.error("seedCatalog:", err.message));
     }
     return apiRouter(req, res, next);
   } catch (error) {
@@ -66,12 +67,13 @@ app.get("/", async (_req, res) => {
     const { connectDB } = require("./config/db");
     await connectDB();
     const statusMap = { 0: "disconnected", 1: "connected", 2: "connecting", 3: "disconnecting" };
+    const { geminiStatus } = require("./config/ai");
     return res.json({
       success: true,
       message: "Hakkiri API is running",
       version: "1.0.0",
       database: statusMap[mongoose.connection.readyState] || "unknown",
-      ai: "Speech scoring stays in the Flutter app. This API stores the result.",
+      ai: geminiStatus(),
       base: "/api",
     });
   } catch (error) {

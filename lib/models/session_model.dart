@@ -36,6 +36,28 @@ class FourPillarsScore {
         'action_verb_pct': actionVerbPercentage,
         'is_monotone': isMonotoneWarning,
       };
+
+  factory FourPillarsScore.fromJson(Map<String, dynamic>? json) {
+    final map = json ?? const <String, dynamic>{};
+    int read(String key, [int fallback = 3]) {
+      final value = map[key];
+      if (value is num) return value.round().clamp(1, 5);
+      return fallback;
+    }
+
+    return FourPillarsScore(
+      executiveScore: read('executive_score'),
+      clarityScore: read('clarity_score'),
+      impactScore: read('impact_score'),
+      engagementScore: read('engagement_score'),
+      crutchCount: (map['crutch_count'] as num?)?.round() ?? 0,
+      powerPauseCount: (map['power_pause_count'] as num?)?.round() ?? 0,
+      pacingWpm: (map['pacing_wpm'] as num?)?.round() ?? 0,
+      intelligibilityPercentage: (map['intelligibility_pct'] as num?)?.round() ?? 0,
+      actionVerbPercentage: (map['action_verb_pct'] as num?)?.round() ?? 0,
+      isMonotoneWarning: map['is_monotone'] == true,
+    );
+  }
 }
 
 class HighlightedPhrase {
@@ -87,6 +109,26 @@ class EvaluationFeedback {
         'exemplar_response': exemplarResponse,
         'is_coached_retry': isCoachedRetry,
       };
+
+  factory EvaluationFeedback.fromJson(Map<String, dynamic>? json) {
+    final map = json ?? const <String, dynamic>{};
+    final phrase = (map['highlighted_phrase'] as Map<String, dynamic>?) ?? {};
+    final overall = map['overall_score'];
+    return EvaluationFeedback(
+      overallScore: overall is num ? overall.round().clamp(1, 5) : 3,
+      pillars: FourPillarsScore.fromJson(map['pillars'] as Map<String, dynamic>?),
+      oneStrength: (map['one_strength'] ?? '').toString(),
+      oneSpecificImprovement: (map['one_specific_improvement'] ?? '').toString(),
+      highlightedPhrase: HighlightedPhrase(
+        timestampRange: (phrase['timestamp_range'] ?? '').toString(),
+        phrase: (phrase['phrase'] ?? '').toString(),
+        critique: (phrase['critique'] ?? '').toString(),
+      ),
+      retryInstruction: (map['retry_instruction'] ?? '').toString(),
+      exemplarResponse: (map['exemplar_response'] ?? '').toString(),
+      isCoachedRetry: map['is_coached_retry'] == true,
+    );
+  }
 }
 
 class PracticeSessionRecord {
@@ -117,5 +159,21 @@ class PracticeSessionRecord {
         'duration_seconds': durationSeconds,
         'feedback': feedback.toJson(),
       };
+
+  factory PracticeSessionRecord.fromApi(Map<String, dynamic> json) {
+    final stamp = DateTime.tryParse((json['timestamp'] ?? '').toString()) ?? DateTime.now();
+    final feedbackMap = json['feedback'];
+    return PracticeSessionRecord(
+      id: (json['id'] ?? '').toString(),
+      activitySlug: (json['activity_slug'] ?? '').toString(),
+      activityName: (json['activity_name'] ?? 'Practice').toString(),
+      promptTitle: (json['prompt_title'] ?? '').toString(),
+      timestamp: stamp,
+      durationSeconds: (json['duration_seconds'] as num?)?.round() ?? 0,
+      feedback: EvaluationFeedback.fromJson(
+        feedbackMap is Map<String, dynamic> ? feedbackMap : null,
+      ),
+    );
+  }
 }
 

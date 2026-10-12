@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../core/services/hakkiri_api_service.dart';
+import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/auth_waveform_watermark.dart';
+import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/hakkiri_logo.dart';
 import 'assessment_screen.dart';
+import 'home_screen.dart';
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -18,6 +23,7 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -27,11 +33,100 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  void _handleSignup() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const AssessmentScreen()),
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
+  }
+
+  Future<void> _handleSignup() async {
+    if (_isSubmitting) return;
+
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+
+    if (name.length < 2) {
+      _showMessage('Enter your full name.');
+      return;
+    }
+    if (!email.contains('@')) {
+      _showMessage('Enter a valid email.');
+      return;
+    }
+    if (password.length < 6) {
+      _showMessage('Password must be at least 6 characters.');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      await HakkiriLoadingOverlay.run(
+        context,
+        message: 'Getting your information…',
+        detail: 'Creating your Hakkiri account.',
+        action: () => context.read<AppStateProvider>().registerAccount(
+              name: name,
+              email: email,
+              password: password,
+            ),
+      );
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const AssessmentScreen()),
+        (route) => false,
+      );
+    } on HakkiriApiException catch (e) {
+      _showMessage(e.message);
+    } catch (_) {
+      _showMessage('Could not create the account. Check your connection.');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _handleGoogleSignup() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    try {
+      final state = context.read<AppStateProvider>();
+      await HakkiriLoadingOverlay.run(
+        context,
+        message: 'Getting your information…',
+        detail: 'Signing you in with Google.',
+        action: () => state.continueWithGoogle(),
+      );
+      if (!mounted) return;
+      // New Google account → assessment funnel; returning user → home.
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => state.isOnboarded
+              ? const HomeScreen()
+              : const AssessmentScreen(),
+        ),
+        (route) => false,
+      );
+    } on HakkiriApiException catch (e) {
+      _showMessage(e.message);
+    } catch (e) {
+      final msg = e.toString();
+      if (msg.contains('canceled') || msg.contains('cancelled')) {
+        _showMessage('Google sign-in was cancelled.');
+      } else if (msg.contains('SHA-1')) {
+        _showMessage('Add your Android SHA-1 fingerprint in Firebase Console.');
+      } else {
+        _showMessage('Google sign-in failed. Try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  void _handleAppleSignup() {
+    _showMessage('Apple Sign-In coming soon. Use Google or email for now.');
   }
 
   @override
@@ -121,8 +216,8 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   // Create Account Action Button
                   ActionPillButton(
-                    label: 'Create account',
-                    onTap: _handleSignup,
+                    label: _isSubmitting ? 'Creating account...' : 'Create account',
+                    onTap: _isSubmitting ? null : _handleSignup,
                   ),
                   const SizedBox(height: 22),
 
@@ -153,7 +248,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         child: _buildSocialButton(
                           label: 'Apple',
                           icon: Icons.apple_rounded,
-                          onTap: _handleSignup,
+                          onTap: _isSubmitting ? () {} : _handleAppleSignup,
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -161,7 +256,7 @@ class _SignupScreenState extends State<SignupScreen> {
                         child: _buildSocialButton(
                           label: 'Google',
                           isGoogle: true,
-                          onTap: _handleSignup,
+                          onTap: _isSubmitting ? () {} : _handleGoogleSignup,
                         ),
                       ),
                     ],

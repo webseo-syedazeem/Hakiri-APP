@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../providers/app_state_provider.dart';
 import '../widgets/dashed_border.dart';
 import 'main_tab_scaffold.dart';
 
@@ -17,6 +19,13 @@ class AnalyticsDashboardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final state = Provider.of<AppStateProvider>(context);
+    final fluency = _barFromPillar(state, 'executive_presence');
+    final clarity = _barFromPillar(state, 'clarity');
+    final engagement = _barFromPillar(state, 'engagement');
+    final impact = _barFromPillar(state, 'impact');
+    final recent = state.sessionHistory.take(3).toList();
+
     return SafeArea(
       bottom: false,
       child: SingleChildScrollView(
@@ -64,36 +73,47 @@ class AnalyticsDashboardContent extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Expanded(
-                  child: _buildBarColumn(
-                    scoreText: '3.4',
-                    label: 'Fluency &\npresence',
-                    fillPercentage: 0.68,
-                    barColor: const Color(0xFF9EA7FA),
-                  ),
+                  child: fluency.$1
+                      ? _buildNeedMoreBarColumn(label: 'Fluency &\npresence')
+                      : _buildBarColumn(
+                          scoreText: fluency.$2,
+                          label: 'Fluency &\npresence',
+                          fillPercentage: fluency.$3,
+                          barColor: const Color(0xFF9EA7FA),
+                        ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _buildBarColumn(
-                    scoreText: '3.8',
-                    label: 'Clarity',
-                    fillPercentage: 0.76,
-                    barColor: AppColors.royalBlue,
-                  ),
+                  child: clarity.$1
+                      ? _buildNeedMoreBarColumn(label: 'Clarity')
+                      : _buildBarColumn(
+                          scoreText: clarity.$2,
+                          label: 'Clarity',
+                          fillPercentage: clarity.$3,
+                          barColor: AppColors.royalBlue,
+                        ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _buildNeedMoreBarColumn(
-                    label: 'Engagement &\ntone',
-                  ),
+                  child: engagement.$1
+                      ? _buildNeedMoreBarColumn(label: 'Engagement &\ntone')
+                      : _buildBarColumn(
+                          scoreText: engagement.$2,
+                          label: 'Engagement &\ntone',
+                          fillPercentage: engagement.$3,
+                          barColor: const Color(0xFF9EA7FA),
+                        ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: _buildBarColumn(
-                    scoreText: '3.1',
-                    label: 'Conciseness &\nimpact',
-                    fillPercentage: 0.62,
-                    barColor: const Color(0xFF9EA7FA),
-                  ),
+                  child: impact.$1
+                      ? _buildNeedMoreBarColumn(label: 'Conciseness &\nimpact')
+                      : _buildBarColumn(
+                          scoreText: impact.$2,
+                          label: 'Conciseness &\nimpact',
+                          fillPercentage: impact.$3,
+                          barColor: const Color(0xFF9EA7FA),
+                        ),
                 ),
               ],
             ),
@@ -120,10 +140,12 @@ class AnalyticsDashboardContent extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Unlocks when every skill has 3 valid attempts. Engagement needs 2 more.',
-                      style: TextStyle(
+                      state.overallAverage == null
+                          ? 'Unlocks when every skill has 3 valid attempts.'
+                          : 'Overall ${state.overallAverage!.toStringAsFixed(1)} from ${state.overallSamples} fresh prompts.',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13,
                         height: 1.35,
@@ -147,17 +169,17 @@ class AnalyticsDashboardContent extends StatelessWidget {
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
                   Text(
-                    '4-day streak · 320 XP',
-                    style: TextStyle(
+                    '${state.currentStreak}-day streak · ${state.totalXp} XP',
+                    style: const TextStyle(
                       color: AppColors.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
-                  SizedBox(height: 4),
-                  Text(
+                  const SizedBox(height: 4),
+                  const Text(
                     'Rewards for showing up. Never part of your skill scores.',
                     style: TextStyle(
                       color: AppColors.textMuted,
@@ -181,16 +203,53 @@ class AnalyticsDashboardContent extends StatelessWidget {
             ),
             const SizedBox(height: 14),
 
-            _buildRecentPracticeRow(score: '3.7', title: 'Think First', date: 'Today'),
-            const SizedBox(height: 14),
-            _buildRecentPracticeRow(score: '—', title: 'Cut it in Half', date: 'Retry · practice', isMuted: true),
-            const SizedBox(height: 14),
-            _buildRecentPracticeRow(score: '3.3', title: 'Explain it Simply', date: 'Sat'),
+            if (recent.isEmpty)
+              const Text(
+                'No sessions yet.',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              )
+            else
+              ...recent.map(
+                (session) => Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _buildRecentPracticeRow(
+                    score: session.feedback.overallScore.toStringAsFixed(1),
+                    title: session.activityName,
+                    date: _shortDay(session.timestamp),
+                  ),
+                ),
+              ),
             const SizedBox(height: 20),
           ],
         ),
       ),
     );
+  }
+
+  static (bool, String, double) _barFromPillar(AppStateProvider state, String key) {
+    final raw = state.pillarStats[key];
+    if (raw is! Map) return (true, '--', 0);
+    final map = Map<String, dynamic>.from(raw);
+    final average = map['average'];
+    final samples = (map['samples'] as num?)?.round() ?? 0;
+    if (average == null || samples < 3 || map['status'] == 'need_more') {
+      return (true, '--', 0);
+    }
+    final value = (average as num).toDouble();
+    return (false, value.toStringAsFixed(1), (value / 5).clamp(0.0, 1.0));
+  }
+
+  static String _shortDay(DateTime stamp) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final day = DateTime(stamp.year, stamp.month, stamp.day);
+    if (day == today) return 'Today';
+    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return names[stamp.weekday - 1];
   }
 
   Widget _buildBarColumn({

@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:speech_to_text/speech_to_text.dart';
 import '../providers/app_state_provider.dart';
+import '../widgets/mic_reactive_waveform.dart';
 import 'feedback_screen.dart';
 
 enum ExerciseStage {
@@ -26,20 +28,33 @@ class _RecordingScreenState extends State<RecordingScreen>
     with TickerProviderStateMixin {
   ExerciseStage _stage = ExerciseStage.wordByWordReveal;
 
-  // Question words
-  late List<String> _words;
+  // Question words — seed before async API prompt fetch finishes.
+  List<String> _words = const ['Loading', 'your', 'question…'];
   int _revealedWordCount = 0;
   Timer? _wordRevealTimer;
+  bool _promptReady = false;
 
-  // 5-second countdown
+  // Prep countdown (per activity / prompt)
+  int _prepTotalSeconds = 5;
   int _prepSecondsRemaining = 5;
   Timer? _prepCountdownTimer;
   late AnimationController _prepArcController;
 
-  // Recording countdown
-  int _speakingSecondsRemaining = 41; // Matches doc_images/img_1.png (0:41)
+  // Speaking countdown (per activity / prompt — not a fixed 45s)
+  int _speakingTotalSeconds = 60;
+  int _speakingSecondsRemaining = 60;
   Timer? _speakingTimer;
-  late AnimationController _waveAnimController;
+  String _promptHeadline = 'How would you handle a difficult stakeholder?';
+
+  final SpeechToText _speech = SpeechToText();
+  final ValueNotifier<double> _micLevel = ValueNotifier<double>(0.12);
+  String _committedTranscript = '';
+  String _partialTranscript = '';
+  bool _finishing = false;
+  bool _speechReady = false;
+
+  String get _liveTranscript =>
+      '$_committedTranscript $_partialTranscript'.trim();
 
   @override
   void initState() {
@@ -50,22 +65,41 @@ class _RecordingScreenState extends State<RecordingScreen>
       duration: const Duration(seconds: 5),
     );
 
-    _waveAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initSessionPrompt();
     });
   }
 
-  void _initSessionPrompt() {
+  Future<void> _initSessionPrompt() async {
     final state = Provider.of<AppStateProvider>(context, listen: false);
-    final promptText = state.selectedPrompt?.promptText ??
-        'How would you handle a difficult stakeholder?';
+    // Prefer API catalog question when logged in.
+    if (state.isLoggedIn) {
+      try {
+        await state.fetchNextPromptFromApi();
+      } catch (_) {}
+    }
+    if (!mounted) return;
 
-    _words = promptText.split(' ');
+    final activity = state.selectedActivity;
+    final prompt = state.selectedPrompt;
+
+    _speakingTotalSeconds =
+        prompt?.durationSeconds ?? activity?.defaultDurationSeconds ?? 60;
+    _prepTotalSeconds =
+        prompt?.prepSeconds ?? activity?.prepDurationSeconds ?? 5;
+    if (_speakingTotalSeconds < 10) _speakingTotalSeconds = 10;
+    if (_prepTotalSeconds < 1) _prepTotalSeconds = 1;
+
+    _speakingSecondsRemaining = _speakingTotalSeconds;
+    _prepSecondsRemaining = _prepTotalSeconds;
+    _prepArcController.duration = Duration(seconds: _prepTotalSeconds);
+
+    _promptHeadline = prompt?.promptText ??
+        'How would you handle a difficult stakeholder?';
+    final nextWords =
+        _promptHeadline.split(' ').where((w) => w.isNotEmpty).toList();
+    _words = nextWords.isEmpty ? ['Ready', 'when', 'you', 'are.'] : nextWords;
+    _promptReady = true;
     _startWordByWordReveal();
   }
 
@@ -94,14 +128,15 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // -------------------------------------------------------------
-  // PHASE 2: 5-SECOND PREPARATION COUNTDOWN (doc_images/img_2.png)
+  // PHASE 2: PREPARATION COUNTDOWN (activity prep seconds)
   // -------------------------------------------------------------
   void _start5sCountdown() {
     setState(() {
       _stage = ExerciseStage.countdown5s;
-      _prepSecondsRemaining = 5;
+      _prepSecondsRemaining = _prepTotalSeconds;
     });
 
+    _prepArcController.duration = Duration(seconds: _prepTotalSeconds);
     _prepArcController.reset();
     _prepArcController.forward();
 
@@ -120,13 +155,17 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // -------------------------------------------------------------
-  // PHASE 3: RECORDING SCREEN (doc_images/img_1.png)
+  // PHASE 3: RECORDING SCREEN (activity speak seconds)
   // -------------------------------------------------------------
   void _startRecording() {
     setState(() {
       _stage = ExerciseStage.recordingScreen;
-      _speakingSecondsRemaining = 41;
+      _speakingSecondsRemaining = _speakingTotalSeconds;
+      _committedTranscript = '';
+      _partialTranscript = '';
     });
+
+    unawaited(_startSpeechCapture());
 
     _speakingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_speakingSecondsRemaining > 0) {
@@ -134,23 +173,111 @@ class _RecordingScreenState extends State<RecordingScreen>
           _speakingSecondsRemaining--;
         });
       } else {
-        _finishSession();
+        unawaited(_finishSession());
       }
     });
   }
 
-  void _finishSession() {
+  Future<void> _startSpeechCapture() async {
+    try {
+      _speechReady = await _speech.initialize(
+        onError: (_) {},
+        onStatus: (status) {
+          // Android often ends a listen session early; keep capturing
+          // until the drill timer finishes.
+          if (_finishing || !mounted) return;
+          if (_stage != ExerciseStage.recordingScreen) return;
+          if (status == 'done' || status == 'notListening') {
+            unawaited(_resumeSpeechCapture());
+          }
+        },
+      );
+      if (!_speechReady || !mounted) return;
+      await _resumeSpeechCapture();
+    } catch (_) {
+      _speechReady = false;
+    }
+  }
+
+  Future<void> _resumeSpeechCapture() async {
+    if (_finishing || !_speechReady || !mounted) return;
+    if (_speech.isListening) return;
+    // Commit leftover partial before a new listen segment (Android restarts).
+    if (_partialTranscript.isNotEmpty) {
+      _committedTranscript =
+          '$_committedTranscript $_partialTranscript'.trim();
+      _partialTranscript = '';
+    }
+    try {
+      await _speech.listen(
+        onResult: (result) {
+          final text = result.recognizedWords.trim();
+          if (result.finalResult) {
+            if (text.isNotEmpty) {
+              _committedTranscript = '$_committedTranscript $text'.trim();
+            }
+            _partialTranscript = '';
+          } else {
+            _partialTranscript = text;
+          }
+        },
+        onSoundLevelChange: (level) {
+          // Platform levels are roughly -2..10 while speaking.
+          final normalized = ((level + 2) / 12).clamp(0.08, 1.0);
+          _micLevel.value = normalized;
+        },
+        listenOptions: SpeechListenOptions(
+          listenMode: ListenMode.dictation,
+          partialResults: true,
+          cancelOnError: false,
+          listenFor: Duration(seconds: _speakingTotalSeconds + 45),
+          pauseFor: const Duration(seconds: 45),
+        ),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _finishSession() async {
+    if (_finishing) return;
+    _finishing = true;
+
     _wordRevealTimer?.cancel();
     _prepCountdownTimer?.cancel();
     _speakingTimer?.cancel();
 
-    final state = Provider.of<AppStateProvider>(context, listen: false);
-    state.evaluateCurrentSession(
-      transcript:
-          'I would start by listening to understand their concerns, acknowledge their perspective, and then align on shared objectives.',
-      durationSeconds: 41 - _speakingSecondsRemaining,
+    try {
+      if (_speech.isListening) {
+        await _speech.stop();
+      }
+    } catch (_) {}
+
+    final spoken = (_speakingTotalSeconds - _speakingSecondsRemaining)
+        .clamp(1, _speakingTotalSeconds);
+    final transcript = _liveTranscript.trim();
+
+    if (!mounted) return;
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(
+        child: CircularProgressIndicator(color: Color(0xFF2563EB)),
+      ),
     );
 
+    final state = Provider.of<AppStateProvider>(context, listen: false);
+    try {
+      await state.evaluateCurrentSession(
+        transcript: transcript,
+        durationSeconds: spoken,
+      );
+    } finally {
+      if (mounted && Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(); // loading dialog
+      }
+    }
+
+    if (!mounted) return;
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const FeedbackScreen()),
@@ -163,12 +290,22 @@ class _RecordingScreenState extends State<RecordingScreen>
     _prepCountdownTimer?.cancel();
     _speakingTimer?.cancel();
     _prepArcController.dispose();
-    _waveAnimController.dispose();
+    unawaited(_speech.stop());
+    unawaited(_speech.cancel());
+    _micLevel.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_promptReady) {
+      return const Scaffold(
+        backgroundColor: Color(0xFFFBFBF9),
+        body: Center(
+          child: CircularProgressIndicator(color: Color(0xFF2563EB)),
+        ),
+      );
+    }
     switch (_stage) {
       case ExerciseStage.wordByWordReveal:
         return _buildWordByWordRevealScreen();
@@ -324,26 +461,8 @@ class _RecordingScreenState extends State<RecordingScreen>
               ),
               const SizedBox(height: 20),
 
-              // Question with "difficult stakeholder?" highlighted in blue
-              RichText(
-                text: const TextSpan(
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 27,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF0F172A),
-                    letterSpacing: -0.6,
-                    height: 1.22,
-                  ),
-                  children: [
-                    TextSpan(text: 'How would you handle\na '),
-                    TextSpan(
-                      text: 'difficult stakeholder?',
-                      style: TextStyle(color: Color(0xFF2563EB)),
-                    ),
-                  ],
-                ),
-              ),
+              // Live prompt from API/local — highlight the closing phrase
+              _buildPromptHeadlineRichText(),
 
               // Center Circular 5s Countdown Timer
               Expanded(
@@ -478,9 +597,9 @@ class _RecordingScreenState extends State<RecordingScreen>
               const SizedBox(height: 8),
 
               // Question Headline
-              const Text(
-                'How would you handle a difficult stakeholder?',
-                style: TextStyle(
+              Text(
+                _promptHeadline,
+                style: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 24,
                   fontWeight: FontWeight.w900,
@@ -498,7 +617,8 @@ class _RecordingScreenState extends State<RecordingScreen>
                   height: 210,
                   child: CustomPaint(
                     painter: _RecordingCirclePainter(
-                      progress: _speakingSecondsRemaining / 60.0,
+                      progress: _speakingSecondsRemaining /
+                          _speakingTotalSeconds.clamp(1, 999),
                     ),
                     child: Center(
                       child: Column(
@@ -569,18 +689,15 @@ class _RecordingScreenState extends State<RecordingScreen>
               ),
               const SizedBox(height: 20),
 
-              // Live Waveform Visualizer
+              // Live Waveform — levels from speech_to_text (same mic as transcript)
               Center(
-                child: AnimatedBuilder(
-                  animation: _waveAnimController,
-                  builder: (context, child) {
-                    return CustomPaint(
-                      size: const Size(220, 48),
-                      painter: _RecordingWaveformPainter(
-                        animationValue: _waveAnimController.value,
-                      ),
-                    );
-                  },
+                child: MicReactiveWaveform(
+                  active: true,
+                  barCount: 28,
+                  width: 220,
+                  height: 48,
+                  color: const Color(0xFF818CF8),
+                  externalLevel: _micLevel,
                 ),
               ),
 
@@ -605,7 +722,7 @@ class _RecordingScreenState extends State<RecordingScreen>
                   color: Colors.transparent,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(30),
-                    onTap: _finishSession,
+                    onTap: () => unawaited(_finishSession()),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Row(
@@ -644,6 +761,46 @@ class _RecordingScreenState extends State<RecordingScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// Dynamic prompt title — last ~3 words highlighted blue (same look as Faizan).
+  Widget _buildPromptHeadlineRichText() {
+    final words = _promptHeadline.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.isEmpty) {
+      return const Text(
+        'Ready when you are.',
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 27,
+          fontWeight: FontWeight.w900,
+          color: Color(0xFF0F172A),
+          letterSpacing: -0.6,
+          height: 1.22,
+        ),
+      );
+    }
+    final highlightCount = words.length <= 3 ? words.length : 3;
+    final head = words.sublist(0, words.length - highlightCount).join(' ');
+    final tail = words.sublist(words.length - highlightCount).join(' ');
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 27,
+          fontWeight: FontWeight.w900,
+          color: Color(0xFF0F172A),
+          letterSpacing: -0.6,
+          height: 1.22,
+        ),
+        children: [
+          if (head.isNotEmpty) TextSpan(text: '$head '),
+          TextSpan(
+            text: tail,
+            style: const TextStyle(color: Color(0xFF2563EB)),
+          ),
+        ],
       ),
     );
   }
@@ -731,41 +888,3 @@ class _RecordingCirclePainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-/// Dynamic live audio waveform painter
-class _RecordingWaveformPainter extends CustomPainter {
-  final double animationValue;
-
-  _RecordingWaveformPainter({required this.animationValue});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final barPaint = Paint()
-      ..color = const Color(0xFF818CF8)
-      ..strokeCap = StrokeCap.round;
-
-    const barCount = 28;
-    final barWidth = 3.6;
-    final totalWidth = size.width;
-    final spacing = (totalWidth - (barCount * barWidth)) / (barCount - 1);
-    final centerY = size.height / 2;
-
-    for (int i = 0; i < barCount; i++) {
-      final x = i * (barWidth + spacing) + (barWidth / 2);
-      // Symmetrical Gaussian wave modulated by animation
-      final distFromCenter = (i - (barCount / 2)).abs() / (barCount / 2);
-      final envelope = math.exp(-distFromCenter * distFromCenter * 2.5);
-      final wave = math.sin((i * 0.45) + (animationValue * 2 * math.pi)).abs();
-      final h = (size.height * 0.2) + (size.height * 0.75 * envelope * (0.4 + 0.6 * wave));
-
-      canvas.drawLine(
-        Offset(x, centerY - h / 2),
-        Offset(x, centerY + h / 2),
-        barPaint..strokeWidth = barWidth,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _RecordingWaveformPainter oldDelegate) =>
-      oldDelegate.animationValue != animationValue;
-}

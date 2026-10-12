@@ -119,8 +119,10 @@ function confidenceToDifficulty(confidence) {
 }
 
 const dailyAnchor = async (req, res) => {
+  const Streak = require("../models/Streak");
   const profile = await Profile.findOne({ user: req.user._id });
   const settings = await Settings.findOne({ user: req.user._id });
+  const streak = await Streak.findOne({ user: req.user._id });
   const drills = profile?.plan?.initialDrills?.length
     ? profile.plan.initialDrills
     : ["think_fast", "cut_it_in_half", "debate_me"];
@@ -165,7 +167,8 @@ const dailyAnchor = async (req, res) => {
     headline: "Five minutes.",
     subheadline: "Then go speak.",
     focus_line: profile?.plan?.focusLine || "Go blank less, land the point sooner.",
-    streak_day: null,
+    streak_day: streak?.currentStreak || 0,
+    streak_freeze_count: streak?.streakFreezeCount || 0,
     primary,
     queue,
   });

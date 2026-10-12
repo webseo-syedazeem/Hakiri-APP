@@ -1,7 +1,12 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
+import '../core/constants/app_colors.dart';
+import '../providers/app_state_provider.dart';
+import 'home_screen.dart';
 import 'landing_screen.dart';
 
 /// Cinematic Splash Screen.
@@ -103,14 +108,36 @@ class _SplashScreenState extends State<SplashScreen>
     }
   }
 
-  void _navigateToNext() {
+  Future<void> _navigateToNext() async {
     if (_hasNavigated || !mounted) return;
     _hasNavigated = true;
+    final state = Provider.of<AppStateProvider>(context, listen: false);
+    // Local prefs only — once signed up/logged in, always resume on Home.
+    await state.restoreLocalSessionOnly();
+    if (!mounted) return;
+
+    final Widget next;
+    if (state.isLoggedIn) {
+      next = const HomeScreen();
+      unawaited(state.refreshFromApi());
+    } else {
+      next = const LandingScreen();
+    }
+
+    // Immediately restore dark icons for light home / landing canvas
+    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark, // Dark text/icons on Android
+      statusBarBrightness: Brightness.light,    // Dark text/icons on iOS
+      systemNavigationBarColor: AppColors.background,
+      systemNavigationBarIconBrightness: Brightness.dark,
+    ));
+
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 600),
-        pageBuilder: (_, __, ___) => const LandingScreen(),
+        pageBuilder: (_, __, ___) => next,
         transitionsBuilder: (_, animation, __, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -130,10 +157,18 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _navigateToNext,
-      child: Scaffold(
-        backgroundColor: const Color(0xFF000512),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light, // White icons on Android during dark splash
+        statusBarBrightness: Brightness.dark,      // White icons on iOS during dark splash
+        systemNavigationBarColor: Color(0xFF000512),
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+      child: GestureDetector(
+        onTap: _navigateToNext,
+        child: Scaffold(
+          backgroundColor: const Color(0xFF000512),
         body: Stack(
           fit: StackFit.expand,
           children: [
@@ -236,7 +271,7 @@ class _SplashScreenState extends State<SplashScreen>
           ],
         ),
       ),
-    );
+    ));
   }
 }
 

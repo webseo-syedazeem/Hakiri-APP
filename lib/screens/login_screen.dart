@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../core/services/hakkiri_api_service.dart';
+import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/auth_waveform_watermark.dart';
+import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/hakkiri_logo.dart';
 import 'home_screen.dart';
 import 'signup_screen.dart';
@@ -17,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -25,12 +30,78 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _handleLogin() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
-      (route) => false,
+  void _showMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
+  }
+
+  Future<void> _handleLogin() async {
+    if (_isSubmitting) return;
+
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (!email.contains('@') || password.isEmpty) {
+      _showMessage('Enter your email and password.');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      final state = context.read<AppStateProvider>();
+      await HakkiriLoadingOverlay.run(
+        context,
+        message: 'Getting your information…',
+        detail: 'Signing you back into Hakkiri.',
+        action: () => state.loginAccount(email: email, password: password),
+      );
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
+    } on HakkiriApiException catch (e) {
+      _showMessage(e.message);
+    } catch (_) {
+      _showMessage('Could not log in. Check your connection.');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _handleGoogleLogin() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    try {
+      final state = context.read<AppStateProvider>();
+      await HakkiriLoadingOverlay.run(
+        context,
+        message: 'Getting your information…',
+        detail: 'Signing you in with Google.',
+        action: () => state.continueWithGoogle(),
+      );
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        (route) => false,
+      );
+    } on HakkiriApiException catch (e) {
+      _showMessage(e.message);
+    } catch (e) {
+      final msg = e.toString();
+      if (msg.contains('canceled') || msg.contains('cancelled')) {
+        _showMessage('Google sign-in was cancelled.');
+      } else if (msg.contains('SHA-1')) {
+        _showMessage('Add your Android SHA-1 fingerprint in Firebase Console.');
+      } else {
+        _showMessage('Google sign-in failed. Try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -157,8 +228,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   // Log in Action Button
                   ActionPillButton(
-                    label: 'Log in',
-                    onTap: _handleLogin,
+                    label: _isSubmitting ? 'Logging in...' : 'Log in',
+                    onTap: _isSubmitting ? null : _handleLogin,
                   ),
                   const SizedBox(height: 24),
 
@@ -189,7 +260,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: _buildSocialButton(
                           label: 'Apple',
                           icon: Icons.apple_rounded,
-                          onTap: _handleLogin,
+                          onTap: () => _showMessage(
+                            'Apple Sign-In coming soon. Use Google or email.',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -197,7 +270,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: _buildSocialButton(
                           label: 'Google',
                           isGoogle: true,
-                          onTap: _handleLogin,
+                          onTap: _isSubmitting ? () {} : _handleGoogleLogin,
                         ),
                       ),
                     ],

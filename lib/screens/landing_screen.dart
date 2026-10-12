@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
 import '../widgets/who_its_for_roadmap_view.dart';
 import '../widgets/twelve_months_roadmap_view.dart';
 import 'assessment_screen.dart';
 import 'login_screen.dart';
+import 'signup_screen.dart';
 
 /// Complete Professional Onboarding Experience matching user's target designs:
 /// - Page 0: Welcome ("Think clearly. Speak with purpose.")
@@ -51,6 +53,10 @@ class _LandingScreenState extends State<LandingScreen> {
   }
 
   void _nextPage() {
+    if (_currentPage == 0) {
+      _goToSignup();
+      return;
+    }
     if (_currentPage < 5) {
       _pageController.animateToPage(
         _currentPage + 1,
@@ -70,6 +76,13 @@ class _LandingScreenState extends State<LandingScreen> {
         curve: Curves.easeInOutCubic,
       );
     }
+  }
+
+  void _goToSignup() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SignupScreen()),
+    );
   }
 
   void _goToAssessment() {
@@ -94,13 +107,21 @@ class _LandingScreenState extends State<LandingScreen> {
     // Keep a small clearance for the home indicator instead of the full inset.
     final bottomGap = isIOS ? (safeBottom > 0 ? 20.0 : 12.0) : 14.0;
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        bottom: !isIOS,
-        child: Padding(
-          padding: EdgeInsets.only(bottom: bottomGap),
-          child: Column(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark, // Dark text/icons on Android
+        statusBarBrightness: Brightness.light,    // Dark text/icons on iOS
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          bottom: !isIOS,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: bottomGap),
+            child: Column(
             children: [
               // Pinned Still Top Bar (< back, Skip) - stays fixed while pages slide
               if (_currentPage > 0)
@@ -152,9 +173,11 @@ class _LandingScreenState extends State<LandingScreen> {
 
                     ActionPillButton(
                       label: _sectionLabels[_currentPage],
-                      onTap: _currentPage >= _sectionLabels.length - 1
-                          ? _goToAssessment
-                          : _nextPage,
+                      onTap: _currentPage == 0
+                          ? _goToSignup
+                          : (_currentPage >= _sectionLabels.length - 1
+                              ? _goToAssessment
+                              : _nextPage),
                     ),
 
                     if (_currentPage == 0) ...[
@@ -193,7 +216,7 @@ class _LandingScreenState extends State<LandingScreen> {
           ),
         ),
       ),
-    );
+    ));
   }
 
   // ==========================================

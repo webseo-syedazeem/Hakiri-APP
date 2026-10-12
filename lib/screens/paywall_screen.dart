@@ -17,10 +17,13 @@ class PaywallScreen extends StatefulWidget {
 class _PaywallScreenState extends State<PaywallScreen> {
   String _selectedTier = 'annual_pro'; // 'annual_pro' or 'monthly'
 
-  void _onContinue() {
+  Future<void> _onContinue() async {
     final state = Provider.of<AppStateProvider>(context, listen: false);
     state.selectSubscription(_selectedTier);
+    // Lock the user onto Home for every future cold start.
+    await state.markOnboardedComplete();
 
+    if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const HomeScreen()),

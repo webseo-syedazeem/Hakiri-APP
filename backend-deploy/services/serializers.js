@@ -72,7 +72,7 @@ function profileJson(profile) {
 
 function userJson(user) {
   return {
-    id: user._id,
+    id: user?._id != null ? String(user._id) : "",
     full_name: user.fullName,
     email: user.email,
     created_at: user.createdAt,

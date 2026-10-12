@@ -6,12 +6,19 @@ const catalog = require("../controllers/catalogController");
 const session = require("../controllers/sessionController");
 const challenge = require("../controllers/challengeController");
 const subscription = require("../controllers/subscriptionController");
+const ai = require("../controllers/aiController");
+const bootstrap = require("../controllers/bootstrapController");
 
 const router = express.Router();
 
 router.post("/auth/register", auth.register);
 router.post("/auth/login", auth.login);
+router.post("/auth/google", auth.googleAuth);
 router.get("/auth/me", verifyJWT, auth.me);
+router.get("/bootstrap", verifyJWT, bootstrap.bootstrap);
+router.get("/ai/status", ai.status);
+router.post("/ai/live-token", verifyJWT, ai.liveToken);
+router.post("/ai/analyze-speech", verifyJWT, ai.analyzeSpeech);
 
 router.get("/assessment/questions", profile.questions);
 router.get("/scoring-principles", profile.principles);

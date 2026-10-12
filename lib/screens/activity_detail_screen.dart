@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
+import 'live_conversation_screen.dart';
 import 'recording_screen.dart';
 
 /// Think Fast / Spontaneous Agility Activity Intro Screen
@@ -118,7 +119,7 @@ class ActivityDetailScreen extends StatelessWidget {
                       const SizedBox(height: 20),
 
                       // CARD 1: HOW IT WORKS
-                      _buildHowItWorksCard(),
+                      _buildHowItWorksCard(context),
                       const SizedBox(height: 16),
 
                       // CARD 2: USE YOUR 5 SECONDS
@@ -129,14 +130,37 @@ class ActivityDetailScreen extends StatelessWidget {
                 ),
               ),
 
-              // Bottom CTA Button: Begin exercise ->
+              // Bottom CTAs: record drill + live coach (same activity prompt context)
               ActionPillButton(
                 label: 'Begin exercise',
-                onPressed: () {
-                  Navigator.push(
-                    context,
+                onPressed: () async {
+                  final nav = Navigator.of(context);
+                  final app = context.read<AppStateProvider>();
+                  if (app.isLoggedIn) {
+                    await app.fetchNextPromptFromApi();
+                  }
+                  if (!context.mounted) return;
+                  nav.push(
                     MaterialPageRoute(
                       builder: (_) => const RecordingScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              ActionPillButton(
+                label: 'Live coach conversation',
+                isSecondary: true,
+                onPressed: () async {
+                  final nav = Navigator.of(context);
+                  final app = context.read<AppStateProvider>();
+                  if (app.isLoggedIn) {
+                    await app.fetchNextPromptFromApi();
+                  }
+                  if (!context.mounted) return;
+                  nav.push(
+                    MaterialPageRoute(
+                      builder: (_) => const LiveConversationScreen(),
                     ),
                   );
                 },
@@ -150,7 +174,11 @@ class ActivityDetailScreen extends StatelessWidget {
   }
 
   /// CARD 1: HOW IT WORKS (Connected 4-Step Timeline)
-  Widget _buildHowItWorksCard() {
+  Widget _buildHowItWorksCard(BuildContext context) {
+    final activity = context.watch<AppStateProvider>().selectedActivity;
+    final prep = activity?.prepDurationSeconds ?? 5;
+    final speak = activity?.defaultDurationSeconds ?? 60;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
@@ -201,12 +229,12 @@ class ActivityDetailScreen extends StatelessWidget {
                   _buildTimelineStep(
                     icon: Icons.timer_outlined,
                     title: '2. Think',
-                    subtitle: 'You\'ll have\n5 seconds.',
+                    subtitle: 'You\'ll have\n$prep seconds.',
                   ),
                   _buildTimelineStep(
                     icon: Icons.mic_none_rounded,
                     title: '3. Speak',
-                    subtitle: 'The mic starts\nautomatically.',
+                    subtitle: '${speak}s speak\nwindow.',
                   ),
                   _buildTimelineStep(
                     icon: Icons.bar_chart_rounded,

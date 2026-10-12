@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "536954543355",
+    "project_id": "hakkiri-ff46a",
+    "storage_bucket": "hakkiri-ff46a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:536954543355:android:2706b6b3c9221c81d6245e",
+        "android_client_info": {
+          "package_name": "com.hakkiri.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "536954543355-0gacrbhba0pinid2v15n5f9b8t18apfv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAAt8TzOMRs_PaeSCmg9BXDOm45ga3pyOE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "536954543355-0gacrbhba0pinid2v15n5f9b8t18apfv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
