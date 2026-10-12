@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
+import '../widgets/onboarding_bubble_background.dart';
 import '../widgets/who_its_for_roadmap_view.dart';
 import '../widgets/twelve_months_roadmap_view.dart';
 import 'assessment_screen.dart';
@@ -145,7 +146,12 @@ class _LandingScreenState extends State<LandingScreen>
       ),
       child: Scaffold(
         backgroundColor: Colors.white,
-        body: SafeArea(
+        body: Stack(
+          children: [
+            // Soft blue ambient bubbles behind the whole onboarding flow
+            // (matches the design spec; replaces the flat white canvas).
+            const OnboardingBubbleBackground(),
+            SafeArea(
           bottom: !isIOS,
           child: SlideTransition(
             position: _entrySlide,
@@ -247,6 +253,8 @@ class _LandingScreenState extends State<LandingScreen>
         ),
             ),
       ),
+          ],
+        ),
     ));
   }
 
