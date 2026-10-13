@@ -2,9 +2,13 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:record/record.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import '../core/services/analytics_service.dart';
+import '../core/services/session_audio_store.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/mic_reactive_waveform.dart';
+import '../widgets/shimmer_loading.dart';
 import 'feedback_screen.dart';
 
 enum ExerciseStage {
@@ -47,11 +51,13 @@ class _RecordingScreenState extends State<RecordingScreen>
   String _promptHeadline = 'How would you handle a difficult stakeholder?';
 
   final SpeechToText _speech = SpeechToText();
+  final AudioRecorder _audioRecorder = AudioRecorder();
   final ValueNotifier<double> _micLevel = ValueNotifier<double>(0.12);
   String _committedTranscript = '';
   String _partialTranscript = '';
   bool _finishing = false;
   bool _speechReady = false;
+  String? _audioTempPath;
 
   String get _liveTranscript =>
       '$_committedTranscript $_partialTranscript'.trim();
@@ -100,6 +106,13 @@ class _RecordingScreenState extends State<RecordingScreen>
         _promptHeadline.split(' ').where((w) => w.isNotEmpty).toList();
     _words = nextWords.isEmpty ? ['Ready', 'when', 'you', 'are.'] : nextWords;
     _promptReady = true;
+    AnalyticsService.instance.logPracticeStarted(
+      activitySlug: activity?.slug ?? 'drill',
+      activityName: activity?.name ?? 'Practice Drill',
+      promptTitle: _promptHeadline,
+      difficulty: state.selectedDifficulty,
+    );
+    AnalyticsService.instance.logScreenView(screenName: 'RecordingScreen');
     _startWordByWordReveal();
   }
 
@@ -165,6 +178,7 @@ class _RecordingScreenState extends State<RecordingScreen>
       _partialTranscript = '';
     });
 
+    unawaited(_startLocalAudioCapture());
     unawaited(_startSpeechCapture());
 
     _speakingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
@@ -176,6 +190,34 @@ class _RecordingScreenState extends State<RecordingScreen>
         unawaited(_finishSession());
       }
     });
+  }
+
+  Future<void> _startLocalAudioCapture() async {
+    try {
+      if (!await _audioRecorder.hasPermission()) return;
+      _audioTempPath = await SessionAudioStore.instance.startTempPath();
+      await _audioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 96000,
+          sampleRate: 44100,
+          numChannels: 1,
+        ),
+        path: _audioTempPath!,
+      );
+    } catch (_) {
+      _audioTempPath = null;
+    }
+  }
+
+  Future<String?> _stopLocalAudioCapture() async {
+    try {
+      if (await _audioRecorder.isRecording()) {
+        final path = await _audioRecorder.stop();
+        return path ?? _audioTempPath;
+      }
+    } catch (_) {}
+    return _audioTempPath;
   }
 
   Future<void> _startSpeechCapture() async {
@@ -251,6 +293,8 @@ class _RecordingScreenState extends State<RecordingScreen>
       }
     } catch (_) {}
 
+    final audioPath = await _stopLocalAudioCapture();
+
     final spoken = (_speakingTotalSeconds - _speakingSecondsRemaining)
         .clamp(1, _speakingTotalSeconds);
     final transcript = _liveTranscript.trim();
@@ -270,6 +314,8 @@ class _RecordingScreenState extends State<RecordingScreen>
       await state.evaluateCurrentSession(
         transcript: transcript,
         durationSeconds: spoken,
+        conversationMode: 'single',
+        localAudioTempPath: audioPath,
       );
     } finally {
       if (mounted && Navigator.of(context).canPop()) {
@@ -292,6 +338,8 @@ class _RecordingScreenState extends State<RecordingScreen>
     _prepArcController.dispose();
     unawaited(_speech.stop());
     unawaited(_speech.cancel());
+    unawaited(_stopLocalAudioCapture());
+    unawaited(_audioRecorder.dispose());
     _micLevel.dispose();
     super.dispose();
   }
@@ -299,11 +347,10 @@ class _RecordingScreenState extends State<RecordingScreen>
   @override
   Widget build(BuildContext context) {
     if (!_promptReady) {
-      return const Scaffold(
-        backgroundColor: Color(0xFFFBFBF9),
-        body: Center(
-          child: CircularProgressIndicator(color: Color(0xFF2563EB)),
-        ),
+      final state = Provider.of<AppStateProvider>(context, listen: false);
+      return QuestionLoadingShimmer(
+        activityName: state.selectedActivity?.name,
+        onBack: () => Navigator.maybePop(context),
       );
     }
     switch (_stage) {

@@ -40,9 +40,10 @@ class GoogleAuthService {
       return;
     }
     if (kIsWeb) return;
-    if (defaultTargetPlatform != TargetPlatform.android) return;
     try {
-      await Firebase.initializeApp(options: DefaultFirebaseOptions.android);
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
       _firebaseReady = true;
     } catch (e) {
       debugPrint('Firebase init skipped: $e');

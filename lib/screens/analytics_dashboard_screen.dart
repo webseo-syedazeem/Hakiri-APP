@@ -4,6 +4,7 @@ import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/dashed_border.dart';
 import 'main_tab_scaffold.dart';
+import 'session_detail_screen.dart';
 
 class AnalyticsDashboardScreen extends StatelessWidget {
   const AnalyticsDashboardScreen({super.key});
@@ -220,6 +221,15 @@ class AnalyticsDashboardContent extends StatelessWidget {
                     score: session.feedback.overallScore.toStringAsFixed(1),
                     title: session.activityName,
                     date: _shortDay(session.timestamp),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              SessionDetailScreen(session: session),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ),
@@ -355,38 +365,47 @@ class AnalyticsDashboardContent extends StatelessWidget {
     required String title,
     required String date,
     bool isMuted = false,
+    VoidCallback? onTap,
   }) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 30,
-          child: Text(
-            score,
-            style: TextStyle(
-              color: isMuted ? AppColors.textMuted : AppColors.royalBlue,
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 30,
+            child: Text(
+              score,
+              style: TextStyle(
+                color: isMuted ? AppColors.textMuted : AppColors.royalBlue,
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
-        ),
-        const Spacer(),
-        Text(
-          date,
-          style: const TextStyle(
-            color: AppColors.textMuted,
-            fontSize: 13,
+          Text(
+            date,
+            style: const TextStyle(
+              color: AppColors.textMuted,
+              fontSize: 13,
+            ),
           ),
-        ),
-      ],
+          if (onTap != null)
+            const Icon(Icons.chevron_right_rounded,
+                color: AppColors.textMuted, size: 18),
+        ],
+      ),
     );
   }
 }

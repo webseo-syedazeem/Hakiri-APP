@@ -5,8 +5,11 @@ import 'package:uuid/uuid.dart';
 import '../models/assessment_model.dart';
 import '../models/activity_model.dart';
 import '../models/session_model.dart';
+import '../core/services/analytics_service.dart';
 import '../core/services/google_auth_service.dart';
 import '../core/services/hakkiri_api_service.dart';
+import '../core/services/push_notification_service.dart';
+import '../core/services/session_audio_store.dart';
 import '../core/services/speech_evaluator_service.dart';
 import '../core/services/supabase_service.dart';
 
@@ -36,6 +39,7 @@ class AppStateProvider extends ChangeNotifier {
   // Settings
   int dailyAnchorMinutes = 5;
   String audioPrivacy = 'encrypted_on_device';
+  bool remindersEnabled = true;
   String focusLine = 'Go blank less, land the point sooner.';
 
   // Gamification (Enforcing fair scoring: XP & streaks separate from skill scores)
@@ -239,6 +243,13 @@ class AppStateProvider extends ChangeNotifier {
     email = _api.email ?? email;
     isLoggedIn = true;
     isOnboarded = _api.isOnboardedCached || isOnboarded;
+    if (userId.isNotEmpty) {
+      unawaited(AnalyticsService.instance.syncUserProfile(
+        userId: userId,
+        email: email,
+      ));
+    }
+    unawaited(PushNotificationService.instance.syncTokenToApi());
     notifyListeners();
   }
 
@@ -255,9 +266,11 @@ class AppStateProvider extends ChangeNotifier {
       password: password,
     );
     _applyAuthPayload(data);
+    unawaited(AnalyticsService.instance.logSignUp(method: 'email'));
     // Signup always starts the assessment funnel.
     isOnboarded = false;
     await _api.persistOnboarded(false);
+    unawaited(PushNotificationService.instance.syncTokenToApi());
     notifyListeners();
   }
 
@@ -268,30 +281,46 @@ class AppStateProvider extends ChangeNotifier {
     _resetAssessmentLocalState();
     final data = await _api.login(email: email, password: password);
     _applyAuthPayload(data);
+    unawaited(AnalyticsService.instance.logLogin(method: 'email'));
     // Login always resumes on Home — mark session ready locally.
     isOnboarded = true;
     await _api.persistOnboarded(true);
+    unawaited(PushNotificationService.instance.syncTokenToApi());
     unawaited(refreshFromApi());
     return data;
   }
 
   Future<Map<String, dynamic>> continueWithGoogle() async {
     final google = await GoogleAuthService.signIn();
-    _resetAssessmentLocalState();
+    // Clear local answers only — onboarding flag comes from the API below.
+    _resetAssessmentLocalState(clearOnboardedFlag: false);
     final data = await _api.loginWithGoogle(idToken: google.idToken);
     _applyAuthPayload(data);
     final created = data['created'] == true;
+    if (created) {
+      unawaited(AnalyticsService.instance.logSignUp(method: 'google'));
+    } else {
+      unawaited(AnalyticsService.instance.logLogin(method: 'google'));
+    }
+    // API-level routing: existing + assessment done → Home (skip onboarding).
     final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
-    final done = !created && profile['onboarding_complete'] == true;
+    final apiSaysNeedsOnboarding = data['needs_onboarding'] == true;
+    final apiSaysComplete = data['onboarding_complete'] == true ||
+        profile['onboarding_complete'] == true;
+    final done = data.containsKey('needs_onboarding')
+        ? !apiSaysNeedsOnboarding
+        : (!created && apiSaysComplete);
     isOnboarded = done;
     await _api.persistOnboarded(done);
+    unawaited(PushNotificationService.instance.syncTokenToApi());
     if (!created) {
       unawaited(refreshFromApi());
     }
+    notifyListeners();
     return data;
   }
 
-  void _resetAssessmentLocalState() {
+  void _resetAssessmentLocalState({bool clearOnboardedFlag = true}) {
     answers.voiceProfile = null;
     answers.careerStage = null;
     answers.careerType = null;
@@ -299,7 +328,9 @@ class AppStateProvider extends ChangeNotifier {
     answers.roadblock = null;
     answers.primaryGoal = null;
     personalizedPlan = null;
-    isOnboarded = false;
+    if (clearOnboardedFlag) {
+      isOnboarded = false;
+    }
   }
 
   Future<void> markOnboardedComplete() async {
@@ -350,11 +381,35 @@ class AppStateProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Profile Reminder toggle — off means no daily FCM from the server.
+  Future<void> updateRemindersEnabled(bool enabled) async {
+    remindersEnabled = enabled;
+    notifyListeners();
+    try {
+      final data = await _api.updateSettings({
+        'reminders_enabled': enabled,
+      });
+      final settings = (data['settings'] as Map<String, dynamic>?) ?? {};
+      _applySettings(settings);
+      if (enabled) {
+        await PushNotificationService.instance.enableAndSync();
+      } else {
+        await PushNotificationService.instance.clearTokenFromApi();
+      }
+      notifyListeners();
+    } catch (e) {
+      remindersEnabled = !enabled;
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   Future<void> logout() async {
     try {
       await GoogleAuthService.signOut();
     } catch (_) {}
     await _api.clearSession();
+    unawaited(AnalyticsService.instance.logLogout());
     userId = '';
     fullName = '';
     email = '';
@@ -416,6 +471,11 @@ class AppStateProvider extends ChangeNotifier {
     final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
     _applyProfile(profile);
     await markOnboardedComplete();
+    unawaited(AnalyticsService.instance.logAssessmentCompleted(
+      careerType: careerType,
+      confidence: confidence,
+      primaryRoadblock: problem,
+    ));
     unawaited(refreshFromApi());
   }
 
@@ -437,6 +497,17 @@ class AppStateProvider extends ChangeNotifier {
     _applySubscription(subscription);
     _applyStreak(streak);
     _applySettings(settings);
+
+    if (userId.isNotEmpty) {
+      unawaited(AnalyticsService.instance.syncUserProfile(
+        userId: userId,
+        email: email,
+        careerType: answers.careerType,
+        subscriptionTier: subscriptionTier,
+        streak: currentStreak,
+        xp: totalXp,
+      ));
+    }
   }
 
   void _applyProfile(Map<String, dynamic> profile) {
@@ -519,6 +590,10 @@ class AppStateProvider extends ChangeNotifier {
     dailyAnchorMinutes =
         (settings['daily_anchor_minutes'] as num?)?.round() ?? dailyAnchorMinutes;
     audioPrivacy = (settings['audio_privacy'] ?? audioPrivacy).toString();
+    if (settings.containsKey('reminders_enabled')) {
+      remindersEnabled = settings['reminders_enabled'] != false;
+      PushNotificationService.instance.allowSync = remindersEnabled;
+    }
     if (settings['industry_track'] != null) {
       answers.careerType = settings['industry_track'].toString();
     }
@@ -582,10 +657,14 @@ class AppStateProvider extends ChangeNotifier {
           .toList();
 
       final sessionData = (data['sessions'] as Map<String, dynamic>?) ?? {};
-      final rows = ((sessionData['sessions'] as List?) ?? [])
-          .whereType<Map>()
-          .map((e) => PracticeSessionRecord.fromApi(Map<String, dynamic>.from(e)))
-          .toList();
+      final rows = <PracticeSessionRecord>[];
+      for (final raw in ((sessionData['sessions'] as List?) ?? [])) {
+        if (raw is! Map) continue;
+        final base =
+            PracticeSessionRecord.fromApi(Map<String, dynamic>.from(raw));
+        final audio = await SessionAudioStore.instance.pathFor(base.id);
+        rows.add(audio == null ? base : base.copyWith(localAudioPath: audio));
+      }
       sessionHistory
         ..clear()
         ..addAll(rows);
@@ -609,17 +688,25 @@ class AppStateProvider extends ChangeNotifier {
   Future<void> freezeStreakFromApi() async {
     final data = await _api.freezeStreak();
     _applyStreak(data['streak'] as Map<String, dynamic>?);
+    unawaited(AnalyticsService.instance.logStreakFreezeUsed(
+      remainingFreezes: streakFreezeCount,
+    ));
     notifyListeners();
   }
 
   Future<void> joinChallengeFromApi(String slug) async {
     await _api.joinChallenge(slug);
+    unawaited(AnalyticsService.instance.logChallengeJoined(challengeSlug: slug));
     await refreshFromApi();
   }
 
   Future<void> choosePlanFromApi(String tier) async {
     final data = await _api.chooseSubscription(tier);
     _applySubscription((data['subscription'] as Map<String, dynamic>?) ?? {});
+    unawaited(AnalyticsService.instance.logSelectPlan(
+      planId: tier,
+      price: subscriptionPriceFormatted,
+    ));
     notifyListeners();
   }
 
@@ -1055,8 +1142,13 @@ class AppStateProvider extends ChangeNotifier {
     required String transcript,
     required int durationSeconds,
     bool isRetry = false,
+    String conversationMode = 'single',
+    List<ConversationTurn> conversationTurns = const [],
+    String? localAudioTempPath,
   }) async {
     final prompt = selectedPrompt ?? promptBank.first;
+    final mode =
+        conversationMode == 'back_and_forth' ? 'back_and_forth' : 'single';
 
     // Prefer Gemini Flash analysis via API (doc requirement).
     // Fall back to on-device heuristic only if the AI call fails / offline.
@@ -1079,15 +1171,32 @@ class AppStateProvider extends ChangeNotifier {
 
     latestFeedback = feedback;
 
+    final localId = _uuid.v4();
+    String? audioPath;
+    if (localAudioTempPath != null && localAudioTempPath.isNotEmpty) {
+      audioPath = await SessionAudioStore.instance.persist(
+        sessionId: localId,
+        tempPath: localAudioTempPath,
+      );
+    }
+
     // Create and save local session history record immediately
     final record = PracticeSessionRecord(
-      id: _uuid.v4(),
+      id: localId,
       activitySlug: prompt.activitySlug,
       activityName: selectedActivity?.name ?? 'Drill Session',
-      promptTitle: prompt.title ?? (prompt.promptText.length > 40 ? '${prompt.promptText.substring(0, 40)}...' : prompt.promptText),
+      promptTitle: prompt.title ??
+          (prompt.promptText.length > 40
+              ? '${prompt.promptText.substring(0, 40)}...'
+              : prompt.promptText),
+      promptText: prompt.promptText,
+      transcript: transcript,
+      conversationMode: mode,
+      conversationTurns: conversationTurns,
       timestamp: DateTime.now(),
       durationSeconds: durationSeconds,
       feedback: feedback,
+      localAudioPath: audioPath,
     );
     sessionHistory.insert(0, record);
 
@@ -1100,6 +1209,23 @@ class AppStateProvider extends ChangeNotifier {
       feedback: feedback,
     );
 
+    unawaited(AnalyticsService.instance.logPracticeCompleted(
+      activitySlug: prompt.activitySlug,
+      activityName: selectedActivity?.name ?? 'Drill Session',
+      durationSeconds: durationSeconds,
+      overallScore: feedback.overallScore,
+      executiveScore: feedback.pillars.executiveScore,
+      clarityScore: feedback.pillars.clarityScore,
+      impactScore: feedback.pillars.impactScore,
+      engagementScore: feedback.pillars.engagementScore,
+      isRetry: isRetry,
+    ));
+    if (isRetry) {
+      unawaited(AnalyticsService.instance.logPracticeRetry(
+        activitySlug: prompt.activitySlug,
+      ));
+    }
+
     if (isLoggedIn) {
       await _persistSessionToApi(
         prompt: prompt,
@@ -1108,6 +1234,9 @@ class AppStateProvider extends ChangeNotifier {
         feedback: feedback,
         isRetry: isRetry,
         localRecordId: record.id,
+        conversationMode: mode,
+        conversationTurns: conversationTurns,
+        localAudioPath: audioPath,
       );
     } else {
       finishDrillAndIncrementStreak();
@@ -1186,12 +1315,16 @@ class AppStateProvider extends ChangeNotifier {
     required EvaluationFeedback feedback,
     required bool isRetry,
     required String localRecordId,
+    String conversationMode = 'single',
+    List<ConversationTurn> conversationTurns = const [],
+    String? localAudioPath,
   }) async {
     try {
       final data = await _api.createSession({
         'activity_slug': prompt.activitySlug,
         if (_looksLikeCatalogPromptId(prompt.id)) 'prompt_id': prompt.id,
         'prompt_title': prompt.title ?? prompt.promptText,
+        'prompt_text': prompt.promptText,
         'difficulty': selectedDifficulty == 'pro'
             ? 'professional'
             : selectedDifficulty == 'i_dont_know'
@@ -1204,6 +1337,9 @@ class AppStateProvider extends ChangeNotifier {
         'transcript': transcript,
         'duration_seconds': durationSeconds,
         'is_coached_retry': isRetry,
+        'conversation_mode': conversationMode,
+        'conversation_turns':
+            conversationTurns.map((t) => t.toJson()).toList(),
         'feedback': feedback.toJson(),
       });
       _applyStreak(data['streak'] as Map<String, dynamic>?);
@@ -1213,9 +1349,24 @@ class AppStateProvider extends ChangeNotifier {
       if (session is Map) {
         final apiRecord =
             PracticeSessionRecord.fromApi(Map<String, dynamic>.from(session));
+        await SessionAudioStore.instance.rekey(
+          fromId: localRecordId,
+          toId: apiRecord.id,
+        );
+        final audio = localAudioPath ??
+            await SessionAudioStore.instance.pathFor(apiRecord.id);
         final idx = sessionHistory.indexWhere((s) => s.id == localRecordId);
         if (idx >= 0) {
-          sessionHistory[idx] = apiRecord;
+          sessionHistory[idx] = apiRecord.copyWith(
+            localAudioPath: audio,
+            // Preserve full prompt/transcript if API omitted older fields.
+            promptText: apiRecord.promptText.isNotEmpty
+                ? apiRecord.promptText
+                : prompt.promptText,
+            transcript: apiRecord.transcript.isNotEmpty
+                ? apiRecord.transcript
+                : transcript,
+          );
         }
       }
       await refreshFromApi();

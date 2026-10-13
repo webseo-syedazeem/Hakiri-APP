@@ -7,6 +7,8 @@ const settingsSchema = new mongoose.Schema(
     voiceProfile: { type: String, default: null },
     dailyAnchorMinutes: { type: Number, default: 5 },
     audioPrivacy: { type: String, default: "encrypted_on_device" },
+    // When false, cron must not send daily practice FCM.
+    remindersEnabled: { type: Boolean, default: true },
   },
   { timestamps: true }
 );

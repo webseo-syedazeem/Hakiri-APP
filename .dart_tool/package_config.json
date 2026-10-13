@@ -44,6 +44,48 @@
       "languageVersion": "3.4"
     },
     {
+      "name": "audioplayers",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/audioplayers-6.7.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "audioplayers_android",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/audioplayers_android-5.2.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "audioplayers_darwin",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/audioplayers_darwin-6.4.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "audioplayers_linux",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/audioplayers_linux-4.2.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "audioplayers_platform_interface",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/audioplayers_platform_interface-7.1.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "audioplayers_web",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/audioplayers_web-5.2.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "audioplayers_windows",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/audioplayers_windows-4.3.1",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
       "name": "boolean_selector",
       "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/boolean_selector-2.1.2",
       "packageUri": "lib/",
@@ -122,6 +164,24 @@
       "languageVersion": "3.0"
     },
     {
+      "name": "firebase_analytics",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/firebase_analytics-12.6.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "firebase_analytics_platform_interface",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/firebase_analytics_platform_interface-6.0.7",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "firebase_analytics_web",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/firebase_analytics_web-0.6.1+13",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
       "name": "firebase_auth",
       "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/firebase_auth-6.7.0",
       "packageUri": "lib/",
@@ -154,6 +214,36 @@
     {
       "name": "firebase_core_web",
       "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/firebase_core_web-3.12.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "firebase_crashlytics",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/firebase_crashlytics-5.4.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "firebase_crashlytics_platform_interface",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/firebase_crashlytics_platform_interface-3.9.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "firebase_messaging",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/firebase_messaging-16.7.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "firebase_messaging_platform_interface",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/firebase_messaging_platform_interface-4.10.0",
+      "packageUri": "lib/",
+      "languageVersion": "3.6"
+    },
+    {
+      "name": "firebase_messaging_web",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/firebase_messaging_web-4.2.5",
       "packageUri": "lib/",
       "languageVersion": "3.6"
     },
@@ -630,6 +720,12 @@
       "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/supabase_flutter-2.18.0",
       "packageUri": "lib/",
       "languageVersion": "3.9"
+    },
+    {
+      "name": "synchronized",
+      "rootUri": "file:///Users/msabir/.pub-cache/hosted/pub.dev/synchronized-3.4.0+1",
+      "packageUri": "lib/",
+      "languageVersion": "3.11"
     },
     {
       "name": "term_glyph",

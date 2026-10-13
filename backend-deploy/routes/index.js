@@ -8,6 +8,7 @@ const challenge = require("../controllers/challengeController");
 const subscription = require("../controllers/subscriptionController");
 const ai = require("../controllers/aiController");
 const bootstrap = require("../controllers/bootstrapController");
+const push = require("../controllers/pushController");
 
 const router = express.Router();
 
@@ -19,6 +20,13 @@ router.get("/bootstrap", verifyJWT, bootstrap.bootstrap);
 router.get("/ai/status", ai.status);
 router.post("/ai/live-token", verifyJWT, ai.liveToken);
 router.post("/ai/analyze-speech", verifyJWT, ai.analyzeSpeech);
+
+// FCM device token (app start / after login). No Cloud Functions.
+router.post("/device-token", verifyJWT, push.registerToken);
+router.delete("/device-token", verifyJWT, push.clearTokens);
+// Daily incomplete-practice reminders — call via Vercel Cron / scheduler.
+router.get("/cron/daily-reminders", push.sendDailyReminders);
+router.post("/cron/daily-reminders", push.sendDailyReminders);
 
 router.get("/assessment/questions", profile.questions);
 router.get("/scoring-principles", profile.principles);

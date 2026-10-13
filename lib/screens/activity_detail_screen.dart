@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../core/services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
@@ -21,6 +22,12 @@ class ActivityDetailScreen extends StatelessWidget {
     final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     final bottomGap = isIOS ? (safeBottom > 0 ? 20.0 : 12.0) : 14.0;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AnalyticsService.instance.logScreenView(
+        screenName: 'ActivityDetailScreen_$slug',
+      );
+    });
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(

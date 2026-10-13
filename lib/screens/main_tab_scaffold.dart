@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../core/services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_bottom_nav.dart';
 import 'home_screen.dart';
@@ -58,11 +59,22 @@ class MainTabScaffoldScope extends InheritedWidget {
 }
 
 class _MainTabScaffoldState extends State<MainTabScaffold> {
+  static const _tabNames = ['Today', 'Progress', 'Practice', 'Profile'];
   late int _currentIndex;
 
   void _setTab(int index) {
     if (mounted && _currentIndex != index) {
       setState(() => _currentIndex = index);
+      final tabName = (index >= 0 && index < _tabNames.length)
+          ? _tabNames[index]
+          : 'Tab$index';
+      AnalyticsService.instance.logTabSelected(
+        tabIndex: index,
+        tabName: tabName,
+      );
+      AnalyticsService.instance.logScreenView(
+        screenName: '${tabName}Screen',
+      );
     }
   }
 
@@ -70,6 +82,12 @@ class _MainTabScaffoldState extends State<MainTabScaffold> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    final tabName = (widget.initialIndex >= 0 && widget.initialIndex < _tabNames.length)
+        ? _tabNames[widget.initialIndex]
+        : 'Tab${widget.initialIndex}';
+    AnalyticsService.instance.logScreenView(
+      screenName: '${tabName}Screen',
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final state = context.read<AppStateProvider>();
       if (state.isLoggedIn) {

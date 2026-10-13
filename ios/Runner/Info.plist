@@ -6,6 +6,23 @@
 	<string>Hakkiri needs the microphone for live speaking practice with your coach.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Hakkiri transcribes your practice answers so it can score your speaking.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<key>FirebaseAppDelegateProxyEnabled</key>
+	<true/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.536954543355-625fdgd51p483h3afo47g4nl7nlem4a3</string>
+			</array>
+		</dict>
+	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>

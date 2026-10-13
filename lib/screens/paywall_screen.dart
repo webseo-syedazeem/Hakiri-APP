@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../core/services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_logo.dart';
 import 'home_screen.dart';
@@ -17,9 +18,20 @@ class PaywallScreen extends StatefulWidget {
 class _PaywallScreenState extends State<PaywallScreen> {
   String _selectedTier = 'annual_pro'; // 'annual_pro' or 'monthly'
 
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService.instance.logViewPaywall();
+    AnalyticsService.instance.logScreenView(screenName: 'PaywallScreen');
+  }
+
   Future<void> _onContinue() async {
     final state = Provider.of<AppStateProvider>(context, listen: false);
     state.selectSubscription(_selectedTier);
+    AnalyticsService.instance.logSelectPlan(
+      planId: _selectedTier,
+      price: _selectedTier == 'annual_pro' ? 'USD 99.99/yr' : 'USD 14.99/mo',
+    );
     // Lock the user onto Home for every future cold start.
     await state.markOnboardedComplete();
 

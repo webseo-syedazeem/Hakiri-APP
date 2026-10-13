@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../core/services/analytics_service.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../core/services/live_voice_service.dart';
+import '../models/session_model.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/live_waveform_bars.dart';
 import 'feedback_screen.dart';
@@ -22,6 +24,7 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
   final LiveVoiceService _voice = LiveVoiceService.instance;
   final List<String> _lines = [];
   final List<String> _userUtterances = [];
+  final List<ConversationTurn> _turns = [];
   StreamSubscription? _sub;
   bool _connecting = true;
   bool _listening = false;
@@ -91,10 +94,14 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
           if (text.isNotEmpty) {
             _lines.add('You: $text');
             _userUtterances.add(text);
+            _turns.add(ConversationTurn(role: 'user', text: text));
           }
         } else if (type == 'model_transcript') {
           final text = (event['text'] ?? '').toString().trim();
-          if (text.isNotEmpty) _lines.add('Coach: $text');
+          if (text.isNotEmpty) {
+            _lines.add('Coach: $text');
+            _turns.add(ConversationTurn(role: 'coach', text: text));
+          }
         } else if (type == 'error') {
           _error = (event['message'] ?? 'Live voice failed.').toString();
           _connecting = false;
@@ -111,6 +118,8 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
       await _voice.start(systemInstruction: instruction);
       if (!mounted) return;
       _startedAt = DateTime.now();
+      AnalyticsService.instance.logLiveVoiceStarted();
+      AnalyticsService.instance.logScreenView(screenName: 'LiveConversationScreen');
       setState(() {
         _connecting = false;
         _listening = true;
@@ -154,6 +163,10 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
     final transcript = _userUtterances.join(' ').trim();
     final started = _startedAt ?? DateTime.now();
     final spoken = DateTime.now().difference(started).inSeconds.clamp(5, 600);
+    AnalyticsService.instance.logLiveVoiceEnded(
+      durationSeconds: spoken,
+      messageCount: _userUtterances.length,
+    );
 
     // No usable speech — just leave without a fake high score.
     if (transcript.isEmpty) {
@@ -174,6 +187,8 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
       await state.evaluateCurrentSession(
         transcript: transcript,
         durationSeconds: spoken,
+        conversationMode: 'back_and_forth',
+        conversationTurns: List<ConversationTurn>.from(_turns),
       );
     } finally {
       if (mounted && Navigator.of(context).canPop()) {

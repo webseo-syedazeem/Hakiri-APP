@@ -202,10 +202,18 @@ const googleAuth = async (req, res) => {
     }
 
     const bundle = await loadAuthBundle(user);
+    // API source of truth for client routing (Get started → Google).
+    const onboardingComplete = Boolean(bundle.profile?.onboarding_complete);
+    const needsOnboarding = created || !onboardingComplete;
     return success(
       res,
       created ? "Account created with Google." : "Logged in with Google.",
-      { ...bundle, created },
+      {
+        ...bundle,
+        created,
+        onboarding_complete: onboardingComplete,
+        needs_onboarding: needsOnboarding,
+      },
       created ? 201 : 200
     );
   } catch (err) {

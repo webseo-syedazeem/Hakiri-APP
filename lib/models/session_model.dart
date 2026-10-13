@@ -78,6 +78,23 @@ class HighlightedPhrase {
       };
 }
 
+class ConversationTurn {
+  final String role; // user | coach
+  final String text;
+
+  const ConversationTurn({required this.role, required this.text});
+
+  Map<String, dynamic> toJson() => {
+        'role': role,
+        'text': text,
+      };
+
+  factory ConversationTurn.fromJson(Map<String, dynamic> json) => ConversationTurn(
+        role: (json['role'] ?? 'user').toString(),
+        text: (json['text'] ?? '').toString(),
+      );
+}
+
 class EvaluationFeedback {
   final int overallScore; // 1 to 5
   final FourPillarsScore pillars;
@@ -136,44 +153,101 @@ class PracticeSessionRecord {
   final String activitySlug;
   final String activityName;
   final String promptTitle;
+  final String promptText;
+  final String transcript;
+  /// `single` = one-shot drill; `back_and_forth` = live coach conversation.
+  final String conversationMode;
+  final List<ConversationTurn> conversationTurns;
   final DateTime timestamp;
   final int durationSeconds;
   final EvaluationFeedback feedback;
+  /// On-device recording path (never uploaded).
+  final String? localAudioPath;
 
   const PracticeSessionRecord({
     required this.id,
     required this.activitySlug,
     required this.activityName,
     required this.promptTitle,
+    this.promptText = '',
+    this.transcript = '',
+    this.conversationMode = 'single',
+    this.conversationTurns = const [],
     required this.timestamp,
     required this.durationSeconds,
     required this.feedback,
+    this.localAudioPath,
   });
+
+  bool get isBackAndForth => conversationMode == 'back_and_forth';
+
+  PracticeSessionRecord copyWith({
+    String? id,
+    String? localAudioPath,
+    String? transcript,
+    String? promptText,
+    String? conversationMode,
+    List<ConversationTurn>? conversationTurns,
+  }) {
+    return PracticeSessionRecord(
+      id: id ?? this.id,
+      activitySlug: activitySlug,
+      activityName: activityName,
+      promptTitle: promptTitle,
+      promptText: promptText ?? this.promptText,
+      transcript: transcript ?? this.transcript,
+      conversationMode: conversationMode ?? this.conversationMode,
+      conversationTurns: conversationTurns ?? this.conversationTurns,
+      timestamp: timestamp,
+      durationSeconds: durationSeconds,
+      feedback: feedback,
+      localAudioPath: localAudioPath ?? this.localAudioPath,
+    );
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'activity_slug': activitySlug,
         'activity_name': activityName,
         'prompt_title': promptTitle,
+        'prompt_text': promptText,
+        'transcript': transcript,
+        'conversation_mode': conversationMode,
+        'conversation_turns': conversationTurns.map((t) => t.toJson()).toList(),
         'timestamp': timestamp.toIso8601String(),
         'duration_seconds': durationSeconds,
         'feedback': feedback.toJson(),
+        if (localAudioPath != null) 'local_audio_path': localAudioPath,
       };
 
   factory PracticeSessionRecord.fromApi(Map<String, dynamic> json) {
     final stamp = DateTime.tryParse((json['timestamp'] ?? '').toString()) ?? DateTime.now();
     final feedbackMap = json['feedback'];
+    final turnsRaw = json['conversation_turns'];
+    final turns = <ConversationTurn>[];
+    if (turnsRaw is List) {
+      for (final item in turnsRaw) {
+        if (item is Map) {
+          turns.add(ConversationTurn.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
+    }
+    final mode = (json['conversation_mode'] ?? 'single').toString();
     return PracticeSessionRecord(
       id: (json['id'] ?? '').toString(),
       activitySlug: (json['activity_slug'] ?? '').toString(),
       activityName: (json['activity_name'] ?? 'Practice').toString(),
       promptTitle: (json['prompt_title'] ?? '').toString(),
+      promptText: (json['prompt_text'] ?? '').toString(),
+      transcript: (json['transcript'] ?? '').toString(),
+      conversationMode: mode == 'back_and_forth' ? 'back_and_forth' : 'single',
+      conversationTurns: turns,
       timestamp: stamp,
       durationSeconds: (json['duration_seconds'] as num?)?.round() ?? 0,
       feedback: EvaluationFeedback.fromJson(
         feedbackMap is Map<String, dynamic> ? feedbackMap : null,
       ),
+      localAudioPath: json['local_audio_path']?.toString(),
     );
   }
 }
-

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../core/services/analytics_service.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
@@ -24,6 +25,12 @@ class _SignupScreenState extends State<SignupScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService.instance.logScreenView(screenName: 'SignupScreen');
+  }
 
   @override
   void dispose() {
@@ -95,17 +102,25 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isSubmitting = true);
     try {
       final state = context.read<AppStateProvider>();
+      late final Map<String, dynamic> data;
       await HakkiriLoadingOverlay.run(
         context,
         message: 'Getting your information…',
         detail: 'Signing you in with Google.',
-        action: () => state.continueWithGoogle(),
+        action: () async {
+          data = await state.continueWithGoogle();
+        },
       );
       if (!mounted) return;
-      // Returning onboarded → Home. New → Onboarding → Assessment.
-      final next = state.isOnboarded
-          ? const HomeScreen()
-          : const LandingScreen(postSignup: true);
+      // API check: existing account + onboarding done → Home (no funnel).
+      final created = data['created'] == true;
+      final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
+      final needsOnboarding = data.containsKey('needs_onboarding')
+          ? data['needs_onboarding'] == true
+          : (created || profile['onboarding_complete'] != true);
+      final next = needsOnboarding
+          ? const LandingScreen(postSignup: true)
+          : const HomeScreen();
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => next),

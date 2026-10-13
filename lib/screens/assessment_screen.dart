@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../core/services/analytics_service.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
@@ -45,6 +46,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     _currentStepIndex = widget.initialStep;
     _selectedOptionId = _stepSelections[_currentStepIndex] ?? '';
     _pageController = PageController(initialPage: widget.initialStep);
+    AnalyticsService.instance.logAssessmentStarted();
+    AnalyticsService.instance.logScreenView(screenName: 'AssessmentScreen_Step${widget.initialStep}');
   }
 
   @override
@@ -344,14 +347,25 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         _selectedOptionId = optionId;
       }
     });
+    final step = (index >= 0 && index < _steps.length) ? _steps[index] : null;
+    final stepKey = (step?['title'] ?? 'step_$index').toString();
+    AnalyticsService.instance.logAssessmentStep(
+      step: index,
+      questionKey: stepKey,
+      answer: optionId,
+    );
   }
 
   Future<void> _nextStep() async {
     if (_isSubmitting) return;
 
     if (_currentStepIndex < _steps.length - 1) {
+      final nextIndex = _currentStepIndex + 1;
+      AnalyticsService.instance.logScreenView(
+        screenName: 'AssessmentScreen_Step$nextIndex',
+      );
       _pageController.animateToPage(
-        _currentStepIndex + 1,
+        nextIndex,
         duration: const Duration(milliseconds: 380),
         curve: Curves.easeInOutCubic,
       );
@@ -436,7 +450,15 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     final bottomGap = isIOS ? (safeBottom > 0 ? 20.0 : 12.0) : 14.0;
 
-    return Scaffold(
+    // Android OS back: previous assessment step (same as UI chevron).
+    // Only leave assessment (→ onboarding) from step 0.
+    return PopScope(
+      canPop: _currentStepIndex <= 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _prevStep();
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFFBFBF9),
       body: SafeArea(
         bottom: !isIOS,
@@ -549,6 +571,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 
