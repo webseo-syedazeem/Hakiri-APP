@@ -81,7 +81,7 @@ class WhoItsForRoadmapView extends StatelessWidget {
                       width: cardWidth,
                       stepNumber: '03',
                       title: 'Everyday conversations',
-                      subtitle: 'Say it clearly,\nfirst time.',
+                      subtitle: 'Stay in clearly.\nSet tone.\nFeel sure.',
                       illustration: _buildEverydayIllustration(),
                     ),
                   ),

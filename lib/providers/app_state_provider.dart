@@ -444,27 +444,27 @@ class AppStateProvider extends ChangeNotifier {
     // Only overwrite fields that the API actually sent (null = not set yet).
     if (profile.containsKey('voice_profile')) {
       final v = profile['voice_profile'];
-      answers.voiceProfile = v == null ? null : v.toString();
+      answers.voiceProfile = v?.toString();
     }
     if (profile.containsKey('career_stage')) {
       final v = profile['career_stage'];
-      answers.careerStage = v == null ? null : v.toString();
+      answers.careerStage = v?.toString();
     }
     if (profile.containsKey('career_type')) {
       final v = profile['career_type'];
-      answers.careerType = v == null ? null : v.toString();
+      answers.careerType = v?.toString();
     }
     if (profile.containsKey('speaking_confidence')) {
       final v = profile['speaking_confidence'];
-      answers.confidence = v == null ? null : v.toString();
+      answers.confidence = v?.toString();
     }
     if (profile.containsKey('primary_roadblock')) {
       final v = profile['primary_roadblock'];
-      answers.roadblock = v == null ? null : v.toString();
+      answers.roadblock = v?.toString();
     }
     if (profile.containsKey('primary_goal')) {
       final v = profile['primary_goal'];
-      answers.primaryGoal = v == null ? null : v.toString();
+      answers.primaryGoal = v?.toString();
     }
     final plan = profile['personalized_plan'];
     if (plan is Map<String, dynamic>) {
