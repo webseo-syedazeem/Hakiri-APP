@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import '../core/constants/app_colors.dart';
+import '../core/services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
 import 'home_screen.dart';
 import 'landing_screen.dart';
@@ -41,6 +42,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
+    AnalyticsService.instance.logScreenView(screenName: 'SplashScreen');
 
     // Entry fade & scale animation
     _entryController = AnimationController(

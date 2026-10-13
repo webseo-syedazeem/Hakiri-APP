@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../core/services/analytics_service.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
@@ -23,6 +24,12 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    AnalyticsService.instance.logScreenView(screenName: 'LoginScreen');
+  }
 
   @override
   void dispose() {
@@ -78,20 +85,28 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isSubmitting = true);
     try {
       final state = context.read<AppStateProvider>();
+      late final Map<String, dynamic> data;
       await HakkiriLoadingOverlay.run(
         context,
         message: 'Getting your information…',
         detail: 'Signing you in with Google.',
-        action: () => state.continueWithGoogle(),
+        action: () async {
+          data = await state.continueWithGoogle();
+        },
       );
       if (!mounted) return;
-      // Login → Home (simple). New Google accounts still go signup funnel.
+      // Same API rule as Get started → Google.
+      final created = data['created'] == true;
+      final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
+      final needsOnboarding = data.containsKey('needs_onboarding')
+          ? data['needs_onboarding'] == true
+          : (created || profile['onboarding_complete'] != true);
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => state.isOnboarded
-              ? const HomeScreen()
-              : const LandingScreen(postSignup: true),
+          builder: (_) => needsOnboarding
+              ? const LandingScreen(postSignup: true)
+              : const HomeScreen(),
         ),
         (route) => false,
       );

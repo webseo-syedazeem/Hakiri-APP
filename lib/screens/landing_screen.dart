@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../core/services/analytics_service.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
 import '../widgets/onboarding_bubble_background.dart';
@@ -7,6 +8,7 @@ import '../widgets/who_its_for_roadmap_view.dart';
 import '../widgets/twelve_months_roadmap_view.dart';
 import 'assessment_screen.dart';
 import 'login_screen.dart';
+import 'signup_screen.dart';
 
 /// Onboarding experience.
 ///
@@ -38,6 +40,10 @@ class _LandingScreenState extends State<LandingScreen>
   late final Animation<Offset> _entrySlide;
   int _currentPage = 0;
   int _carouselIndex = 0;
+  DateTime? _lastBackPress;
+
+  /// After signup/Google, onboarding starts at page 1 — never go below it.
+  int get _minPage => widget.postSignup ? 1 : 0;
 
   static const _sectionLabels = [
     'Get started',
@@ -74,6 +80,8 @@ class _LandingScreenState extends State<LandingScreen>
     // Start just after first frame so the opening is seen, not skipped.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _entryController.forward();
+      AnalyticsService.instance.logOnboardingStarted();
+      AnalyticsService.instance.logScreenView(screenName: 'LandingScreen_Page$start');
     });
   }
 
@@ -98,7 +106,7 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   void _previousPage() {
-    if (_currentPage > 0) {
+    if (_currentPage > _minPage) {
       _pageController.animateToPage(
         _currentPage - 1,
         duration: const Duration(milliseconds: 320),
@@ -107,10 +115,46 @@ class _LandingScreenState extends State<LandingScreen>
     }
   }
 
+  void _handleDoubleBackToExit() {
+    final now = DateTime.now();
+    if (_lastBackPress != null &&
+        now.difference(_lastBackPress!) < const Duration(seconds: 2)) {
+      SystemNavigator.pop();
+      return;
+    }
+    _lastBackPress = now;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Press back again to exit'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _handleSystemBack() {
+    if (_currentPage > _minPage) {
+      _previousPage();
+      return;
+    }
+    // First post-signup onboarding page: double-back exits the app.
+    if (widget.postSignup) {
+      _handleDoubleBackToExit();
+    }
+  }
+
   void _goToAssessment() {
+    AnalyticsService.instance.logOnboardingCompleted();
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const AssessmentScreen()),
+    );
+  }
+
+  /// Get started → Signup (new accounts). Design unchanged.
+  void _goToSignup() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SignupScreen()),
     );
   }
 
@@ -129,7 +173,15 @@ class _LandingScreenState extends State<LandingScreen>
     // Keep a small clearance for the home indicator instead of the full inset.
     final bottomGap = isIOS ? (safeBottom > 0 ? 20.0 : 12.0) : 14.0;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
+    // Post-signup first page: no route pop — double Android back exits app.
+    // Mid pages: system back = previous onboarding page.
+    return PopScope(
+      canPop: !widget.postSignup && _currentPage <= 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _handleSystemBack();
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark, // Dark text/icons on Android
@@ -153,16 +205,34 @@ class _LandingScreenState extends State<LandingScreen>
               child: Column(
             children: [
               // Pinned Still Top Bar (< back, Skip) - stays fixed while pages slide
+              // After signup: first onboarding page has Skip only (no back).
               if (_currentPage > 0)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 6, 24, 0),
-                  child: _buildTopBar(),
+                  child: _buildTopBar(showBack: _currentPage > _minPage),
                 ),
               Expanded(
                 child: PageView(
                   controller: _pageController,
                   physics: const BouncingScrollPhysics(),
-                  onPageChanged: (idx) => setState(() => _currentPage = idx),
+                  onPageChanged: (idx) {
+                    // Don't swipe back to welcome after signup/Google.
+                    if (widget.postSignup && idx < 1) {
+                      _pageController.jumpToPage(1);
+                      return;
+                    }
+                    setState(() => _currentPage = idx);
+                    final label = (idx >= 0 && idx < _sectionLabels.length)
+                        ? _sectionLabels[idx]
+                        : 'Page$idx';
+                    AnalyticsService.instance.logOnboardingPage(
+                      pageIndex: idx,
+                      pageName: label,
+                    );
+                    AnalyticsService.instance.logScreenView(
+                      screenName: 'Onboarding_$label',
+                    );
+                  },
                   children: [
                     _buildWelcomePage(),
                     _buildSeeHowItWorksPage(),
@@ -206,13 +276,14 @@ class _LandingScreenState extends State<LandingScreen>
                     ],
 
                     ActionPillButton(
-                      // Walk through every onboarding screen in order; the last
-                      // one ("Start assessment") goes to the assessment, which
-                      // prompts sign-up on completion if needed.
+                      // Funnel: Get started → Signup → onboarding → Assessment.
+                      // After signup, postSignup skips welcome and walks pages.
                       label: _sectionLabels[_currentPage],
-                      onTap: _currentPage >= _sectionLabels.length - 1
-                          ? _goToAssessment
-                          : _nextPage,
+                      onTap: _currentPage == 0 && !widget.postSignup
+                          ? _goToSignup
+                          : (_currentPage >= _sectionLabels.length - 1
+                              ? _goToAssessment
+                              : _nextPage),
                     ),
 
                     if (_currentPage == 0) ...[
@@ -254,7 +325,8 @@ class _LandingScreenState extends State<LandingScreen>
       ),
           ],
         ),
-    ));
+    )),
+    );
   }
 
   // ==========================================
@@ -1155,21 +1227,24 @@ class _LandingScreenState extends State<LandingScreen>
   // HELPER WIDGETS
   // ==========================================
 
-  Widget _buildTopBar() {
+  Widget _buildTopBar({bool showBack = true}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        GestureDetector(
-          onTap: _previousPage,
-          child: const Padding(
-            padding: EdgeInsets.all(4.0),
-            child: Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: Color(0xFF0F172A),
-              size: 20,
+        if (showBack)
+          GestureDetector(
+            onTap: _previousPage,
+            child: const Padding(
+              padding: EdgeInsets.all(4.0),
+              child: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Color(0xFF0F172A),
+                size: 20,
+              ),
             ),
-          ),
-        ),
+          )
+        else
+          const SizedBox(width: 28),
         GestureDetector(
           onTap: _goToAssessment,
           child: const Padding(

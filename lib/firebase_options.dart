@@ -13,9 +13,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'iOS Firebase needs GoogleService-Info.plist from the Firebase console.',
-        );
+        return ios;
       default:
         throw UnsupportedError(
           'Firebase is not configured for this platform yet.',
@@ -29,5 +27,16 @@ class DefaultFirebaseOptions {
     messagingSenderId: '536954543355',
     projectId: 'hakkiri-ff46a',
     storageBucket: 'hakkiri-ff46a.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyD22wyyckWvz14R8dwOXU473EJaBlgIRe0',
+    appId: '1:536954543355:ios:34df884bb0f119f3d6245e',
+    messagingSenderId: '536954543355',
+    projectId: 'hakkiri-ff46a',
+    storageBucket: 'hakkiri-ff46a.firebasestorage.app',
+    iosBundleId: 'com.hakkiri.app',
+    iosClientId:
+        '536954543355-625fdgd51p483h3afo47g4nl7nlem4a3.apps.googleusercontent.com',
   );
 }

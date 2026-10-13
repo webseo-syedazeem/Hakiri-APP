@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../core/services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
@@ -18,6 +19,12 @@ class ActivityDetailScreen extends StatelessWidget {
     final state = Provider.of<AppStateProvider>(context);
     final slug = state.selectedActivity?.slug ?? 'think_fast';
     final spec = _activitySpecs[slug] ?? _activitySpecs['think_fast']!;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AnalyticsService.instance.logScreenView(
+        screenName: 'ActivityDetailScreen_$slug',
+      );
+    });
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBFBF9),
@@ -144,14 +151,8 @@ class ActivityDetailScreen extends StatelessWidget {
               // Bottom CTAs
               ActionPillButton(
                 label: 'Begin exercise',
-                onPressed: () async {
-                  final nav = Navigator.of(context);
-                  final app = context.read<AppStateProvider>();
-                  if (app.isLoggedIn) {
-                    await app.fetchNextPromptFromApi();
-                  }
-                  if (!context.mounted) return;
-                  nav.push(
+                onPressed: () {
+                  Navigator.of(context).push(
                     MaterialPageRoute(builder: (_) => const RecordingScreen()),
                   );
                 },

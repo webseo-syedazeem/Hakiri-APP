@@ -8,6 +8,7 @@ import '../widgets/hakkiri_logo.dart';
 import '../widgets/orbital_background_painter.dart';
 import 'activity_detail_screen.dart';
 import 'main_tab_scaffold.dart';
+import 'session_detail_screen.dart';
 
 class ProgressScreen extends StatelessWidget {
   const ProgressScreen({super.key});
@@ -649,6 +650,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
               ...filteredSessions.take(10).map((session) {
                 final score = session.feedback.overallScore;
                 final minutes = (session.durationSeconds / 60).ceil().clamp(1, 99);
+                final modeTag = session.isBackAndForth ? ' · Chat' : '';
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _buildRecentSessionCard(
@@ -659,13 +661,14 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                         : const Color(0xFF6366F1),
                     title: session.activityName,
                     dateDuration:
-                        '${_formatSessionDay(session.timestamp)} · 🕒 $minutes min',
+                        '${_formatSessionDay(session.timestamp)} · 🕒 $minutes min$modeTag',
                     scoreBadge: score.toStringAsFixed(1),
                     onTap: () {
-                      state.selectActivity(session.activitySlug);
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => SessionDetailScreen(session: session),
+                        ),
                       );
                     },
                   ),

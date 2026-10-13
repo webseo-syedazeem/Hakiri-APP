@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_strings.dart';
+import '../core/services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_logo.dart';
 import 'main_tab_scaffold.dart';
@@ -13,6 +14,9 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AnalyticsService.instance.logScreenView(screenName: 'SettingsScreen');
+    });
 
     return Scaffold(
       backgroundColor: AppColors.background,

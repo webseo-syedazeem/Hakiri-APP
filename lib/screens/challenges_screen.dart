@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../core/services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
 
 class ChallengesScreen extends StatelessWidget {
@@ -8,6 +9,10 @@ class ChallengesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AnalyticsService.instance.logScreenView(screenName: 'ChallengesScreen');
+    });
+
     final state = Provider.of<AppStateProvider>(context);
     final challenges = state.challenges;
     final featured = challenges.isNotEmpty ? challenges.first : null;

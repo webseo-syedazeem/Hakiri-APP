@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../core/services/analytics_service.dart';
 import '../models/session_model.dart';
 import '../providers/app_state_provider.dart';
 import 'home_screen.dart';
@@ -13,6 +14,10 @@ class FeedbackScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AnalyticsService.instance.logScreenView(screenName: 'FeedbackScreen');
+    });
+
     final state = Provider.of<AppStateProvider>(context);
     final feedback = state.latestFeedback;
     final overallValue = (feedback?.overallScore ?? 0).toDouble();

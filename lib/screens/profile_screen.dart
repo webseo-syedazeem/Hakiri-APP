@@ -27,8 +27,8 @@ class ProfileScreenContent extends StatefulWidget {
 }
 
 class _ProfileScreenContentState extends State<ProfileScreenContent> {
-  bool _reminderEnabled = true;
   bool _loggingOut = false;
+  bool _reminderSaving = false;
 
   Future<void> _openProfileEditor() async {
     await Navigator.push(
@@ -398,9 +398,26 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     iconColor: const Color(0xFFF97316),
                     iconBgColor: const Color(0xFFFFF7ED),
                     title: 'Reminder',
-                    subtitle: 'Weekdays at 8:00am',
-                    value: _reminderEnabled,
-                    onChanged: (val) => setState(() => _reminderEnabled = val),
+                    subtitle: 'Daily practice push when you miss your goal',
+                    value: state.remindersEnabled,
+                    onChanged: _reminderSaving
+                        ? null
+                        : (val) async {
+                            setState(() => _reminderSaving = true);
+                            try {
+                              await state.updateRemindersEnabled(val);
+                            } catch (e) {
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(e.toString())),
+                                );
+                              }
+                            } finally {
+                              if (mounted) {
+                                setState(() => _reminderSaving = false);
+                              }
+                            }
+                          },
                   ),
                 ],
               ),
@@ -617,7 +634,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
     required String title,
     required String subtitle,
     required bool value,
-    required ValueChanged<bool> onChanged,
+    ValueChanged<bool>? onChanged,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

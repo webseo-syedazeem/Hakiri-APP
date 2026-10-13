@@ -118,6 +118,7 @@ function settingsJson(settings) {
     voice_profile: settings.voiceProfile,
     daily_anchor_minutes: settings.dailyAnchorMinutes,
     audio_privacy: settings.audioPrivacy,
+    reminders_enabled: settings.remindersEnabled !== false,
   };
 }
 
@@ -128,11 +129,21 @@ function sessionJson(doc) {
     activity_name: doc.activityName,
     prompt_id: doc.promptCode,
     prompt_title: doc.promptTitle,
+    prompt_text: doc.promptText || "",
     difficulty: doc.difficulty,
     transcript: doc.transcript,
     duration_seconds: doc.durationSeconds,
     is_coached_retry: doc.isCoachedRetry,
     withhold_judgement: doc.withholdJudgement,
+    conversation_mode: doc.conversationMode === "back_and_forth"
+      ? "back_and_forth"
+      : "single",
+    conversation_turns: Array.isArray(doc.conversationTurns)
+      ? doc.conversationTurns.map((t) => ({
+          role: t.role === "coach" ? "coach" : "user",
+          text: String(t.text || ""),
+        }))
+      : [],
     timestamp: doc.createdAt,
     feedback: doc.feedback,
   };

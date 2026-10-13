@@ -39,6 +39,19 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: "",
   },
+  fcmTokens: {
+    type: [String],
+    default: [],
+  },
+  fcmPlatform: {
+    type: String,
+    enum: ["ios", "android", "unknown"],
+    default: "unknown",
+  },
+  fcmUpdatedAt: {
+    type: Date,
+    default: null,
+  },
   isDeleted: {
     type: Boolean,
     default: false,

@@ -4,9 +4,15 @@
     { "source": "/ping", "destination": "/api/ping" },
     { "source": "/(.*)", "destination": "/api" }
   ],
+  "crons": [
+    {
+      "path": "/api/cron/daily-reminders",
+      "schedule": "0 14 * * *"
+    }
+  ],
   "functions": {
     "api/index.js": {
-      "maxDuration": 30,
+      "maxDuration": 60,
       "includeFiles": "{server.js,controllers/**,models/**,routes/**,middleware/**,config/**,helpers/**,data/**,services/**}"
     }
   }

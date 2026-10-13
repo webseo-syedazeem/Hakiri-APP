@@ -68,17 +68,36 @@ const createSession = async (req, res) => {
   }
 
   const isCoachedRetry = Boolean(body.is_coached_retry || feedback.is_coached_retry);
+  const modeRaw = String(body.conversation_mode || body.mode || "single")
+    .trim()
+    .toLowerCase();
+  const conversationMode =
+    modeRaw === "back_and_forth" || modeRaw === "live" || modeRaw === "conversation"
+      ? "back_and_forth"
+      : "single";
+  const turnsIn = Array.isArray(body.conversation_turns) ? body.conversation_turns : [];
+  const conversationTurns = turnsIn
+    .slice(0, 80)
+    .map((t) => ({
+      role: String(t?.role || "").toLowerCase() === "coach" ? "coach" : "user",
+      text: String(t?.text || "").slice(0, 4000),
+    }))
+    .filter((t) => t.text);
+
   const session = await PracticeSession.create({
     user: req.user._id,
     activitySlug: activity.slug,
     activityName: activity.name,
     promptCode: prompt?.code || null,
     promptTitle: body.prompt_title || prompt?.title || prompt?.promptText?.slice(0, 80) || activity.name,
+    promptText: String(body.prompt_text || prompt?.promptText || "").slice(0, 8000),
     difficulty: body.difficulty || prompt?.difficulty || "beginner",
     transcript: String(body.transcript || "").slice(0, 20000),
     durationSeconds: Number(body.duration_seconds || 0),
     isCoachedRetry,
     withholdJudgement: withhold,
+    conversationMode,
+    conversationTurns,
     feedback: {
       ...feedback,
       is_coached_retry: isCoachedRetry,
@@ -102,6 +121,12 @@ const createSession = async (req, res) => {
 const listSessions = async (req, res) => {
   const filter = { user: req.user._id };
   if (req.query.activity) filter.activitySlug = req.query.activity;
+  const mode = String(req.query.conversation_mode || req.query.mode || "")
+    .trim()
+    .toLowerCase();
+  if (mode === "single" || mode === "back_and_forth") {
+    filter.conversationMode = mode;
+  }
   const limit = Math.min(Number(req.query.limit) || 20, 50);
   const offset = Number(req.query.offset) || 0;
   const [sessions, total] = await Promise.all([

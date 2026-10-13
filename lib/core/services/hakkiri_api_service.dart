@@ -192,6 +192,14 @@ class HakkiriApiService {
     return (decoded['data'] as Map<String, dynamic>?) ?? {};
   }
 
+  Future<Map<String, dynamic>> _delete(String path, {bool auth = false}) async {
+    final response = await _client
+        .delete(ApiConfig.api(path), headers: _headers(auth: auth))
+        .timeout(const Duration(seconds: 20));
+    final decoded = _decode(response);
+    return (decoded['data'] as Map<String, dynamic>?) ?? {};
+  }
+
   Future<Map<String, dynamic>> register({
     required String fullName,
     required String email,
@@ -329,6 +337,20 @@ class HakkiriApiService {
         body: body,
         timeout: const Duration(seconds: 55),
       );
+
+  /// Save FCM device token for daily practice reminders.
+  Future<Map<String, dynamic>> registerDeviceToken({
+    required String token,
+    required String platform,
+  }) =>
+      _post('/device-token', auth: true, body: {
+        'token': token,
+        'platform': platform,
+      });
+
+  /// Remove FCM tokens when Reminder is off or OS notifications are denied.
+  Future<Map<String, dynamic>> clearDeviceToken() =>
+      _delete('/device-token', auth: true);
 
   /// Next catalog prompt for an activity (server-chosen question).
   Future<Map<String, dynamic>> nextPrompt({

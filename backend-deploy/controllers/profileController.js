@@ -211,6 +211,9 @@ const updateSettings = async (req, res) => {
     patch.dailyAnchorMinutes = minutes;
   }
   if (req.body.audio_privacy) patch.audioPrivacy = String(req.body.audio_privacy);
+  if (req.body.reminders_enabled != null) {
+    patch.remindersEnabled = Boolean(req.body.reminders_enabled);
+  }
 
   const settings = await Settings.findOneAndUpdate({ user: req.user._id }, patch, { new: true, upsert: true });
   if (patch.industryTrack || patch.voiceProfile) {
@@ -221,6 +224,13 @@ const updateSettings = async (req, res) => {
         ...(patch.voiceProfile ? { voiceProfile: patch.voiceProfile } : {}),
       }
     );
+  }
+  // Reminder off → drop FCM tokens so cron cannot notify this user.
+  if (patch.remindersEnabled === false) {
+    await User.findByIdAndUpdate(req.user._id, {
+      fcmTokens: [],
+      fcmUpdatedAt: new Date(),
+    });
   }
   return success(res, "Settings updated.", { settings: settingsJson(settings) });
 };
