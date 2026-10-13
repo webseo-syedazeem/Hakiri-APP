@@ -1038,19 +1038,19 @@ class _LandingScreenState extends State<LandingScreen>
                 children: [
                   _buildTestimonialCard(
                     quote: '“It helps me organise my thoughts and get to the point faster.”',
-                    author: 'Director, BCG',
+                    author: 'Eleanor R.,  BCG',
                     avatarAsset: 'assets/images/avatar_consultant.png',
                   ),
                   const SizedBox(height: 10),
                   _buildTestimonialCard(
                     quote: '“This feedback is specific, practical and easy to apply.”',
-                    author: 'Professor, The Economist',
+                    author: 'Priya S.,  The Economist',
                     avatarAsset: 'assets/images/avatar_economist.png',
                   ),
                   const SizedBox(height: 10),
                   _buildTestimonialCard(
                     quote: '“A smart way to practise speaking with more clarity and confidence.”',
-                    author: 'Student, Cambridge University',
+                    author: 'James T.,  Cambridge University',
                     avatarAsset: 'assets/images/avatar_student.png',
                   ),
                   const SizedBox(height: 12),
@@ -1398,7 +1398,7 @@ class _LandingScreenState extends State<LandingScreen>
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'Speak for 1 minute on a real-life topic. It builds your structure, presence and clarity.',
+                      "Speak for 1 minute on a real-life topic. We'll guide you, listen, and give feedback.",
                       style: TextStyle(
                         color: Color(0xFF64748B),
                         fontSize: 11.5,
@@ -1731,7 +1731,7 @@ class _LandingScreenState extends State<LandingScreen>
           const SizedBox(height: 14),
 
           // 4 Score Metrics
-          _buildMetricRow(Icons.track_changes_rounded, 'Clarity', 4.5),
+          _buildMetricRow(Icons.lightbulb_outline_rounded, 'Clarity', 4.5),
           const SizedBox(height: 8),
           _buildMetricRow(Icons.format_list_bulleted_rounded, 'Structure', 3.5),
           const SizedBox(height: 8),
@@ -1792,10 +1792,10 @@ class _LandingScreenState extends State<LandingScreen>
                       children: [
                         Row(
                           children: [
-                            const Icon(Icons.lightbulb_rounded, color: Color(0xFFEAB308), size: 14),
+                            const Icon(Icons.flag_rounded, color: Color(0xFFF59E0B), size: 14),
                             const SizedBox(width: 4),
                             const Text(
-                              'Next time',
+                              'Next step',
                               style: TextStyle(
                                 color: Color(0xFF0F172A),
                                 fontSize: 11,
@@ -1806,7 +1806,7 @@ class _LandingScreenState extends State<LandingScreen>
                         ),
                         const SizedBox(height: 3),
                         const Text(
-                          'Try to add more real-world examples next.',
+                          'Try to add a more compelling example.',
                           style: TextStyle(
                             color: Color(0xFF64748B),
                             fontSize: 10.5,
