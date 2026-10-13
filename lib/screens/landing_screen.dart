@@ -180,28 +180,20 @@ class _LandingScreenState extends State<LandingScreen>
                 child: Column(
                   children: [
                     // Screen-specific pagination indicators above button
-                    if (_currentPage == 1) ...[
-                      // See how it works: 2-dot sub-flow (prompt)
-                      _buildDotsIndicator(activeIndex: 0, totalDots: 2),
-                      const SizedBox(height: 12),
-                    ] else if (_currentPage == 2) ...[
-                      // See your feedback: 2-dot sub-flow (feedback)
-                      _buildDotsIndicator(activeIndex: 1, totalDots: 2),
-                      const SizedBox(height: 12),
-                    ] else if (_currentPage == 4) ...[
-                      // Who it's for: 5 dots
-                      _buildDotsIndicator(activeIndex: 0, totalDots: 5),
+                    if (_currentPage == 4) ...[
+                      // Who it's for: step 1 of 3
+                      _buildDotsIndicator(activeIndex: 0, totalDots: 3),
                       const SizedBox(height: 12),
                     ] else if (_currentPage == 5) ...[
-                      // Testimonials: 4 dots
-                      _buildDotsIndicator(activeIndex: 0, totalDots: 4),
+                      // Why Hakkiri: step 2 of 3
+                      _buildDotsIndicator(activeIndex: 1, totalDots: 3),
                       const SizedBox(height: 12),
                     ] else if (_currentPage == 6) ...[
-                      // Plan: 6 dots left-aligned
+                      // A guided practice path: step 3 of 3 (final step before assessment)
                       _buildDotsIndicator(
-                        activeIndex: 5,
-                        totalDots: 6,
-                        alignment: MainAxisAlignment.start,
+                        activeIndex: 2,
+                        totalDots: 3,
+                        alignment: MainAxisAlignment.center,
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -461,7 +453,7 @@ class _LandingScreenState extends State<LandingScreen>
           // Subtitle Caption
           const Center(
             child: Text(
-              'Use it wherever you need to think and speak\nmore clearly.',
+              'Use it whenever you need to think and speak\nmore clearly.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Color(0xFF64748B),
@@ -483,50 +475,50 @@ class _LandingScreenState extends State<LandingScreen>
   Widget _buildTrainCarouselPage() {
     final exercises = [
       {
-        'tag': '01 - 07',
-        'title': 'Think Fast',
+        'tag': '01 • 07',
+        'title': 'Think Fast.',
         'tagline': 'Think clearly under pressure.',
         'desc': 'Answer an unexpected question with a few seconds to prepare, then speak for 60 seconds.',
         'type': 'think_fast',
       },
       {
-        'tag': '02 - 07',
-        'title': 'Connect\nthe Dots',
+        'tag': '02 • 07',
+        'title': 'Connect\nthe Dots.',
         'tagline': 'Make unexpected connections.',
-        'desc': 'Link two unrelated topics into one clear, logical idea.',
+        'desc': 'Link two random ideas into a clear, compelling story.',
         'type': 'connect_dots',
       },
       {
-        'tag': '03 - 07',
-        'title': 'Explain\nIt Simply',
+        'tag': '03 • 07',
+        'title': 'Explain\nIt Simply.',
         'tagline': 'Make complex ideas easy to understand.',
-        'desc': 'Take a complicated topic and explain it clearly to someone without specialist knowledge.',
+        'desc': 'Take a complex topic and explain it in clear, simple language.',
         'type': 'explain',
       },
       {
-        'tag': '04 - 07',
-        'title': 'Cut It\nin Half',
+        'tag': '04 • 07',
+        'title': 'Cut It\nin Half.',
         'tagline': 'Get to the point faster.',
-        'desc': 'Turn a long message into a shorter, clearer summary without losing the meaning.',
+        'desc': 'Read a longer message and make it shorter, clearer and more impactful.',
         'type': 'cut_it_in_half',
       },
       {
-        'tag': '05 - 07',
-        'title': 'Storytelling\nGym',
+        'tag': '05 • 07',
+        'title': 'Storytelling\nGym.',
         'tagline': 'Make people lean in.',
         'desc': 'Turn information into a structured, memorable story with a clear point.',
         'type': 'storytelling',
       },
       {
-        'tag': '06 - 07',
-        'title': 'One Minute\nExpert',
+        'tag': '06 • 07',
+        'title': 'One Minute\nExpert.',
         'tagline': 'Know it. Explain it.',
         'desc': 'Choose a topic and explain it clearly, confidently and coherently in 60 seconds.',
         'type': 'stopwatch',
       },
       {
-        'tag': '07 - 07',
-        'title': 'Debate\nMe',
+        'tag': '07 • 07',
+        'title': 'Debate\nMe.',
         'tagline': 'Hold your ground.',
         'desc': 'Respond to a challenging position with a clear, confident rebuttal under pressure.',
         'type': 'debate',
@@ -534,43 +526,62 @@ class _LandingScreenState extends State<LandingScreen>
     ];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
+      padding: const EdgeInsets.fromLTRB(22, 4, 22, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Headline
-          RichText(
-            text: const TextSpan(
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 32,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF0F172A),
-                height: 1.15,
-                letterSpacing: -0.8,
-              ),
-              children: [
-                TextSpan(text: 'Train the way you\n'),
-                TextSpan(
-                  text: 'think and speak.',
-                  style: TextStyle(color: Color(0xFF2563EB)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Train the way you',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 28,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                  height: 1.15,
+                  letterSpacing: -0.7,
                 ),
-              ],
-            ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Text(
+                    'think and speak.',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF2563EB),
+                      height: 1.15,
+                      letterSpacing: -0.7,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Transform.translate(
+                    offset: const Offset(0, -5),
+                    child: const BlueAccentRays(size: 24),
+                  ),
+                ],
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
 
           // Subtitle
           const Text(
             'Short guided exercises for clearer, quicker, more confident communication.',
             style: TextStyle(
               color: Color(0xFF64748B),
-              fontSize: 13.5,
+              fontSize: 13,
               fontWeight: FontWeight.w500,
-              height: 1.3,
+              height: 1.25,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
           // Exercise Carousel Cards
           Expanded(
@@ -581,78 +592,92 @@ class _LandingScreenState extends State<LandingScreen>
               itemBuilder: (context, idx) {
                 final ex = exercises[idx];
                 return Padding(
-                  padding: const EdgeInsets.only(right: 12, bottom: 8, top: 4),
+                  padding: const EdgeInsets.only(right: 12, bottom: 6, top: 2),
                   child: Container(
-                    padding: const EdgeInsets.all(22),
+                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(26),
+                      borderRadius: BorderRadius.circular(24),
                       border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
                       boxShadow: [
                         BoxShadow(
                           color: const Color(0xFF2563EB).withValues(alpha: 0.08),
-                          blurRadius: 22,
-                          offset: const Offset(0, 8),
+                          blurRadius: 20,
+                          offset: const Offset(0, 6),
                         ),
                       ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Badge: 01 - 05
+                        // Badge: 01 • 07
                         Text(
                           ex['tag']!,
                           style: const TextStyle(
                             color: Color(0xFF3B82F6),
-                            fontSize: 12,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.6,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
 
                         // Title
                         Text(
                           ex['title']!,
                           style: const TextStyle(
                             color: Color(0xFF0F172A),
-                            fontSize: 22,
+                            fontSize: 20,
                             fontWeight: FontWeight.w900,
                             height: 1.15,
                             letterSpacing: -0.5,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
 
                         // Tagline (blue)
                         Text(
                           ex['tagline']!,
                           style: const TextStyle(
                             color: Color(0xFF2563EB),
-                            fontSize: 14,
+                            fontSize: 13.5,
                             fontWeight: FontWeight.w800,
-                            height: 1.25,
+                            height: 1.2,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
 
                         // Description
                         Text(
                           ex['desc']!,
                           style: const TextStyle(
                             color: Color(0xFF64748B),
-                            fontSize: 12.5,
+                            fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            height: 1.35,
+                            height: 1.3,
                           ),
                         ),
-                        const Spacer(),
+                        const SizedBox(height: 6),
 
-                        // 3D-glassmorphic illustration per the design doc
-                        Center(
-                          child: ExerciseIllustration(type: ex['type']!, size: 160),
+                        // Large 3D illustration anchored to the lower part of
+                        // the card (fills the card width, like the design doc).
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final s = constraints.maxWidth.clamp(180.0, 320.0);
+                                  return ExerciseIllustration(
+                                    type: ex['type']!,
+                                    size: s,
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
                         ),
-                        const Spacer(),
                       ],
                     ),
                   ),
@@ -660,29 +685,29 @@ class _LandingScreenState extends State<LandingScreen>
               },
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
-          // Pagination Dots + "1 of 5 exercises"
+          // Pagination Dots + "1 of 7 exercises"
           Center(
             child: Column(
               children: [
-                _buildFiveDotsIndicator(
+                _buildCarouselDotsIndicator(
                   activeIndex: _carouselIndex,
                   totalDots: exercises.length,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 5),
                 Text(
                   '${_carouselIndex + 1} of ${exercises.length} exercises',
                   style: const TextStyle(
                     color: Color(0xFF64748B),
-                    fontSize: 12.5,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
         ],
       ),
     );
@@ -941,19 +966,19 @@ class _LandingScreenState extends State<LandingScreen>
                 children: [
                   _buildTestimonialCard(
                     quote: '“It helps me organise my thoughts and get to the point faster.”',
-                    author: 'Consultant, Big 4',
+                    author: 'Director, BCG',
                     avatarAsset: 'assets/images/avatar_consultant.png',
                   ),
                   const SizedBox(height: 10),
                   _buildTestimonialCard(
-                    quote: '“The feedback is specific, practical and easy to apply.”',
-                    author: 'Professional, The Economist',
+                    quote: '“This feedback is specific, practical and easy to apply.”',
+                    author: 'Professor, The Economist',
                     avatarAsset: 'assets/images/avatar_economist.png',
                   ),
                   const SizedBox(height: 10),
                   _buildTestimonialCard(
                     quote: '“A smart way to practise speaking with more clarity and confidence.”',
-                    author: 'Student, Queen Mary University',
+                    author: 'Student, Cambridge University',
                     avatarAsset: 'assets/images/avatar_student.png',
                   ),
                   const SizedBox(height: 12),
@@ -962,11 +987,11 @@ class _LandingScreenState extends State<LandingScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _buildOrgPill('Big 4'),
+                      _buildOrgPill('BCG'),
                       const SizedBox(width: 8),
                       _buildOrgPill('The Economist'),
                       const SizedBox(width: 8),
-                      _buildOrgPill('Queen Mary University'),
+                      _buildOrgPill('Cambridge University'),
                     ],
                   ),
                   const SizedBox(height: 6),
@@ -989,9 +1014,9 @@ class _LandingScreenState extends State<LandingScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Tag: A SUGGESTED PRACTICE PATH
+          // Tag: A GUIDED PRACTICE PATH
           const Text(
-            'A SUGGESTED PRACTICE PATH',
+            'A GUIDED PRACTICE PATH',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w800,
@@ -1002,24 +1027,43 @@ class _LandingScreenState extends State<LandingScreen>
           const SizedBox(height: 4),
 
           // Headline
-          RichText(
-            text: const TextSpan(
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 30,
-                fontWeight: FontWeight.w900,
-                color: Color(0xFF0F172A),
-                height: 1.15,
-                letterSpacing: -0.8,
-              ),
-              children: [
-                TextSpan(text: 'Twelve months,\n'),
-                TextSpan(
-                  text: 'one step at a time.',
-                  style: TextStyle(color: Color(0xFF2563EB)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Twelve months,',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 30,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                  height: 1.15,
+                  letterSpacing: -0.8,
                 ),
-              ],
-            ),
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const Text(
+                    'one step at a time.',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF2563EB),
+                      height: 1.15,
+                      letterSpacing: -0.8,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Transform.translate(
+                    offset: const Offset(0, -6),
+                    child: const BlueAccentRays(size: 24),
+                  ),
+                ],
+              ),
+            ],
           ),
           const SizedBox(height: 4),
 
@@ -1192,7 +1236,7 @@ class _LandingScreenState extends State<LandingScreen>
   Widget _buildDotsIndicator({
     required int activeIndex,
     required int totalDots,
-    Color activeColor = const Color(0xFF0F172A),
+    Color activeColor = const Color(0xFF2563EB),
     Color inactiveColor = const Color(0xFFCBD5E1),
     MainAxisAlignment alignment = MainAxisAlignment.center,
   }) {
@@ -1213,18 +1257,18 @@ class _LandingScreenState extends State<LandingScreen>
     );
   }
 
-  Widget _buildFiveDotsIndicator({required int activeIndex, int totalDots = 5}) {
+  Widget _buildCarouselDotsIndicator({required int activeIndex, int totalDots = 7}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(totalDots, (index) {
         final isActive = index == activeIndex;
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 3),
-          width: isActive ? 18 : 6,
-          height: 6,
+          width: isActive ? 8 : 6,
+          height: isActive ? 8 : 6,
           decoration: BoxDecoration(
+            shape: BoxShape.circle,
             color: isActive ? const Color(0xFF2563EB) : const Color(0xFFCBD5E1),
-            borderRadius: BorderRadius.circular(3),
           ),
         );
       }),
@@ -1250,29 +1294,47 @@ class _LandingScreenState extends State<LandingScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Mic Icon, Title, "1 min" badge
+          // Header: Book Icon, Title, "1 min" badge
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEFF6FF),
-                  shape: BoxShape.circle,
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.mic_rounded, color: Color(0xFF2563EB), size: 18),
+                child: const Icon(Icons.menu_book_rounded, color: Color(0xFF2563EB), size: 20),
               ),
               const SizedBox(width: 10),
-              const Text(
-                'Storytelling Gym',
-                style: TextStyle(
-                  color: Color(0xFF0F172A),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Storytelling Gym',
+                      style: TextStyle(
+                        color: Color(0xFF0F172A),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Speak for 1 minute on a real-life topic. It builds your structure, presence and clarity.',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -1280,6 +1342,7 @@ class _LandingScreenState extends State<LandingScreen>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.access_time_rounded, color: Color(0xFF2563EB), size: 13),
                     SizedBox(width: 4),
@@ -1296,35 +1359,31 @@ class _LandingScreenState extends State<LandingScreen>
               ),
             ],
           ),
-          const SizedBox(height: 8),
-
-          // Subtitle
-          const Text(
-            'Speak for 1 minute on a real-life topic. We\'ll give you instant, personalised feedback.',
-            style: TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              height: 1.3,
-            ),
-          ),
           const SizedBox(height: 12),
 
-          // Quote box & Interactive Mic Target
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Quote Box
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+          // Quote box
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: const Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  '“ ',
+                  style: TextStyle(
+                    color: Color(0xFF2563EB),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
                   ),
-                  child: const Text(
-                    '“ Tell us about a time you\nsolved a problem. ”',
+                ),
+                Expanded(
+                  child: Text(
+                    'Tell us about a time you solved a problem.',
                     style: TextStyle(
                       color: Color(0xFF1E293B),
                       fontSize: 12.5,
@@ -1333,91 +1392,178 @@ class _LandingScreenState extends State<LandingScreen>
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 14),
-
-              // Mic Button with Soundwaves, Rays, and "Tap to start"
-              Column(
-                children: [
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Left soundwave bars
-                      Column(
-                        children: [
-                          Container(width: 2.5, height: 10, decoration: BoxDecoration(color: const Color(0xFF2563EB), borderRadius: BorderRadius.circular(2))),
-                          const SizedBox(height: 3),
-                          Container(width: 2.5, height: 16, decoration: BoxDecoration(color: const Color(0xFF2563EB), borderRadius: BorderRadius.circular(2))),
-                          const SizedBox(height: 3),
-                          Container(width: 2.5, height: 8, decoration: BoxDecoration(color: const Color(0xFF2563EB), borderRadius: BorderRadius.circular(2))),
-                        ],
-                      ),
-                      const SizedBox(width: 6),
-
-                      // Glowing Mic Circle with Top-Right Radiating Rays
-                      Stack(
-                        clipBehavior: Clip.none,
-                        children: [
-                          Container(
-                            width: 52,
-                            height: 52,
-                            decoration: BoxDecoration(
-                              gradient: const RadialGradient(
-                                center: Alignment(-0.2, -0.3),
-                                radius: 0.9,
-                                colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                              ),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF2563EB).withValues(alpha: 0.45),
-                                  blurRadius: 14,
-                                  offset: const Offset(0, 5),
-                                ),
-                              ],
-                            ),
-                            alignment: Alignment.center,
-                            child: const Icon(Icons.mic_rounded, color: Colors.white, size: 26),
-                          ),
-                          // Top-right radiating accent rays
-                          Positioned(
-                            top: -6,
-                            right: -8,
-                            child: Transform.rotate(
-                              angle: 0.25,
-                              child: const BlueAccentRays(size: 14),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 6),
-
-                      // Right soundwave bars
-                      Column(
-                        children: [
-                          Container(width: 2.5, height: 8, decoration: BoxDecoration(color: const Color(0xFF2563EB), borderRadius: BorderRadius.circular(2))),
-                          const SizedBox(height: 3),
-                          Container(width: 2.5, height: 16, decoration: BoxDecoration(color: const Color(0xFF2563EB), borderRadius: BorderRadius.circular(2))),
-                          const SizedBox(height: 3),
-                          Container(width: 2.5, height: 10, decoration: BoxDecoration(color: const Color(0xFF2563EB), borderRadius: BorderRadius.circular(2))),
-                        ],
-                      ),
-                    ],
+                Text(
+                  ' ”',
+                  style: TextStyle(
+                    color: Color(0xFF2563EB),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Tap to start',
-                    style: TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Interactive Recording / Starts in preview area
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              // Starts-in Countdown Circle in Top Right
+              Positioned(
+                right: 20,
+                top: 0,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        border: Border.all(color: const Color(0xFF2563EB), width: 2.2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: const Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '3',
+                            style: TextStyle(
+                              color: Color(0xFF2563EB),
+                              fontSize: 19,
+                              fontWeight: FontWeight.w900,
+                              height: 1.0,
+                            ),
+                          ),
+                          SizedBox(height: 1),
+                          Text(
+                            'Starts in',
+                            style: TextStyle(
+                              color: Color(0xFF2563EB),
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                    Positioned(
+                      top: -6,
+                      right: -8,
+                      child: Transform.rotate(
+                        angle: 0.25,
+                        child: const BlueAccentRays(size: 15),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Mic button with waveform bars in center
+              Padding(
+                padding: const EdgeInsets.only(top: 24),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Left soundwave bars
+                        _buildSoundwaveBarGroup(),
+                        const SizedBox(width: 10),
+
+                        // Glowing Mic Circle
+                        Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            gradient: const RadialGradient(
+                              center: Alignment(-0.2, -0.3),
+                              radius: 0.9,
+                              colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+                            ),
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF2563EB).withValues(alpha: 0.40),
+                                blurRadius: 14,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          alignment: Alignment.center,
+                          child: const Icon(Icons.mic_rounded, color: Colors.white, size: 28),
+                        ),
+                        const SizedBox(width: 10),
+
+                        // Right soundwave bars
+                        _buildSoundwaveBarGroup(),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFEF4444),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 5),
+                        const Text(
+                          'Recording...',
+                          style: TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSoundwaveBarGroup() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _buildWaveBar(8),
+        const SizedBox(width: 3),
+        _buildWaveBar(14),
+        const SizedBox(width: 3),
+        _buildWaveBar(22),
+        const SizedBox(width: 3),
+        _buildWaveBar(16),
+        const SizedBox(width: 3),
+        _buildWaveBar(10),
+      ],
+    );
+  }
+
+  Widget _buildWaveBar(double height) {
+    return Container(
+      width: 2.8,
+      height: height,
+      decoration: BoxDecoration(
+        color: const Color(0xFF3B82F6),
+        borderRadius: BorderRadius.circular(2),
       ),
     );
   }
@@ -1441,8 +1587,9 @@ class _LandingScreenState extends State<LandingScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Bar icon, "Your feedback", "✓ Instant results"
+          // Header: Bar icon, "Your feedback", "★ AI-powered"
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
                 width: 36,
@@ -1455,15 +1602,33 @@ class _LandingScreenState extends State<LandingScreen>
                 child: const Icon(Icons.bar_chart_rounded, color: Color(0xFF2563EB), size: 20),
               ),
               const SizedBox(width: 10),
-              const Text(
-                'Your feedback',
-                style: TextStyle(
-                  color: Color(0xFF0F172A),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Your feedback',
+                      style: TextStyle(
+                        color: Color(0xFF0F172A),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'See where you did well and what to improve next.',
+                      style: TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -1471,11 +1636,12 @@ class _LandingScreenState extends State<LandingScreen>
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.check_rounded, color: Color(0xFF16A34A), size: 13),
-                    SizedBox(width: 4),
+                    Icon(Icons.star_rounded, color: Color(0xFF16A34A), size: 13),
+                    SizedBox(width: 3),
                     Text(
-                      'Instant results',
+                      'AI-powered',
                       style: TextStyle(
                         color: Color(0xFF16A34A),
                         fontSize: 11,
@@ -1487,28 +1653,17 @@ class _LandingScreenState extends State<LandingScreen>
               ),
             ],
           ),
-          const SizedBox(height: 6),
-
-          // Subtitle
-          const Text(
-            'Get clear, data-backed insights based on proven research.',
-            style: TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           // 4 Score Metrics
-          _buildMetricRow(Icons.chat_bubble_outline_rounded, 'Clarity', 4),
+          _buildMetricRow(Icons.track_changes_rounded, 'Clarity', 4.5),
           const SizedBox(height: 8),
-          _buildMetricRow(Icons.track_changes_rounded, 'Structure', 3),
+          _buildMetricRow(Icons.format_list_bulleted_rounded, 'Structure', 3.5),
           const SizedBox(height: 8),
-          _buildMetricRow(Icons.groups_2_outlined, 'Confidence', 4),
+          _buildMetricRow(Icons.settings_outlined, 'Confidence', 4.5),
           const SizedBox(height: 8),
-          _buildMetricRow(Icons.lightbulb_outline_rounded, 'Engagement', 3),
-          const SizedBox(height: 12),
+          _buildMetricRow(Icons.favorite_outline_rounded, 'Engagement', 3.5),
+          const SizedBox(height: 14),
 
           // Summary Chips Row: "What went well" & "Next time"
           Container(
@@ -1576,7 +1731,7 @@ class _LandingScreenState extends State<LandingScreen>
                         ),
                         const SizedBox(height: 3),
                         const Text(
-                          'Try to add more detail and personal examples.',
+                          'Try to add more real-world examples next.',
                           style: TextStyle(
                             color: Color(0xFF64748B),
                             fontSize: 10.5,
@@ -1595,7 +1750,7 @@ class _LandingScreenState extends State<LandingScreen>
     );
   }
 
-  Widget _buildMetricRow(IconData icon, String label, int score) {
+  Widget _buildMetricRow(IconData icon, String label, double score) {
     return Row(
       children: [
         Icon(icon, color: const Color(0xFF64748B), size: 16),
@@ -1615,13 +1770,22 @@ class _LandingScreenState extends State<LandingScreen>
         Expanded(
           child: Row(
             children: List.generate(5, (idx) {
-              final isFilled = idx < score;
+              final val = score - idx;
+              Color segmentColor;
+              if (val >= 1.0) {
+                segmentColor = const Color(0xFF2563EB); // full blue
+              } else if (val >= 0.5) {
+                segmentColor = const Color(0xFF93C5FD); // half/light blue
+              } else {
+                segmentColor = const Color(0xFFE2E8F0); // empty grey
+              }
+
               return Expanded(
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 2),
                   height: 9,
                   decoration: BoxDecoration(
-                    color: isFilled ? const Color(0xFF3B82F6) : const Color(0xFFE2E8F0),
+                    color: segmentColor,
                     borderRadius: BorderRadius.circular(5),
                   ),
                 ),
@@ -1631,7 +1795,7 @@ class _LandingScreenState extends State<LandingScreen>
         ),
         const SizedBox(width: 10),
         Text(
-          '$score/5',
+          score.toStringAsFixed(1),
           style: const TextStyle(
             color: Color(0xFF64748B),
             fontSize: 11.5,

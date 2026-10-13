@@ -2,20 +2,48 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 /// Polished, 3D-glassmorphic illustrations for the onboarding activity
-/// carousel, approximating the design-doc artwork in pure code (blue volume
-/// gradients, soft ground shadows and specular highlights).
+/// carousel, rendering the exact HD 3D assets matching the design spec
+/// with code-drawn painter fallbacks.
 class ExerciseIllustration extends StatelessWidget {
   final String type;
   final double size;
 
   const ExerciseIllustration({super.key, required this.type, this.size = 150});
 
+  String _assetPath(String type) {
+    switch (type) {
+      case 'connect_dots':
+        return 'assets/images/exercise_3d_connect_dots.png';
+      case 'explain':
+        return 'assets/images/exercise_3d_explain.png';
+      case 'cut_it_in_half':
+        return 'assets/images/exercise_3d_cut_in_half.png';
+      case 'storytelling':
+        return 'assets/images/exercise_3d_storytelling.png';
+      case 'debate':
+        return 'assets/images/exercise_3d_debate.png';
+      case 'stopwatch':
+        return 'assets/images/exercise_3d_stopwatch.png';
+      case 'think_fast':
+      default:
+        return 'assets/images/exercise_3d_think_fast.png';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final asset = _assetPath(type);
     return SizedBox(
       width: size,
-      height: size * 0.82,
-      child: CustomPaint(painter: _painterFor(type)),
+      height: size * 0.85,
+      child: Image.asset(
+        asset,
+        fit: BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        errorBuilder: (context, error, stackTrace) {
+          return CustomPaint(painter: _painterFor(type));
+        },
+      ),
     );
   }
 
