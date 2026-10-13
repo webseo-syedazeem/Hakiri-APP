@@ -7,6 +7,7 @@ import '../widgets/exercise_illustrations.dart';
 import '../widgets/onboarding_bubble_background.dart';
 import '../widgets/who_its_for_roadmap_view.dart';
 import '../widgets/twelve_months_roadmap_view.dart';
+import 'activity_detail_screen.dart';
 import 'assessment_screen.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
@@ -65,7 +66,7 @@ class _LandingScreenState extends State<LandingScreen>
         : widget.initialPage;
     _currentPage = start;
     _pageController = PageController(initialPage: start);
-    _trainCardController = PageController(viewportFraction: 0.76);
+    _trainCardController = PageController(viewportFraction: 0.84);
 
     // Smooth entrance: the screen fades in and gently rises into place as it
     // opens, so it never pops in abruptly after the splash transition.
@@ -151,14 +152,6 @@ class _LandingScreenState extends State<LandingScreen>
     );
   }
 
-  /// Get started → Signup (new accounts). Design unchanged.
-  void _goToSignup() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const SignupScreen()),
-    );
-  }
-
   void _goToLogin() {
     Navigator.push(
       context,
@@ -194,9 +187,10 @@ class _LandingScreenState extends State<LandingScreen>
         backgroundColor: Colors.white,
         body: Stack(
           children: [
-            // Soft blue ambient bubbles behind the whole onboarding flow
-            // (matches the design spec; replaces the flat white canvas).
-            const OnboardingBubbleBackground(),
+            // On page 0 (Welcome), keep clean simple white canvas matching reference image.
+            // On subsequent pages (See how it works, etc.), show the 3D blue ambient background.
+            if (_currentPage > 0)
+              const OnboardingBubbleBackground(),
             SafeArea(
           bottom: !isIOS,
           child: SlideTransition(
@@ -210,7 +204,9 @@ class _LandingScreenState extends State<LandingScreen>
               if (_currentPage > 0)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 6, 24, 0),
-                  child: _buildTopBar(showBack: _currentPage > _minPage),
+                  child: _buildTopBar(
+                    showBack: _currentPage > _minPage && _currentPage != 4,
+                  ),
                 ),
               Expanded(
                 child: PageView(
@@ -251,32 +247,37 @@ class _LandingScreenState extends State<LandingScreen>
                   children: [
                     // Screen-specific pagination indicators above button
                     if (_currentPage == 4) ...[
-                      // Who it's for: step 1 of 3
-                      _buildDotsIndicator(activeIndex: 0, totalDots: 3),
+                      // Who it's for: step 2 of 5 (matching media_1791893121601_b8967434.png)
+                      _buildDotsIndicator(
+                        activeIndex: 1,
+                        totalDots: 5,
+                        activeColor: const Color(0xFF2563EB),
+                      ),
                       const SizedBox(height: 12),
                     ] else if (_currentPage == 5) ...[
-                      // Why Hakkiri: step 2 of 3
-                      _buildDotsIndicator(activeIndex: 1, totalDots: 3),
-                      const SizedBox(height: 12),
-                    ] else if (_currentPage == 6) ...[
-                      // A guided practice path: step 3 of 3 (final step before assessment)
+                      // Why Hakkiri / Trusted by professionals: step 3 of 5 (matching Image 1!)
                       _buildDotsIndicator(
                         activeIndex: 2,
-                        totalDots: 3,
+                        totalDots: 5,
+                        activeColor: const Color(0xFF2563EB),
+                      ),
+                      const SizedBox(height: 12),
+                    ] else if (_currentPage == 6) ...[
+                      // A guided practice path / Twelve months: step 4 of 5 (matching Image 4!)
+                      _buildDotsIndicator(
+                        activeIndex: 3,
+                        totalDots: 5,
+                        activeColor: const Color(0xFF2563EB),
                         alignment: MainAxisAlignment.center,
                       ),
                       const SizedBox(height: 12),
                     ],
 
                     ActionPillButton(
-                      // Funnel: Get started → Signup → onboarding → Assessment.
-                      // After signup, postSignup skips welcome and walks pages.
                       label: _sectionLabels[_currentPage],
-                      onTap: _currentPage == 0 && !widget.postSignup
-                          ? _goToSignup
-                          : (_currentPage >= _sectionLabels.length - 1
-                              ? _goToAssessment
-                              : _nextPage),
+                      onTap: _currentPage >= _sectionLabels.length - 1
+                          ? _goToAssessment
+                          : _nextPage,
                     ),
 
                     if (_currentPage == 0) ...[
@@ -294,7 +295,7 @@ class _LandingScreenState extends State<LandingScreen>
                               children: [
                                 TextSpan(text: 'I already have an account. '),
                                 TextSpan(
-                                  text: 'Log in',
+                                  text: 'Login',
                                   style: TextStyle(
                                     color: Color(0xFF2563EB),
                                     fontWeight: FontWeight.w700,
@@ -306,7 +307,11 @@ class _LandingScreenState extends State<LandingScreen>
                         ),
                       ),
                       const SizedBox(height: 12),
-                      _buildDotsIndicator(activeIndex: 0, totalDots: 3),
+                      _buildDotsIndicator(
+                        activeIndex: 0,
+                        totalDots: 3,
+                        activeColor: const Color(0xFF0F172A),
+                      ),
                     ],
                   ],
                 ),
@@ -558,7 +563,7 @@ class _LandingScreenState extends State<LandingScreen>
         'title': 'Connect\nthe Dots.',
         'tagline': 'Make unexpected connections.',
         'desc': 'Link two random ideas into a clear, compelling story.',
-        'type': 'connect_dots',
+        'type': 'connect_the_dots',
       },
       {
         'tag': '03 • 07',
@@ -610,11 +615,11 @@ class _LandingScreenState extends State<LandingScreen>
                 'Train the way you',
                 style: TextStyle(
                   fontFamily: 'Inter',
-                  fontSize: 28,
+                  fontSize: 32,
                   fontWeight: FontWeight.w900,
                   color: Color(0xFF0F172A),
                   height: 1.15,
-                  letterSpacing: -0.7,
+                  letterSpacing: -0.8,
                 ),
               ),
               Row(
@@ -625,35 +630,36 @@ class _LandingScreenState extends State<LandingScreen>
                     'think and speak.',
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 28,
+                      fontSize: 32,
                       fontWeight: FontWeight.w900,
                       color: Color(0xFF2563EB),
                       height: 1.15,
-                      letterSpacing: -0.7,
+                      letterSpacing: -0.8,
                     ),
                   ),
                   const SizedBox(width: 4),
                   Transform.translate(
-                    offset: const Offset(0, -5),
-                    child: const BlueAccentRays(size: 24),
+                    offset: const Offset(0, -6),
+                    child: const BlueAccentRays(size: 26),
                   ),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 6),
 
           // Subtitle
           const Text(
-            'Short guided exercises for clearer, quicker, more confident communication.',
+            'Short guided exercises for clearer,\nquicker, more confident communication.',
             style: TextStyle(
+              fontFamily: 'Inter',
               color: Color(0xFF64748B),
-              fontSize: 13,
+              fontSize: 13.5,
               fontWeight: FontWeight.w500,
-              height: 1.25,
+              height: 1.35,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
 
           // Exercise Carousel Cards
           Expanded(
@@ -664,93 +670,106 @@ class _LandingScreenState extends State<LandingScreen>
               itemBuilder: (context, idx) {
                 final ex = exercises[idx];
                 return Padding(
-                  padding: const EdgeInsets.only(right: 12, bottom: 6, top: 2),
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF2563EB).withValues(alpha: 0.08),
-                          blurRadius: 20,
-                          offset: const Offset(0, 6),
+                  padding: const EdgeInsets.only(right: 14, bottom: 6, top: 2),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ActivityDetailScreen(activitySlug: ex['type']),
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Badge: 01 • 07
-                        Text(
-                          ex['tag']!,
-                          style: const TextStyle(
-                            color: Color(0xFF3B82F6),
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.6,
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: const Color(0xFFE2E8F0).withValues(alpha: 0.8), width: 1.2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                            blurRadius: 20,
+                            offset: const Offset(0, 6),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-
-                        // Title
-                        Text(
-                          ex['title']!,
-                          style: const TextStyle(
-                            color: Color(0xFF0F172A),
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                            height: 1.15,
-                            letterSpacing: -0.5,
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Badge: 01 • 07
+                          Text(
+                            ex['tag']!,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF2563EB),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
+                          const SizedBox(height: 4),
 
-                        // Tagline (blue)
-                        Text(
-                          ex['tagline']!,
-                          style: const TextStyle(
-                            color: Color(0xFF2563EB),
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w800,
-                            height: 1.2,
+                          // Title
+                          Text(
+                            ex['title']!,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF0F172A),
+                              fontSize: 24,
+                              fontWeight: FontWeight.w900,
+                              height: 1.15,
+                              letterSpacing: -0.6,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
+                          const SizedBox(height: 4),
 
-                        // Description
-                        Text(
-                          ex['desc']!,
-                          style: const TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            height: 1.3,
+                          // Tagline (blue)
+                          Text(
+                            ex['tagline']!,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF2563EB),
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              height: 1.2,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 6),
+                          const SizedBox(height: 5),
 
-                        // Large 3D illustration anchored to the lower part of
-                        // the card (fills the card width, like the design doc).
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.bottomCenter,
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final s = constraints.maxWidth.clamp(180.0, 320.0);
-                                  return ExerciseIllustration(
-                                    type: ex['type']!,
-                                    size: s,
-                                  );
-                                },
+                          // Description
+                          Text(
+                            ex['desc']!,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF64748B),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                              height: 1.35,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+
+                          // Large 3D illustration anchored to the lower part of card
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Padding(
+                                padding: const EdgeInsets.only(bottom: 6),
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final s = constraints.maxWidth.clamp(190.0, 320.0);
+                                    return ExerciseIllustration(
+                                      type: ex['type']!,
+                                      size: s,
+                                    );
+                                  },
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 );
@@ -859,12 +878,19 @@ class _LandingScreenState extends State<LandingScreen>
           ),
           const SizedBox(height: 10),
 
-          // Single card, centred — this is its own swipe-screen (no scroll).
+          // Exercise Card & Floating Mic interaction below it (matching Image 3)
           Expanded(
             child: Center(
               child: SingleChildScrollView(
                 physics: const NeverScrollableScrollPhysics(),
-                child: _buildPromptExerciseCard(),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildPromptExerciseCard(),
+                    const SizedBox(height: 22),
+                    _buildRecordingMicSection(),
+                  ],
+                ),
               ),
             ),
           ),
@@ -957,11 +983,11 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   // ==========================================
-  // PAGE 4: TRUSTED BY PROFESSIONALS (media_1791378878108.png)
+  // PAGE 4: TRUSTED BY PROFESSIONALS (Matching Image 1)
   // ==========================================
   Widget _buildTrustedByProfessionalsPage() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
+      padding: const EdgeInsets.fromLTRB(24, 6, 24, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -969,7 +995,8 @@ class _LandingScreenState extends State<LandingScreen>
           const Text(
             'WHY HAKKIRI?',
             style: TextStyle(
-              fontSize: 11.5,
+              fontFamily: 'Inter',
+              fontSize: 11,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.4,
               color: Color(0xFF64748B),
@@ -985,7 +1012,7 @@ class _LandingScreenState extends State<LandingScreen>
                 'Trusted by',
                 style: TextStyle(
                   fontFamily: 'Inter',
-                  fontSize: 32,
+                  fontSize: 34,
                   fontWeight: FontWeight.w900,
                   color: Color(0xFF0F172A),
                   height: 1.15,
@@ -1000,7 +1027,7 @@ class _LandingScreenState extends State<LandingScreen>
                     'professionals.',
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      fontSize: 32,
+                      fontSize: 34,
                       fontWeight: FontWeight.w900,
                       color: Color(0xFF2563EB),
                       height: 1.15,
@@ -1020,15 +1047,16 @@ class _LandingScreenState extends State<LandingScreen>
 
           // Subtitle
           const Text(
-            'Used by professionals from top organisations and universities.',
+            'Used by professionals from top\norganisations and universities.',
             style: TextStyle(
+              fontFamily: 'Inter',
               color: Color(0xFF64748B),
-              fontSize: 13,
+              fontSize: 13.5,
               fontWeight: FontWeight.w500,
-              height: 1.3,
+              height: 1.35,
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           // 3 Testimonial Cards
           Expanded(
@@ -1038,22 +1066,22 @@ class _LandingScreenState extends State<LandingScreen>
                 children: [
                   _buildTestimonialCard(
                     quote: '“It helps me organise my thoughts and get to the point faster.”',
-                    author: 'Eleanor R.,  BCG',
+                    author: 'Eleanor R., BCG',
                     avatarAsset: 'assets/images/avatar_consultant.png',
                   ),
                   const SizedBox(height: 10),
                   _buildTestimonialCard(
                     quote: '“This feedback is specific, practical and easy to apply.”',
-                    author: 'Priya S.,  The Economist',
+                    author: 'Priya S., The Economist',
                     avatarAsset: 'assets/images/avatar_economist.png',
                   ),
                   const SizedBox(height: 10),
                   _buildTestimonialCard(
                     quote: '“A smart way to practise speaking with more clarity and confidence.”',
-                    author: 'James T.,  Cambridge University',
+                    author: 'James T., Cambridge University',
                     avatarAsset: 'assets/images/avatar_student.png',
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
 
                   // Organization Pills Row
                   Row(
@@ -1174,11 +1202,11 @@ class _LandingScreenState extends State<LandingScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        border: Border.all(color: const Color(0xFFE2E8F0).withValues(alpha: 0.8), width: 1.0),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-            blurRadius: 14,
+            color: const Color(0xFF2563EB).withValues(alpha: 0.05),
+            blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
@@ -1188,16 +1216,17 @@ class _LandingScreenState extends State<LandingScreen>
         children: [
           // Quote badge
           Container(
-            width: 32,
-            height: 32,
-            decoration: const BoxDecoration(
-              color: Color(0xFFEFF6FF),
-              shape: BoxShape.circle,
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(10),
             ),
             alignment: Alignment.center,
             child: const Text(
               '“',
               style: TextStyle(
+                fontFamily: 'Inter',
                 color: Color(0xFF2563EB),
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
@@ -1215,18 +1244,20 @@ class _LandingScreenState extends State<LandingScreen>
                 Text(
                   quote,
                   style: const TextStyle(
+                    fontFamily: 'Inter',
                     color: Color(0xFF0F172A),
-                    fontSize: 12.5,
+                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                     height: 1.3,
                   ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 4),
                 Text(
                   author,
                   style: const TextStyle(
+                    fontFamily: 'Inter',
                     color: Color(0xFF64748B),
-                    fontSize: 11,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -1239,8 +1270,8 @@ class _LandingScreenState extends State<LandingScreen>
           ClipOval(
             child: Image.asset(
               avatarAsset,
-              width: 44,
-              height: 44,
+              width: 48,
+              height: 48,
               fit: BoxFit.cover,
               filterQuality: FilterQuality.high,
             ),
@@ -1252,16 +1283,17 @@ class _LandingScreenState extends State<LandingScreen>
 
   Widget _buildOrgPill(String title) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
         color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         title,
         style: const TextStyle(
+          fontFamily: 'Inter',
           color: Color(0xFF475569),
-          fontSize: 10.5,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -1353,16 +1385,21 @@ class _LandingScreenState extends State<LandingScreen>
   Widget _buildPromptExerciseCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
+            color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -1374,16 +1411,16 @@ class _LandingScreenState extends State<LandingScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.menu_book_rounded, color: Color(0xFF2563EB), size: 20),
+                child: const Icon(Icons.menu_book_rounded, color: Color(0xFF2563EB), size: 22),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1391,15 +1428,17 @@ class _LandingScreenState extends State<LandingScreen>
                     Text(
                       'Storytelling Gym',
                       style: TextStyle(
+                        fontFamily: 'Inter',
                         color: Color(0xFF0F172A),
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    SizedBox(height: 2),
+                    SizedBox(height: 3),
                     Text(
-                      "Speak for 1 minute on a real-life topic. We'll guide you, listen, and give feedback.",
+                      "Speak for 1 minute on a real-life topic.\nWe'll guide you, listen, and give\nfeedback.",
                       style: TextStyle(
+                        fontFamily: 'Inter',
                         color: Color(0xFF64748B),
                         fontSize: 11.5,
                         fontWeight: FontWeight.w500,
@@ -1411,21 +1450,21 @@ class _LandingScreenState extends State<LandingScreen>
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.access_time_rounded, color: Color(0xFF2563EB), size: 13),
+                    Icon(Icons.access_time_rounded, color: Color(0xFF2563EB), size: 14),
                     SizedBox(width: 4),
                     Text(
                       '1 min',
                       style: TextStyle(
                         color: Color(0xFF2563EB),
-                        fontSize: 11.5,
+                        fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -1434,180 +1473,67 @@ class _LandingScreenState extends State<LandingScreen>
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
-          // Quote box
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: const Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  '“ ',
-                  style: TextStyle(
-                    color: Color(0xFF2563EB),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                Expanded(
-                  child: Text(
-                    'Tell us about a time you solved a problem.',
-                    style: TextStyle(
-                      color: Color(0xFF1E293B),
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                      height: 1.35,
-                    ),
-                  ),
-                ),
-                Text(
-                  ' ”',
-                  style: TextStyle(
-                    color: Color(0xFF2563EB),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Interactive Recording / Starts in preview area
-          Stack(
-            alignment: Alignment.center,
+          // Bottom Row: Quote card (left) + Countdown widget (right)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Starts-in Countdown Circle in Top Right
-              Positioned(
-                right: 20,
-                top: 0,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                        border: Border.all(color: const Color(0xFF2563EB), width: 2.2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF2563EB).withValues(alpha: 0.15),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '3',
-                            style: TextStyle(
-                              color: Color(0xFF2563EB),
-                              fontSize: 19,
-                              fontWeight: FontWeight.w900,
-                              height: 1.0,
-                            ),
-                          ),
-                          SizedBox(height: 1),
-                          Text(
-                            'Starts in',
-                            style: TextStyle(
-                              color: Color(0xFF2563EB),
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Positioned(
-                      top: -6,
-                      right: -8,
-                      child: Transform.rotate(
-                        angle: 0.25,
-                        child: const BlueAccentRays(size: 15),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Mic button with waveform bars in center
-              Padding(
-                padding: const EdgeInsets.only(top: 24),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // Left soundwave bars
-                        _buildSoundwaveBarGroup(),
-                        const SizedBox(width: 10),
-
-                        // Glowing Mic Circle
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            gradient: const RadialGradient(
-                              center: Alignment(-0.2, -0.3),
-                              radius: 0.9,
-                              colors: [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-                            ),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF2563EB).withValues(alpha: 0.40),
-                                blurRadius: 14,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
-                          ),
-                          alignment: Alignment.center,
-                          child: const Icon(Icons.mic_rounded, color: Colors.white, size: 28),
+              // Left Quote Card
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '“',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          color: Color(0xFF2563EB),
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          height: 0.85,
                         ),
-                        const SizedBox(width: 10),
-
-                        // Right soundwave bars
-                        _buildSoundwaveBarGroup(),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFEF4444),
-                            shape: BoxShape.circle,
-                          ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Tell us about a time you solved a problem.',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          color: Color(0xFF1E293B),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          height: 1.35,
                         ),
-                        const SizedBox(width: 5),
-                        const Text(
-                          'Recording...',
+                      ),
+                      const SizedBox(height: 4),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: const Text(
+                          '”',
                           style: TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
+                            fontFamily: 'Inter',
+                            color: Color(0xFF2563EB),
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            height: 0.85,
                           ),
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
+              const SizedBox(width: 14),
+
+              // Right Countdown Circle Widget matching target image
+              _buildCountdownThreeWidget(),
             ],
           ),
         ],
@@ -1615,30 +1541,223 @@ class _LandingScreenState extends State<LandingScreen>
     );
   }
 
-  Widget _buildSoundwaveBarGroup() {
-    return Row(
+  Widget _buildCountdownThreeWidget() {
+    return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildWaveBar(8),
-        const SizedBox(width: 3),
-        _buildWaveBar(14),
-        const SizedBox(width: 3),
-        _buildWaveBar(22),
-        const SizedBox(width: 3),
-        _buildWaveBar(16),
-        const SizedBox(width: 3),
-        _buildWaveBar(10),
+        Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            // 1. Outer Progress Arc Ring (diameter 70)
+            SizedBox(
+              width: 70,
+              height: 70,
+              child: CustomPaint(
+                painter: _CountdownProgressRingPainter(),
+              ),
+            ),
+
+            // 2. Inner Blue Circle with white "3" and soft cyan inner rim (diameter 48)
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.35),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+                border: Border.all(
+                  color: const Color(0xFF93C5FD).withValues(alpha: 0.70),
+                  width: 2.5,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: const Text(
+                '3',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  height: 1.0,
+                ),
+              ),
+            ),
+
+            // 3. Two Blue Accent Rays on the top-right
+            Positioned(
+              top: -5,
+              right: -8,
+              child: Transform.rotate(
+                angle: 0.20,
+                child: const BlueAccentRays(size: 20),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        const Text(
+          'Starting in...',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            color: Color(0xFF64748B),
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecordingMicSection() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Left audio wave bars + dot
+            Container(
+              width: 4,
+              height: 4,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFF93C5FD),
+              ),
+            ),
+            const SizedBox(width: 5),
+            _buildWaveBar(8),
+            const SizedBox(width: 4),
+            _buildWaveBar(16),
+            const SizedBox(width: 4),
+            _buildWaveBar(24),
+            const SizedBox(width: 4),
+            _buildWaveBar(34),
+            const SizedBox(width: 4),
+            _buildWaveBar(22),
+            const SizedBox(width: 4),
+            _buildWaveBar(14),
+
+            const SizedBox(width: 18),
+
+            // Central glowing mic button
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                // Outer halo
+                Container(
+                  width: 98,
+                  height: 98,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF60A5FA).withValues(alpha: 0.22),
+                  ),
+                ),
+                // Inner halo
+                Container(
+                  width: 78,
+                  height: 78,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF3B82F6).withValues(alpha: 0.32),
+                  ),
+                ),
+                // Core button
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+                    ),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.40),
+                        blurRadius: 14,
+                        offset: const Offset(0, 5),
+                      ),
+                    ],
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(Icons.mic_rounded, color: Colors.white, size: 30),
+                ),
+              ],
+            ),
+
+            const SizedBox(width: 18),
+
+            // Right audio wave bars + dot
+            _buildWaveBar(14),
+            const SizedBox(width: 4),
+            _buildWaveBar(22),
+            const SizedBox(width: 4),
+            _buildWaveBar(34),
+            const SizedBox(width: 4),
+            _buildWaveBar(24),
+            const SizedBox(width: 4),
+            _buildWaveBar(16),
+            const SizedBox(width: 4),
+            _buildWaveBar(8),
+            const SizedBox(width: 5),
+            Container(
+              width: 4,
+              height: 4,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0xFF93C5FD),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration: const BoxDecoration(
+                color: Color(0xFFEF4444),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Text(
+              'Recording...',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                color: Color(0xFF64748B),
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
 
   Widget _buildWaveBar(double height) {
     return Container(
-      width: 2.8,
+      width: 3.5,
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFF3B82F6),
-        borderRadius: BorderRadius.circular(2),
+        color: const Color(0xFF2563EB),
+        borderRadius: BorderRadius.circular(2.5),
       ),
     );
   }
@@ -1646,37 +1765,42 @@ class _LandingScreenState extends State<LandingScreen>
   Widget _buildFeedbackResultCard() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
-            blurRadius: 14,
-            offset: const Offset(0, 4),
+            color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 6),
+          ),
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Bar icon, "Your feedback", "★ AI-powered"
+          // Header: Bar icon, "Your feedback", "✦ AI-powered"
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEFF6FF),
-                  shape: BoxShape.circle,
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.bar_chart_rounded, color: Color(0xFF2563EB), size: 20),
+                child: const Icon(Icons.bar_chart_rounded, color: Color(0xFF2563EB), size: 22),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1684,37 +1808,38 @@ class _LandingScreenState extends State<LandingScreen>
                     Text(
                       'Your feedback',
                       style: TextStyle(
+                        fontFamily: 'Inter',
                         color: Color(0xFF0F172A),
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     SizedBox(height: 2),
                     Text(
-                      'See where you did well and what to improve next.',
+                      'See where you did well and\nwhat to improve next.',
                       style: TextStyle(
+                        fontFamily: 'Inter',
                         color: Color(0xFF64748B),
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
+                        height: 1.25,
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
                   color: const Color(0xFFDCFCE7),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.star_rounded, color: Color(0xFF16A34A), size: 13),
-                    SizedBox(width: 3),
+                    Icon(Icons.auto_awesome_rounded, color: Color(0xFF16A34A), size: 13),
+                    SizedBox(width: 4),
                     Text(
                       'AI-powered',
                       style: TextStyle(
@@ -1728,97 +1853,105 @@ class _LandingScreenState extends State<LandingScreen>
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
           // 4 Score Metrics
           _buildMetricRow(Icons.lightbulb_outline_rounded, 'Clarity', 4.5),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           _buildMetricRow(Icons.format_list_bulleted_rounded, 'Structure', 3.5),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           _buildMetricRow(Icons.settings_outlined, 'Confidence', 4.5),
-          const SizedBox(height: 8),
-          _buildMetricRow(Icons.favorite_outline_rounded, 'Engagement', 3.5),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
+          _buildMetricRow(Icons.favorite_border_rounded, 'Engagement', 3.5),
+          const SizedBox(height: 16),
 
-          // Summary Chips Row: "What went well" & "Next time"
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: IntrinsicHeight(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.auto_awesome_rounded, color: Color(0xFF2563EB), size: 14),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'What went well',
-                              style: TextStyle(
-                                color: Color(0xFF0F172A),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                              ),
+          // Bottom 2 Sub-Cards side by side matching Image 4
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.auto_awesome_rounded, color: Color(0xFF2563EB), size: 16),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'What went well',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF0F172A),
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        const Text(
-                          'Clear structure and confident tone.',
-                          style: TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 10.5,
-                            height: 1.25,
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        'Clear structure and\nconfident tone.',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          color: Color(0xFF64748B),
+                          fontSize: 10.5,
+                          height: 1.3,
+                          fontWeight: FontWeight.w500,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  Container(
-                    width: 1,
-                    margin: const EdgeInsets.symmetric(horizontal: 8),
-                    color: const Color(0xFFE2E8F0),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.flag_rounded, color: Color(0xFFF59E0B), size: 14),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'Next step',
-                              style: TextStyle(
-                                color: Color(0xFF0F172A),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        const Text(
-                          'Try to add a more compelling example.',
-                          style: TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 10.5,
-                            height: 1.25,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.flag_rounded, color: Color(0xFFF59E0B), size: 16),
+                          const SizedBox(width: 6),
+                          const Text(
+                            'Next step',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF0F172A),
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        'Try to add a more\ncompelling example.',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          color: Color(0xFF64748B),
+                          fontSize: 10.5,
+                          height: 1.3,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1826,55 +1959,61 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   Widget _buildMetricRow(IconData icon, String label, double score) {
+    final filledCount = score >= 4.0 ? 4 : 3;
     return Row(
       children: [
-        Icon(icon, color: const Color(0xFF64748B), size: 16),
-        const SizedBox(width: 8),
+        Container(
+          width: 28,
+          height: 28,
+          decoration: const BoxDecoration(
+            color: Color(0xFFEFF6FF),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: Icon(icon, color: const Color(0xFF2563EB), size: 16),
+        ),
+        const SizedBox(width: 10),
         SizedBox(
-          width: 85,
+          width: 86,
           child: Text(
             label,
             style: const TextStyle(
-              color: Color(0xFF334155),
-              fontSize: 12.5,
+              fontFamily: 'Inter',
+              color: Color(0xFF0F172A),
+              fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),
         ),
-        // 5 Pill segments
         Expanded(
           child: Row(
             children: List.generate(5, (idx) {
-              final val = score - idx;
-              Color segmentColor;
-              if (val >= 1.0) {
-                segmentColor = const Color(0xFF2563EB); // full blue
-              } else if (val >= 0.5) {
-                segmentColor = const Color(0xFF93C5FD); // half/light blue
-              } else {
-                segmentColor = const Color(0xFFE2E8F0); // empty grey
-              }
-
+              final isFilled = idx < filledCount;
               return Expanded(
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 2),
-                  height: 9,
+                  height: 6.5,
+                  margin: const EdgeInsets.symmetric(horizontal: 2.5),
                   decoration: BoxDecoration(
-                    color: segmentColor,
-                    borderRadius: BorderRadius.circular(5),
+                    color: isFilled ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+                    borderRadius: BorderRadius.circular(3.5),
                   ),
                 ),
               );
             }),
           ),
         ),
-        const SizedBox(width: 10),
-        Text(
-          score.toStringAsFixed(1),
-          style: const TextStyle(
-            color: Color(0xFF64748B),
-            fontSize: 11.5,
-            fontWeight: FontWeight.w700,
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 26,
+          child: Text(
+            score.toString(),
+            textAlign: TextAlign.end,
+            style: const TextStyle(
+              fontFamily: 'Inter',
+              color: Color(0xFF0F172A),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       ],
@@ -1970,6 +2109,41 @@ class _FluidAmbientBlobsPainter extends CustomPainter {
     // Bubble 6: Top Center-Right
     bubblePaint.color = const Color(0xFFDBEAFE).withValues(alpha: 0.60);
     canvas.drawCircle(Offset(center.dx + 26, center.dy - 104), 5.5, bubblePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Dual-tone progress ring painter for the "3" countdown widget matching target screenshot
+class _CountdownProgressRingPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 3.0;
+
+    // 1. Background full track ring (soft light blue)
+    final trackPaint = Paint()
+      ..color = const Color(0xFFDBEAFE).withValues(alpha: 0.85)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.5;
+    canvas.drawCircle(center, radius, trackPaint);
+
+    // 2. Active progress arc (vibrant royal blue with rounded cap)
+    final activePaint = Paint()
+      ..color = const Color(0xFF2563EB)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.2
+      ..strokeCap = StrokeCap.round;
+
+    // Sweeps clockwise from top to bottom-right (~190 degrees)
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -3.14159 / 3.0,
+      3.14159 * 1.05,
+      false,
+      activePaint,
+    );
   }
 
   @override

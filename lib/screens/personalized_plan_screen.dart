@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/week_calendar_strip.dart';
@@ -15,8 +17,38 @@ class PersonalizedPlanScreen extends StatefulWidget {
 class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
   int _selectedDay = 0; // Monday 1
 
+  static const _drillNames = {
+    'think_fast': 'Think Fast',
+    'connect_the_dots': 'Connect the Dots',
+    'explain_it_simply': 'Explain it Simply',
+    'cut_it_in_half': 'Cut it in Half',
+    'storytelling_gym': 'Storytelling Gym',
+    'one_minute_expert': 'One Minute Expert',
+    'debate_me': 'Debate Me',
+  };
+
+  static const _drillSubtitles = {
+    'think_fast': 'Three quick reps to think, then speak.',
+    'connect_the_dots': 'Link two random ideas into one story.',
+    'explain_it_simply': 'Make complex concepts plain & simple.',
+    'cut_it_in_half': 'Lead with the point, cut the clutter.',
+    'storytelling_gym': 'Make one clear point land with impact.',
+    'one_minute_expert': 'Deliver your message in sixty seconds.',
+    'debate_me': 'Stay clear and steady when challenged.',
+  };
+
   @override
   Widget build(BuildContext context) {
+    final state = Provider.of<AppStateProvider>(context);
+    final plan = state.personalizedPlan;
+    final drills = plan?.initialDrills ?? ['think_fast', 'cut_it_in_half', 'debate_me'];
+
+    final primarySlug = drills.isNotEmpty ? drills[0] : 'think_fast';
+    final primaryTitle = _drillNames[primarySlug] ?? 'Think Fast';
+    final primarySub = _drillSubtitles[primarySlug] ?? 'Three quick reps to think, then speak.';
+
+    final otherSlugs = drills.length > 1 ? drills.sublist(1) : <String>['cut_it_in_half', 'debate_me'];
+
     final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     final bottomGap = isIOS ? (safeBottom > 0 ? 20.0 : 12.0) : 14.0;
@@ -59,10 +91,10 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Centered Week Tag
-                      const Center(
+                      Center(
                         child: Text(
-                          'WEEK 1  ·  5 MIN A DAY',
-                          style: TextStyle(
+                          'WEEK 1  ·  ${state.selectedDifficulty.toUpperCase()}  ·  5 MIN A DAY',
+                          style: const TextStyle(
                             color: AppColors.textMuted,
                             fontSize: 11,
                             fontWeight: FontWeight.w800,
@@ -95,9 +127,9 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                       const SizedBox(height: 6),
 
                       // Subtitle
-                      const Text(
-                        'Built around: thinking on your feet',
-                        style: TextStyle(
+                      Text(
+                        'Built around: ${state.roadblockLabel}',
+                        style: const TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
@@ -111,14 +143,14 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                           Expanded(
                             child: _buildFocusCard(
                               tag: 'FOCUS 1',
-                              title: 'Answer first, then explain',
+                              title: primaryTitle,
                             ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: _buildFocusCard(
                               tag: 'FOCUS 2',
-                              title: 'Pause instead of filling',
+                              title: otherSlugs.isNotEmpty ? (_drillNames[otherSlugs[0]] ?? 'Practice') : 'Speaking Clarity',
                             ),
                           ),
                         ],
@@ -152,29 +184,29 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
-                                children: const [
+                                children: [
                                   Text(
-                                    'TODAY  ·  50 SEC  ·  1 OF 4',
-                                    style: TextStyle(
+                                    'TODAY  ·  60 SEC  ·  1 OF ${drills.length + 1}',
+                                    style: const TextStyle(
                                       color: Color(0xFFA3A6B8),
                                       fontSize: 10.5,
                                       fontWeight: FontWeight.w800,
                                       letterSpacing: 1.2,
                                     ),
                                   ),
-                                  SizedBox(height: 6),
+                                  const SizedBox(height: 6),
                                   Text(
-                                    'Think Fast',
-                                    style: TextStyle(
+                                    primaryTitle,
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 22,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
-                                  SizedBox(height: 4),
+                                  const SizedBox(height: 4),
                                   Text(
-                                    'Three quick reps to think, then speak.',
-                                    style: TextStyle(
+                                    primarySub,
+                                    style: const TextStyle(
                                       color: Color(0xFF8E91A6),
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w500,
@@ -202,11 +234,15 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                       const SizedBox(height: 20),
 
                       // Upcoming Drills List with chevron >
-                      _buildDrillItem('02', 'Cut it in Half', 'Lead with the point'),
-                      const Divider(height: 24, color: Color(0xFFEAE9E2)),
-                      _buildDrillItem('03', 'Debate Me', 'Stay clear when challenged'),
-                      const Divider(height: 24, color: Color(0xFFEAE9E2)),
-                      _buildDrillItem('04', 'Storytelling Gym', 'Make one point land'),
+                      for (int i = 0; i < otherSlugs.length; i++) ...[
+                        _buildDrillItem(
+                          '0${i + 2}',
+                          _drillNames[otherSlugs[i]] ?? otherSlugs[i],
+                          _drillSubtitles[otherSlugs[i]] ?? 'Targeted daily practice',
+                        ),
+                        if (i < otherSlugs.length - 1)
+                          const Divider(height: 24, color: Color(0xFFEAE9E2)),
+                      ],
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -232,16 +268,16 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
 
   Widget _buildFocusCard({required String tag, required String title}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEAE9E2), width: 1.2),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFECECE8), width: 1.2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 8,
-            offset: const Offset(0, 3),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -252,19 +288,19 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
             tag,
             style: const TextStyle(
               color: AppColors.royalBlue,
-              fontSize: 10.5,
+              fontSize: 10,
               fontWeight: FontWeight.w800,
-              letterSpacing: 0.8,
+              letterSpacing: 1.0,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             title,
             style: const TextStyle(
               color: AppColors.textPrimary,
-              fontSize: 13.5,
-              fontWeight: FontWeight.w800,
-              height: 1.25,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              height: 1.3,
             ),
           ),
         ],
@@ -272,41 +308,55 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
     );
   }
 
-  Widget _buildDrillItem(String index, String title, String subtitle) {
+  Widget _buildDrillItem(String num, String title, String subtitle) {
     return Row(
       children: [
-        Text(
-          index,
-          style: const TextStyle(
-            color: AppColors.royalBlue,
-            fontSize: 13,
-            fontWeight: FontWeight.w800,
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F0E9),
+            borderRadius: BorderRadius.circular(8),
           ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
+          alignment: Alignment.center,
           child: Text(
-            title,
+            num,
             style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 15,
+              color: AppColors.textSecondary,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
             ),
           ),
         ),
-        Text(
-          subtitle,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 8),
         const Icon(
           Icons.chevron_right_rounded,
-          color: AppColors.textMuted,
-          size: 18,
+          color: Color(0xFFBDBCAF),
+          size: 22,
         ),
       ],
     );

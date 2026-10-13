@@ -1005,36 +1005,149 @@ class AppStateProvider extends ChangeNotifier {
     if (problem != null) answers.roadblock = problem;
     if (goal != null) answers.primaryGoal = goal;
 
-    // Logic determined by assessment:
-    // 1. Level of activities:
-    if (careerStage == 'early' || confidence == 'not_very') {
-      selectedDifficulty = 'beginner';
-    } else if (careerStage == 'exec' || confidence == 'very') {
-      selectedDifficulty = 'pro';
-    } else {
-      selectedDifficulty = 'intermediary';
-    }
+    // Logic from Google Doc: "Hakkiri - Assessment - Level and Activity logic"
+    // Step 1: Votes from Goal & Challenge determine the primary activities
+    // Step 2: Career stage and confidence set starting level (Beginner vs Intermediary). No one starts at Pro.
+    computeAssessmentPlan();
 
     _updateSelectedPrompt();
     completeAssessment();
   }
 
-  void completeAssessment() {
-    final track = answers.careerType ?? 'corporate_finance';
-    personalizedPlan ??= PersonalizedPlanModel(
-      headline: 'Filler Elimination & Executive Authority Program',
-      summary: 'A curated daily routine engineered to transition you from hesitant thinking to commanding executive clarity.',
-      recommendedTrack: track,
-      primaryRoadblock: answers.roadblock ?? 'excessive_filler_words',
+  /// Calculates personalized plan, starting difficulty, and initial drills based on
+  /// official Google Doc logic.
+  void computeAssessmentPlan() {
+    final goal = answers.primaryGoal ?? 'calmer_confident';
+    final challenge = answers.roadblock ?? 'blank_pressure';
+    final careerStage = answers.careerStage ?? 'mid_level';
+    final confidence = answers.confidence ?? 'fairly';
+    final careerType = answers.careerType ?? 'corporate_finance';
+
+    // 1. Tally votes from Goal & Challenge (Question 6 & 7)
+    final Map<String, int> votes = {
+      'think_fast': 0,
+      'connect_the_dots': 0,
+      'explain_it_simply': 0,
+      'cut_it_in_half': 0,
+      'storytelling_gym': 0,
+      'one_minute_expert': 0,
+      'debate_me': 0,
+    };
+
+    void addVote(String slug) {
+      votes[slug] = (votes[slug] ?? 0) + 1;
+    }
+
+    // Goal votes (Question 7)
+    switch (goal) {
+      case 'authority':
+        addVote('cut_it_in_half');
+        addVote('debate_me');
+        break;
+      case 'calmer_confident':
+        addVote('think_fast');
+        addVote('connect_the_dots');
+        break;
+      case 'persuasive_arguments':
+        addVote('debate_me');
+        addVote('connect_the_dots');
+        break;
+      case 'clear_daily':
+        addVote('explain_it_simply');
+        addVote('cut_it_in_half');
+        break;
+      case 'keep_engaged':
+        addVote('storytelling_gym');
+        addVote('one_minute_expert');
+        break;
+      default:
+        addVote('think_fast');
+        addVote('cut_it_in_half');
+    }
+
+    // Challenge votes (Question 6)
+    switch (challenge) {
+      case 'blank_pressure':
+        addVote('think_fast');
+        addVote('connect_the_dots');
+        break;
+      case 'too_long':
+        addVote('cut_it_in_half');
+        addVote('think_fast');
+        break;
+      case 'filler_rush':
+        addVote('think_fast');
+        addVote('one_minute_expert');
+        break;
+      case 'explain_simple':
+        addVote('explain_it_simply');
+        addVote('one_minute_expert');
+        break;
+      case 'keep_engaged':
+        addVote('storytelling_gym');
+        addVote('one_minute_expert');
+        break;
+      case 'lose_confidence':
+        addVote('debate_me');
+        addVote('connect_the_dots');
+        break;
+      default:
+        addVote('think_fast');
+        addVote('connect_the_dots');
+    }
+
+    // Top activities become primary focus
+    final sortedEntries = votes.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final topDrills = sortedEntries.take(3).map((e) => e.key).toList();
+
+    // 2. Starting Level from Career & Confidence Grid (Step 2)
+    final isLowConfidence = confidence == 'not_at_all' || confidence == 'slightly';
+    final isHighConfidence = confidence == 'confident' || confidence == 'very';
+
+    String startingLevel = 'beginner';
+    if (careerStage == 'early' || careerStage == 'self_learner') {
+      startingLevel = isHighConfidence ? 'intermediary' : 'beginner';
+    } else {
+      // mid_level or senior exec
+      startingLevel = isLowConfidence ? 'beginner' : 'intermediary';
+    }
+    // Rule from Doc: No one starts at Pro! Pro is earned through results.
+    selectedDifficulty = startingLevel;
+
+    final activityNames = {
+      'think_fast': 'Think Fast',
+      'connect_the_dots': 'Connect the Dots',
+      'explain_it_simply': 'Explain it Simply',
+      'cut_it_in_half': 'Cut it in Half',
+      'storytelling_gym': 'Storytelling Gym',
+      'one_minute_expert': 'One Minute Expert',
+      'debate_me': 'Debate Me',
+    };
+
+    final primaryName = activityNames[topDrills[0]] ?? 'Think Fast';
+    final secondaryName = activityNames[topDrills[1]] ?? 'Cut it in Half';
+
+    personalizedPlan = PersonalizedPlanModel(
+      headline: '$primaryName & $secondaryName Focus Program',
+      summary: 'A curated daily routine tailored for ${careerStageLabels[careerStage] ?? 'your career'} to speak with clarity and confidence.',
+      recommendedTrack: careerType,
+      primaryRoadblock: challenge,
       focusLine: focusLine,
-      initialDrills: const ['think_fast', 'cut_it_in_half', 'debate_me'],
+      initialDrills: topDrills,
       milestones: const [
-        MilestoneItem(week: 1, title: 'Cognitive Agility & Crutch Decoupling', focus: 'Eliminating instinctive "um" and "basically" in 60s drills.'),
+        MilestoneItem(week: 1, title: 'Cognitive Agility & Crutch Decoupling', focus: 'Quick 60s reps to build cognitive agility.'),
         MilestoneItem(week: 2, title: 'Brevity & Bottom-Line-Up-Front (BLUF)', focus: 'Compressing ideas by 50% within first 5 seconds.'),
         MilestoneItem(week: 3, title: 'Executive Presence & Power Silence', focus: 'Commanding meetings with 1–2s power pauses.'),
-        MilestoneItem(week: 4, title: 'High-Stakes Debate Mastery', focus: 'Reframing hostile pushback with steady pitch.'),
+        MilestoneItem(week: 4, title: 'High-Stakes Mastery', focus: 'Handling unexpected questions under real pressure.'),
       ],
     );
+  }
+
+  void completeAssessment() {
+    if (personalizedPlan == null) {
+      computeAssessmentPlan();
+    }
 
     isOnboarded = true;
     _supabase.saveUserProfile(

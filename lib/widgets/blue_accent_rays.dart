@@ -32,28 +32,21 @@ class _BlueAccentRaysPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
       ..color = color
-      ..strokeWidth = size.width * 0.13
+      ..strokeWidth = size.width * 0.16
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
 
-    // Ray 1: Top-most / vertical-leaning ray (~70 deg)
+    // Ray 1: Left / upper diagonal accent dash (~50 deg tilt)
     canvas.drawLine(
-      Offset(size.width * 0.16, size.height * 0.52),
-      Offset(size.width * 0.28, size.height * 0.08),
+      Offset(size.width * 0.28, size.height * 0.62),
+      Offset(size.width * 0.48, size.height * 0.14),
       paint,
     );
 
-    // Ray 2: Middle ray (~45 deg)
+    // Ray 2: Right / lower diagonal accent dash (~50 deg tilt)
     canvas.drawLine(
-      Offset(size.width * 0.38, size.height * 0.68),
-      Offset(size.width * 0.76, size.height * 0.30),
-      paint,
-    );
-
-    // Ray 3: Right-most / horizontal-leaning ray (~20 deg)
-    canvas.drawLine(
-      Offset(size.width * 0.48, size.height * 0.88),
-      Offset(size.width * 0.96, size.height * 0.66),
+      Offset(size.width * 0.62, size.height * 0.88),
+      Offset(size.width * 0.88, size.height * 0.42),
       paint,
     );
   }

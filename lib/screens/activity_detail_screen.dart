@@ -7,17 +7,22 @@ import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
 import 'recording_screen.dart';
 
-/// Activity detail screen rendered to match Image 1 (the 7 MVP "Begin exercise" screens).
-/// Each activity has its uppercase label, inline large outline icon + bold title with blue rays,
-/// subtitle, connected HOW IT WORKS timeline card, 3-step colored strategy card, and
-/// the bottom "Begin exercise" action pill button.
+/// Activity detail screen rendered pixel-perfect matching Image 2 ("Think Fast.")
+/// and Image 5 ("Connect the Dots.").
 class ActivityDetailScreen extends StatelessWidget {
-  const ActivityDetailScreen({super.key});
+  final String? activitySlug;
+
+  const ActivityDetailScreen({super.key, this.activitySlug});
 
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
-    final slug = state.selectedActivity?.slug ?? 'think_fast';
+    var slug = activitySlug ?? state.selectedActivity?.slug ?? 'think_fast';
+    if (slug == 'connect_dots') slug = 'connect_the_dots';
+    if (slug == 'explain') slug = 'explain_it_simply';
+    if (slug == 'stopwatch') slug = 'one_minute_expert';
+    if (slug == 'storytelling') slug = 'storytelling_gym';
+    if (slug == 'debate') slug = 'debate_me';
     final spec = _activitySpecs[slug] ?? _activitySpecs['think_fast']!;
     final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
     final safeBottom = MediaQuery.paddingOf(context).bottom;
@@ -41,23 +46,42 @@ class ActivityDetailScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         body: Stack(
           children: [
-            // Soft ambient top-right pastel organic blue glow
+            // Ambient blue organic glows matching mockups
             Positioned(
-              top: -50,
-              right: -50,
+              top: -40,
+              right: -30,
               child: IgnorePointer(
                 child: Container(
-                  width: 280,
-                  height: 280,
+                  width: 260,
+                  height: 260,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        const Color(0xFFE0EDFD).withValues(alpha: 0.70),
-                        const Color(0xFFEFF6FF).withValues(alpha: 0.35),
+                        const Color(0xFFBFDBFE).withValues(alpha: 0.45),
+                        const Color(0xFFEFF6FF).withValues(alpha: 0.20),
                         const Color(0x00FFFFFF),
                       ],
                       stops: const [0.0, 0.55, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 120,
+              left: -40,
+              child: IgnorePointer(
+                child: Container(
+                  width: 220,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        const Color(0xFFDBEAFE).withValues(alpha: 0.35),
+                        const Color(0x00FFFFFF),
+                      ],
                     ),
                   ),
                 ),
@@ -73,7 +97,7 @@ class ActivityDetailScreen extends StatelessWidget {
                   children: [
                     // Top Bar (< back arrow)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                      padding: const EdgeInsets.fromLTRB(20, 6, 20, 4),
                       child: GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: const Padding(
@@ -91,86 +115,101 @@ class ActivityDetailScreen extends StatelessWidget {
                     Expanded(
                       child: SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 6),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // 1. Tag: e.g. "1. THINK FAST"
-                            Text(
-                              spec.label,
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.2,
-                                color: Color(0xFF64748B),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-
-                            // 2. Icon + Title Row
+                            // 1. Squircle Icon + Tag & Title Row (Matching Image 2 & 5)
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                // Large outline vector icon
-                                Icon(
-                                  spec.icon,
-                                  color: const Color(0xFF2563EB),
-                                  size: 44,
+                                // Squircle badge
+                                Container(
+                                  width: 62,
+                                  height: 62,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEFF6FF),
+                                    borderRadius: BorderRadius.circular(18),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: spec.customIconWidget ??
+                                      Icon(
+                                        spec.icon,
+                                        color: const Color(0xFF2563EB),
+                                        size: 34,
+                                      ),
                                 ),
                                 const SizedBox(width: 14),
 
-                                // Title text with blue accent rays
+                                // Tag + Title Column
                                 Expanded(
-                                  child: Row(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.center,
                                     children: [
-                                      Flexible(
-                                        child: Text(
-                                          spec.title,
-                                          style: const TextStyle(
-                                            fontFamily: 'Inter',
-                                            fontSize: 32,
-                                            fontWeight: FontWeight.w900,
-                                            color: Color(0xFF0F172A),
-                                            height: 1.15,
-                                            letterSpacing: -0.8,
-                                          ),
+                                      Text(
+                                        spec.label,
+                                        style: const TextStyle(
+                                          fontFamily: 'Inter',
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 1.2,
+                                          color: Color(0xFF64748B),
                                         ),
                                       ),
-                                      const SizedBox(width: 4),
-                                      Transform.translate(
-                                        offset: const Offset(0, -6),
-                                        child: const BlueAccentRays(size: 24),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.center,
+                                        children: [
+                                          Flexible(
+                                            child: spec.titleWidget ??
+                                                Text(
+                                                  spec.title,
+                                                  style: const TextStyle(
+                                                    fontFamily: 'Inter',
+                                                    fontSize: 30,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: Color(0xFF0F172A),
+                                                    height: 1.15,
+                                                    letterSpacing: -0.7,
+                                                  ),
+                                                ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Transform.translate(
+                                            offset: const Offset(0, -6),
+                                            child: const BlueAccentRays(size: 24),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 14),
 
-                            // 3. Subtitle
+                            // 2. Subtitle
                             Text(
                               spec.subtitle,
                               style: const TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.w500,
-                                color: Color(0xFF64748B),
+                                color: Color(0xFF475569),
                                 height: 1.35,
                               ),
                             ),
+                            const SizedBox(height: 18),
+
+                            // 3. Card: HOW IT WORKS
+                            _buildHowItWorksCard(spec.steps),
                             const SizedBox(height: 16),
 
-                            // 4. Card: HOW IT WORKS
-                            _buildHowItWorksCard(spec.steps),
-                            const SizedBox(height: 14),
-
-                            // 5. Card: Strategy (USE YOUR 5 SECONDS / ...)
+                            // 4. Card: Strategy (USE YOUR 5 SECONDS / BUILD THE CONNECTION)
                             _buildStrategyCard(spec.strategyTitle, spec.strategy),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 14),
                           ],
                         ),
                       ),
@@ -181,7 +220,7 @@ class ActivityDetailScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 22),
                       child: ActionPillButton(
                         label: 'Begin exercise',
-                        onPressed: () async {
+                        onTap: () async {
                           final nav = Navigator.of(context);
                           final app = context.read<AppStateProvider>();
                           if (app.isLoggedIn) {
@@ -204,15 +243,22 @@ class ActivityDetailScreen extends StatelessWidget {
     );
   }
 
-  /// CARD 1: HOW IT WORKS — connected 3- or 4-step horizontal timeline
+  /// CARD 1: HOW IT WORKS — connected 4-step horizontal timeline
   Widget _buildHowItWorksCard(List<_Step> steps) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -226,7 +272,7 @@ class ActivityDetailScreen extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.2,
-                color: Color(0xFF64748B),
+                color: Color(0xFF475569),
               ),
             ),
           ),
@@ -237,8 +283,8 @@ class ActivityDetailScreen extends StatelessWidget {
               // Continuous connecting line behind the circle nodes
               Positioned(
                 top: 22,
-                left: 24,
-                right: 24,
+                left: 28,
+                right: 28,
                 child: Container(height: 2, color: const Color(0xFFDBEAFE)),
               ),
               Row(
@@ -320,7 +366,7 @@ class ActivityDetailScreen extends StatelessWidget {
 
   /// CARD 2: Strategy — 3 mini cards (blue / red / green) with connecting arrows
   Widget _buildStrategyCard(String title, List<String> steps) {
-    const bgColors = [Color(0xFFEFF6FF), Color(0xFFFEF2F2), Color(0xFFF0FDF4)];
+    const bgColors = [Color(0xFFEFF6FF), Color(0xFFFFF1F2), Color(0xFFF0FDF4)];
     const numColors = [Color(0xFF2563EB), Color(0xFFEF4444), Color(0xFF10B981)];
 
     final children = <Widget>[];
@@ -338,7 +384,7 @@ class ActivityDetailScreen extends StatelessWidget {
       if (i < steps.length - 1) {
         children.add(const Padding(
           padding: EdgeInsets.symmetric(horizontal: 4),
-          child: Icon(Icons.arrow_forward_rounded, color: Color(0xFF94A3B8), size: 15),
+          child: Icon(Icons.arrow_forward_rounded, color: Color(0xFF2563EB), size: 15),
         ));
       }
     }
@@ -347,9 +393,16 @@ class ActivityDetailScreen extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+        border: Border.all(color: const Color(0xFFF1F5F9), width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -363,7 +416,7 @@ class ActivityDetailScreen extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1.2,
-                color: Color(0xFF64748B),
+                color: Color(0xFF475569),
               ),
             ),
           ),
@@ -423,7 +476,7 @@ class ActivityDetailScreen extends StatelessWidget {
   }
 }
 
-// ── Per-activity specifications matching Image 1 ──────────────────────────────
+// ── Per-activity specifications matching Image 2 & Image 5 ────────────────────
 
 class _Step {
   final IconData icon;
@@ -434,8 +487,10 @@ class _Step {
 
 class _ActivitySpec {
   final IconData icon;
+  final Widget? customIconWidget;
   final String label;
   final String title;
+  final Widget? titleWidget;
   final String subtitle;
   final List<_Step> steps;
   final String strategyTitle;
@@ -443,8 +498,10 @@ class _ActivitySpec {
 
   const _ActivitySpec({
     required this.icon,
+    this.customIconWidget,
     required this.label,
     required this.title,
+    this.titleWidget,
     required this.subtitle,
     required this.steps,
     required this.strategyTitle,
@@ -453,74 +510,131 @@ class _ActivitySpec {
 }
 
 const _thinkStep = _Step(Icons.timer_outlined, '2. Think', 'You have\n5 seconds.');
-const _feedbackStep = _Step(Icons.bar_chart_rounded, '4. Feedback', 'Get personalised\nfeedback.');
+const _feedbackStep = _Step(Icons.bar_chart_rounded, '4. Feedback', 'Get\npersonalised\nfeedback.');
 
 final Map<String, _ActivitySpec> _activitySpecs = {
-  // Screen 1: Think Fast.
-  'think_fast': const _ActivitySpec(
+  // Screen 1: Think Fast. (Matching Image 2)
+  'think_fast': _ActivitySpec(
     icon: Icons.bolt_rounded,
+    customIconWidget: SizedBox(
+      width: 32,
+      height: 32,
+      child: CustomPaint(painter: _LightningBoltPainter()),
+    ),
     label: '1. THINK FAST',
     title: 'Think Fast.',
+    titleWidget: RichText(
+      text: const TextSpan(
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 32,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.8,
+        ),
+        children: [
+          TextSpan(text: 'Think ', style: TextStyle(color: Color(0xFF0F172A))),
+          TextSpan(text: 'Fast.', style: TextStyle(color: Color(0xFF2563EB))),
+        ],
+      ),
+    ),
     subtitle: 'Answer a surprise question clearly, the way you would in a real meeting.',
-    steps: [
-      _Step(Icons.description_outlined, '1. Question', 'A random question\nappears.'),
+    steps: const [
+      _Step(Icons.description_outlined, '1. Question', 'A random\nquestion\nappears.'),
       _thinkStep,
       _Step(Icons.mic_none_rounded, '3. Speak', 'Record for\n60 seconds.'),
       _feedbackStep,
     ],
     strategyTitle: 'USE YOUR 5 SECONDS',
-    strategy: ['Pick\nyour point', 'Choose\nwhy', 'Add one\nexample'],
+    strategy: const ['Pick\nyour point', 'Choose\nwhy', 'Add one\nexample'],
   ),
 
-  // Screen 2: Connect the Dots.
-  'connect_the_dots': const _ActivitySpec(
+  // Screen 2: Connect the Dots. (Matching Image 5)
+  'connect_the_dots': _ActivitySpec(
     icon: Icons.hub_rounded,
+    customIconWidget: SizedBox(
+      width: 34,
+      height: 34,
+      child: CustomPaint(painter: _ConnectedNodesPainter()),
+    ),
     label: '2. CONNECT THE DOTS',
     title: 'Connect\nthe Dots.',
+    titleWidget: RichText(
+      text: const TextSpan(
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: 30,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.8,
+          height: 1.15,
+        ),
+        children: [
+          TextSpan(text: 'Connect\n', style: TextStyle(color: Color(0xFF0F172A))),
+          TextSpan(text: 'the Dots.', style: TextStyle(color: Color(0xFF2563EB))),
+        ],
+      ),
+    ),
     subtitle: 'Link two random ideas into a clear, compelling story.',
-    steps: [
-      _Step(Icons.hub_outlined, '1. Two topics', "You'll see two\nunrelated ideas."),
+    steps: const [
+      _Step(Icons.link_rounded, '1. Two topics', "You'll see two\nunrelated ideas."),
       _thinkStep,
-      _Step(Icons.mic_none_rounded, '3. Connect', 'Speak for\n60 seconds.'),
+      _Step(Icons.mic_none_rounded, '3. Connect', 'Speak a\n60 second story.'),
       _feedbackStep,
     ],
     strategyTitle: 'BUILD THE CONNECTION',
-    strategy: ['Start with\nthe first idea', 'Find the\nlink or bridge', 'Land on\nthe second idea'],
+    strategy: const ['Start with\nthe first idea', 'Find the\nlink or bridge', 'Land on\nthe second idea'],
   ),
 
   // Screen 3: Explain It Simply.
-  'explain_it_simply': const _ActivitySpec(
+  'explain_it_simply': _ActivitySpec(
     icon: Icons.lightbulb_outline_rounded,
     label: '3. EXPLAIN IT SIMPLY',
     title: 'Explain\nIt Simply.',
+    titleWidget: RichText(
+      text: const TextSpan(
+        style: TextStyle(fontFamily: 'Inter', fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: -0.8, height: 1.15),
+        children: [
+          TextSpan(text: 'Explain\n', style: TextStyle(color: Color(0xFF0F172A))),
+          TextSpan(text: 'It Simply.', style: TextStyle(color: Color(0xFF2563EB))),
+        ],
+      ),
+    ),
     subtitle: 'Take a complex topic and explain it in clear, simple language.',
-    steps: [
-      _Step(Icons.description_outlined, '1. Topic + audience', "You'll see a topic\nand who to explain it to."),
+    steps: const [
+      _Step(Icons.description_outlined, '1. Topic + audience', "You'll see a topic\nand audience."),
       _thinkStep,
       _Step(Icons.mic_none_rounded, '3. Explain', 'Speak\nclearly.'),
       _feedbackStep,
     ],
     strategyTitle: 'KEEP IT SIMPLE',
-    strategy: ['What is it?\n(in simple terms)', 'Make it\nrelatable', 'Why does\nit matter?'],
+    strategy: const ['What is it?\n(in simple terms)', 'Make it\nrelatable', 'Why does\nit matter?'],
   ),
 
   // Screen 4: Cut It in Half.
-  'cut_it_in_half': const _ActivitySpec(
+  'cut_it_in_half': _ActivitySpec(
     icon: Icons.content_cut_rounded,
     label: '4. CUT IT IN HALF',
     title: 'Cut It\nin Half.',
+    titleWidget: RichText(
+      text: const TextSpan(
+        style: TextStyle(fontFamily: 'Inter', fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: -0.8, height: 1.15),
+        children: [
+          TextSpan(text: 'Cut It\n', style: TextStyle(color: Color(0xFF0F172A))),
+          TextSpan(text: 'in Half.', style: TextStyle(color: Color(0xFF2563EB))),
+        ],
+      ),
+    ),
     subtitle: 'Read a longer message and make it shorter, clearer and more impactful.',
-    steps: [
+    steps: const [
       _Step(Icons.description_outlined, '1. Read', 'A longer text\nappears (45-60s).'),
       _Step(Icons.format_list_bulleted_rounded, '2. Find point', 'Identify what\nmatters.'),
       _Step(Icons.mic_none_rounded, '3. Summarise', 'Speak your\nshorter version.'),
       _feedbackStep,
     ],
     strategyTitle: 'CUT THE CLUTTER',
-    strategy: ["Main point\n(key message?)", 'Essential\ndetail', 'Action\n(what next?)'],
+    strategy: const ["Main point\n(key message?)", 'Essential\ndetail', 'Action\n(what next?)'],
   ),
 
-  // Screen 5: Storytelling Gym. (3 steps matching Image 1)
+  // Screen 5: Storytelling Gym.
   'storytelling_gym': const _ActivitySpec(
     icon: Icons.menu_book_rounded,
     label: '5. STORYTELLING GYM',
@@ -567,3 +681,71 @@ final Map<String, _ActivitySpec> _activitySpecs = {
     strategy: ['State your\nposition', 'Give your\nreason', 'Counter\nthe objection'],
   ),
 };
+
+/// Crisp custom painter for the outline lightning bolt matching Image 2
+class _LightningBoltPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final path = Path();
+    path.moveTo(w * 0.58, 2);
+    path.lineTo(w * 0.20, h * 0.56);
+    path.lineTo(w * 0.52, h * 0.56);
+    path.lineTo(w * 0.38, h - 2);
+    path.lineTo(w * 0.82, h * 0.42);
+    path.lineTo(w * 0.50, h * 0.42);
+    path.close();
+
+    final paint = Paint()
+      ..color = const Color(0xFF2563EB)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.8
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Crisp custom painter for the connected nodes icon matching Image 5
+class _ConnectedNodesPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final topNode = Offset(w * 0.5, h * 0.22);
+    final leftNode = Offset(w * 0.22, h * 0.78);
+    final rightNode = Offset(w * 0.78, h * 0.78);
+
+    final linePaint = Paint()
+      ..color = const Color(0xFF2563EB)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(topNode, leftNode, linePaint);
+    canvas.drawLine(topNode, rightNode, linePaint);
+    canvas.drawLine(leftNode, rightNode, linePaint);
+
+    final nodeOutline = Paint()
+      ..color = const Color(0xFF2563EB)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.4;
+
+    final nodeFill = Paint()..color = const Color(0xFFEFF6FF);
+
+    for (final node in [topNode, leftNode, rightNode]) {
+      canvas.drawCircle(node, 4.5, nodeFill);
+      canvas.drawCircle(node, 4.5, nodeOutline);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}

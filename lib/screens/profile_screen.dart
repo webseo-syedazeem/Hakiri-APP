@@ -403,12 +403,13 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     onChanged: _reminderSaving
                         ? null
                         : (val) async {
+                            final messenger = ScaffoldMessenger.of(context);
                             setState(() => _reminderSaving = true);
                             try {
                               await state.updateRemindersEnabled(val);
                             } catch (e) {
                               if (mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
+                                messenger.showSnackBar(
                                   SnackBar(content: Text(e.toString())),
                                 );
                               }

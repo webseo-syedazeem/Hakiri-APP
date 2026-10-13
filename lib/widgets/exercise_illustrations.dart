@@ -13,16 +13,22 @@ class ExerciseIllustration extends StatelessWidget {
   String _assetPath(String type) {
     switch (type) {
       case 'connect_dots':
+      case 'connect_the_dots':
         return 'assets/images/exercise_3d_connect_dots.png';
       case 'explain':
+      case 'explain_it_simply':
         return 'assets/images/exercise_3d_explain.png';
       case 'cut_it_in_half':
+      case 'cut_in_half':
         return 'assets/images/exercise_3d_cut_in_half.png';
       case 'storytelling':
+      case 'storytelling_gym':
         return 'assets/images/exercise_3d_storytelling.png';
       case 'debate':
+      case 'debate_me':
         return 'assets/images/exercise_3d_debate.png';
       case 'stopwatch':
+      case 'one_minute_expert':
         return 'assets/images/exercise_3d_stopwatch.png';
       case 'think_fast':
       default:
@@ -50,16 +56,22 @@ class ExerciseIllustration extends StatelessWidget {
   CustomPainter _painterFor(String type) {
     switch (type) {
       case 'connect_dots':
+      case 'connect_the_dots':
         return _MoleculePainter();
       case 'explain':
+      case 'explain_it_simply':
         return _LightbulbPainter();
       case 'cut_it_in_half':
+      case 'cut_in_half':
         return _CutInHalfPainter();
       case 'storytelling':
+      case 'storytelling_gym':
         return _StoryPathPainter();
       case 'debate':
+      case 'debate_me':
         return _DebatePainter();
       case 'stopwatch':
+      case 'one_minute_expert':
       case 'think_fast':
       default:
         return _StopwatchPainter();

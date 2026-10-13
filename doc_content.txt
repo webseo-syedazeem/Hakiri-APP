@@ -1,0 +1,190 @@
+﻿How Hakkiri will use the Assessment questions to produce a personalised plan
+Purpose. Hakkiri gives every user a daily plan built for their goals, their job and their current skill. This summary explains how the app decides which activities someone practises and at what level. The logic is simple, fair and easy for the developers to build.
+How it works. The app uses 2 sources of information, each for one job:
+* The user’s answers (their goal and biggest speaking problem) decide what they practise. Each answer gives points to the activities that address it, and the two highest-scoring activities become the user’s focus. A third slot rotates through the other activities, so every one appears within two weeks.
+* The user’s job decides which questions they hear (for example sales, tech or healthcare scenarios), so practice feels like their real working day.
+How it adapts. After three fresh attempts scoring 4 or more out of 5, the app suggests moving up a level. After three scoring 2 or less, it suggests stepping down. Every two weeks it re-checks the user’s weakest skill and refreshes their focus. 
+Why this approach. It follows the same pattern as leading apps such as Vocal Image, Elevate and Duolingo: stated goals decide what to practise. Research shows people misjudge their own speaking ability, so relying on the recording rather than self-ratings gives fairer, more accurate starting points. Explaining each recommendation to the user (“Because you said you go blank on the spot”) builds trust, and addresses a known weakness in competitor apps.
+Safeguards.
+* The voice profile (gender) question is never used in these decisions.
+* All thresholds and point values are adjustable settings, so they can be tuned after launch without rebuilding the app.
+
+
+Step 1: Decides which 3 activities a user practises most. 
+
+
+The activities with the most votes win.
+The two activities with the most points become the user’s main daily activities. The other activities still appear, one at a time, in a third daily slot.
+What each answer votes for
+Goal (question 7)
+If their goal is…
+	It votes for…
+	Speak with more authority
+	Cut it in Half + Debate Me
+	Feel calmer under pressure
+	Think First + Connect the Dots
+	Build persuasive arguments on the spot
+	Debate Me + Connect the Dots
+	Speak more clearly every day
+	Explain it Simply + Cut it in Half
+	Keep people engaged
+	Storytelling Gym + One Minute Expert
+	Challenge (question 6)
+If their challenge is…
+	It votes for…
+	I go blank under pressure
+	Think First + Connect the Dots
+	I take too long to get to the point
+	Cut it in Half + Think First
+	I rush or use filler words
+	Think First + One Minute Expert
+	I struggle to explain things simply
+	Explain it Simply + One Minute Expert
+	I struggle to keep people engaged
+	Storytelling Gym + One Minute Expert
+	I lose confidence when challenged
+	Debate Me + Connect the Dots
+	Example: Priya
+* Goal: “Speak more clearly every day” votes for Explain it Simply and Cut it in Half.
+* Challenge: “I struggle to explain things simply” votes for Explain it Simply and One Minute Expert.
+Activity
+	Votes
+	Explain it Simply
+	2 votes (both answers picked it)
+	Cut it in Half
+	1 vote
+	One Minute Expert
+	1 vote
+	
+
+
+
+Step 2: Career and confidence set the starting level
+
+
+
+
+	Not at all / Slightly confident
+	Fairly confident
+	Confident / Very confident
+	Student / Early career
+	Beginner
+	Beginner
+	Intermediary
+	General self-learner
+	Beginner
+	Beginner
+	Intermediary
+	Mid-level professional
+	Beginner
+	Intermediary
+	Intermediary
+	Senior executive / Founder
+	Beginner
+	Intermediary
+	Intermediary
+	Two more rules:
+* No one starts at Pro. Without any evidence of how someone speaks, Pro is earned through results. A strong user can get there within their first week.
+* The activity linked to their challenge starts one level lower, with Beginner as the minimum, so they get early wins in their hardest area.
+
+
+Step 3: Readjusting scores 
+Moving up or down levels:
+Rule 1: Moving up or down a level
+After each activity, the user gets a score out of 5. The app watches their fresh attempts, meaning first tries at new questions (retries don’t count).
+If their last tries in an activity…
+	The app…
+	All scored 4 or more
+	Suggests moving up a level (“This looks easy for you. Try Intermediary?”)
+	All scored 2 or less
+	Suggests moving down a level (“Want to build up with Beginner first?”)
+	Anything in between
+	Keeps them where they are
+	How many tries the app looks at:
+* First week: 2 tries. The starting level was a guess, so the app corrects it quickly.
+* After that: 3 tries. By then the level is probably about right, so the app waits for a clearer pattern.
+The app only suggests. The user always decides, and can change level themselves at any time.
+
+
+Rule 2: Changing activities every two weeks
+If after two weeks, we use real data and notice that the weakest link is clarity, the activity will either be explain it simply or one minute expert.  
+Weakest skill
+	Main activity (+2)
+	Support activity (+1)
+	Fluency (fillers, pauses, getting started)
+	Think First
+	Debate Me
+	Clarity (easy to follow)
+	Explain it Simply
+	One Minute Expert
+	Engagement (holding attention)
+	Storytelling Gym
+	Connect the Dots
+	Conciseness (getting to the point)
+	Cut it in Half
+	Think First
+	
+
+
+
+
+
+
+
+
+
+We’d have to let the user know that their activity has changed. So every week a prompt will pop up in the Today page 
+Examples of Pop-up - Note this is an example (align colours, branding and design to hakkiri’s) 
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1. Level up (Think Fast moves to Intermediary)
+* A three-step path shows Beginner done and Intermediary now unlocked.
+* The user’s last three scores (4.1, 4.3, 4.0) are shown, so they can see they’ve earned it.
+* “What changes” gives an example of the new type of question, and reassures them that scores carry over and they can switch back.
+* Buttons: “Move up to Intermediary” or “Stay on Beginner for now”. The user decides.
+2. Plan change (the two-week check-in)
+* Four skill bars show the last two weeks, with the weakest (Clarity, 2.8) highlighted.
+* It names an improvement first (“Fluency is up from 2.9”) before the area to grow.
+* A swap card shows Debate Me moving to the rotation and Explain it Simply joining the daily plan.
+* It reassures them that Debate Me still comes round every few days and is always in Practice. They can keep their current plan if they prefer.
+3. Same level: a “progress check”, not “you stayed put”
+This is the answer to your worry. Staying at the same level is never presented as an outcome. The pop-up shows movement within the level instead:
+* A trend line: “▲ 2.9 → 3.6 over 2 weeks”. The score is improving even though the level hasn’t changed.
+* Small wins: personal best 3.6, fillers down from 5 to 2, 9 sessions done.
+* Distance to the next level: “Nearly at Intermediary, 2 of 3”, with a progress bar and one specific tip to get there.
+* The title is about growth (“You’re getting sharper.”), and there’s one button: “Keep going”.
+If someone’s scores are flat or falling, the same pop-up switches to effort and habit instead: sessions completed, streak, and one concrete tip. It never mentions a lack of progress.
+4. Gentle step-down offer (bonus)
+A suggestion to step down is even more likely to discourage someone than staying at the same level, so it’s framed as a choice:
+* “These questions are tough ones”: the difficulty is put down to the questions, not the user.
+* Two equal options: “Build up first” (a few days at Beginner) or “Stay and stretch” (keep the level, with extra tips).
+* Recognition for effort: “You’ve answered every question so far. Showing up is the hard part.”
+Rules for the developers:
+* Show at most one of these pop-ups a day, and only on opening Today, never mid-session.
+* Level and plan pop-ups always need the user to choose. Nothing changes silently.
+* Show a progress check every two weeks for any activity that hasn’t changed level, so no one goes long without encouragement.
