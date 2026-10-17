@@ -30,7 +30,8 @@ app.use(
 );
 app.use(helmet());
 app.use(cors());
-app.use(express.json({ limit: "1mb" }));
+// Drill scoring may post a short on-device m4a as base64 (~1–3MB).
+app.use(express.json({ limit: "6mb" }));
 
 app.get("/ping", (_req, res) => {
   res.status(200).json({ success: true, message: "Server is reachable!" });

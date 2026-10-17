@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +9,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 import '../core/services/analytics_service.dart';
 import '../core/services/session_audio_store.dart';
 import '../providers/app_state_provider.dart';
+import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/mic_reactive_waveform.dart';
 import '../widgets/shimmer_loading.dart';
 import 'feedback_screen.dart';
@@ -22,7 +25,10 @@ enum ExerciseStage {
 /// 2. 5-second preparation countdown automatically starts
 /// 3. Transitions automatically into dark mode recording screen with animated waveform
 class RecordingScreen extends StatefulWidget {
-  const RecordingScreen({super.key});
+  /// When true (Begin exercise already fetched), skip a second API call + shimmer.
+  final bool promptAlreadyLoaded;
+
+  const RecordingScreen({super.key, this.promptAlreadyLoaded = false});
 
   @override
   State<RecordingScreen> createState() => _RecordingScreenState();
@@ -53,14 +59,28 @@ class _RecordingScreenState extends State<RecordingScreen>
   final SpeechToText _speech = SpeechToText();
   final AudioRecorder _audioRecorder = AudioRecorder();
   final ValueNotifier<double> _micLevel = ValueNotifier<double>(0.12);
+  StreamSubscription<Amplitude>? _ampSub;
   String _committedTranscript = '';
   String _partialTranscript = '';
   bool _finishing = false;
   bool _speechReady = false;
+  bool _speechResumeInFlight = false;
+  bool _fileRecorderActive = false;
   String? _audioTempPath;
+  Timer? _speechSoftWatchdog;
+  Timer? _idleWaveTimer;
+  DateTime? _lastSpeechResumeAt;
+  DateTime? _lastMicLevelAt;
+  double _idlePhase = 0;
 
   String get _liveTranscript =>
       '$_committedTranscript $_partialTranscript'.trim();
+
+  bool get _drillActive =>
+      !_finishing &&
+      mounted &&
+      _stage == ExerciseStage.recordingScreen &&
+      _speakingSecondsRemaining > 0;
 
   @override
   void initState() {
@@ -71,21 +91,35 @@ class _RecordingScreenState extends State<RecordingScreen>
       duration: const Duration(seconds: 5),
     );
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initSessionPrompt();
-    });
+    if (widget.promptAlreadyLoaded) {
+      // Apply prompt immediately — no shimmer flash after Begin exercise.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _applyPromptAndStart(
+          Provider.of<AppStateProvider>(context, listen: false),
+        );
+      });
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initSessionPrompt();
+      });
+    }
   }
 
   Future<void> _initSessionPrompt() async {
     final state = Provider.of<AppStateProvider>(context, listen: false);
-    // Prefer API catalog question when logged in.
-    if (state.isLoggedIn) {
+    // Begin exercise already loaded the question — do not fetch again (avoids
+    // stuck shimmer + same-question double call).
+    if (!widget.promptAlreadyLoaded && state.isLoggedIn) {
       try {
-        await state.fetchNextPromptFromApi();
+        await state.fetchNextPromptFromApi(excludeCurrent: true);
       } catch (_) {}
     }
     if (!mounted) return;
+    _applyPromptAndStart(state);
+  }
 
+  void _applyPromptAndStart(AppStateProvider state) {
     final activity = state.selectedActivity;
     final prompt = state.selectedPrompt;
 
@@ -178,8 +212,11 @@ class _RecordingScreenState extends State<RecordingScreen>
       _partialTranscript = '';
     });
 
-    unawaited(_startLocalAudioCapture());
-    unawaited(_startSpeechCapture());
+    // ONE mic owner only: file recorder.
+    // Dual capture (record + speech_to_text) causes on/off thrash — never both.
+    // Transcript comes from Gemini after upload of this local m4a (playback works too).
+    _startIdleWave();
+    unawaited(_startContinuousRecorder());
 
     _speakingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_speakingSecondsRemaining > 0) {
@@ -192,25 +229,67 @@ class _RecordingScreenState extends State<RecordingScreen>
     });
   }
 
-  Future<void> _startLocalAudioCapture() async {
+  /// Gentle pulse so the UI stays "alive" even in silence (timer still running).
+  void _startIdleWave() {
+    _idleWaveTimer?.cancel();
+    _lastMicLevelAt = DateTime.now();
+    _idleWaveTimer = Timer.periodic(const Duration(milliseconds: 80), (_) {
+      if (!_drillActive) return;
+      final last = _lastMicLevelAt;
+      final quiet = last == null ||
+          DateTime.now().difference(last) > const Duration(milliseconds: 350);
+      if (!quiet) return;
+      _idlePhase += 0.18;
+      final pulse = 0.14 + (math.sin(_idlePhase) + 1) * 0.08;
+      _micLevel.value = pulse.clamp(0.08, 0.45);
+    });
+  }
+
+  /// Soft STT recovery only — rare restarts, never start a second mic/file recorder.
+  void _startSoftSpeechWatchdog() {
+    _speechSoftWatchdog?.cancel();
+    _speechSoftWatchdog = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (!_drillActive || !_speechReady) return;
+      if (_speech.isListening || _speechResumeInFlight) return;
+      unawaited(_resumeSpeechCapture());
+    });
+  }
+
+  Future<void> _startContinuousRecorder() async {
     try {
       if (!await _audioRecorder.hasPermission()) return;
       _audioTempPath = await SessionAudioStore.instance.startTempPath();
+      // Speech-optimised AAC keeps analyze payloads under the API body limit.
       await _audioRecorder.start(
         const RecordConfig(
           encoder: AudioEncoder.aacLc,
-          bitRate: 96000,
-          sampleRate: 44100,
+          bitRate: 64000,
+          sampleRate: 16000,
           numChannels: 1,
         ),
         path: _audioTempPath!,
       );
+      _fileRecorderActive = true;
+      await _ampSub?.cancel();
+      _ampSub = _audioRecorder
+          .onAmplitudeChanged(const Duration(milliseconds: 55))
+          .listen((amp) {
+        // Current is typically ~-60 (quiet) to 0 (loud).
+        final raw = ((amp.current + 50) / 50).clamp(0.0, 1.0);
+        final level = math.pow(raw, 0.72).toDouble().clamp(0.08, 1.0);
+        _micLevel.value = level;
+        _lastMicLevelAt = DateTime.now();
+      });
     } catch (_) {
       _audioTempPath = null;
+      _fileRecorderActive = false;
     }
   }
 
-  Future<String?> _stopLocalAudioCapture() async {
+  Future<String?> _stopContinuousRecorder() async {
+    await _ampSub?.cancel();
+    _ampSub = null;
+    _fileRecorderActive = false;
     try {
       if (await _audioRecorder.isRecording()) {
         final path = await _audioRecorder.stop();
@@ -224,15 +303,7 @@ class _RecordingScreenState extends State<RecordingScreen>
     try {
       _speechReady = await _speech.initialize(
         onError: (_) {},
-        onStatus: (status) {
-          // Android often ends a listen session early; keep capturing
-          // until the drill timer finishes.
-          if (_finishing || !mounted) return;
-          if (_stage != ExerciseStage.recordingScreen) return;
-          if (status == 'done' || status == 'notListening') {
-            unawaited(_resumeSpeechCapture());
-          }
-        },
+        onStatus: (_) {},
       );
       if (!_speechReady || !mounted) return;
       await _resumeSpeechCapture();
@@ -242,17 +313,25 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   Future<void> _resumeSpeechCapture() async {
-    if (_finishing || !_speechReady || !mounted) return;
-    if (_speech.isListening) return;
-    // Commit leftover partial before a new listen segment (Android restarts).
+    if (!_drillActive || !_speechReady) return;
+    if (_speech.isListening || _speechResumeInFlight) return;
+    final now = DateTime.now();
+    if (_lastSpeechResumeAt != null &&
+        now.difference(_lastSpeechResumeAt!) < const Duration(seconds: 4)) {
+      return;
+    }
+    _speechResumeInFlight = true;
+    _lastSpeechResumeAt = now;
     if (_partialTranscript.isNotEmpty) {
       _committedTranscript =
           '$_committedTranscript $_partialTranscript'.trim();
       _partialTranscript = '';
     }
     try {
-      await _speech.listen(
+      final remaining = _speakingSecondsRemaining.clamp(5, 600);
+      final ok = await _speech.listen(
         onResult: (result) {
+          if (_finishing) return;
           final text = result.recognizedWords.trim();
           if (result.finalResult) {
             if (text.isNotEmpty) {
@@ -262,21 +341,36 @@ class _RecordingScreenState extends State<RecordingScreen>
           } else {
             _partialTranscript = text;
           }
+          if (mounted) setState(() {});
         },
         onSoundLevelChange: (level) {
-          // Platform levels are roughly -2..10 while speaking.
           final normalized = ((level + 2) / 12).clamp(0.08, 1.0);
           _micLevel.value = normalized;
+          _lastMicLevelAt = DateTime.now();
         },
         listenOptions: SpeechListenOptions(
           listenMode: ListenMode.dictation,
           partialResults: true,
           cancelOnError: false,
-          listenFor: Duration(seconds: _speakingTotalSeconds + 45),
-          pauseFor: const Duration(seconds: 45),
+          listenFor: Duration(seconds: remaining + 120),
+          pauseFor: Duration(seconds: remaining + 120),
         ),
       );
-    } catch (_) {}
+      if (ok != true && _drillActive) {
+        // listen() returned false — retry once after a beat.
+        await Future<void>.delayed(const Duration(milliseconds: 800));
+        if (_drillActive && !_speech.isListening) {
+          _speechResumeInFlight = false;
+          _lastSpeechResumeAt = null;
+          unawaited(_resumeSpeechCapture());
+          return;
+        }
+      }
+    } catch (_) {
+      // Keep the drill alive — timer + idle wave continue.
+    } finally {
+      _speechResumeInFlight = false;
+    }
   }
 
   Future<void> _finishSession() async {
@@ -286,42 +380,45 @@ class _RecordingScreenState extends State<RecordingScreen>
     _wordRevealTimer?.cancel();
     _prepCountdownTimer?.cancel();
     _speakingTimer?.cancel();
+    _speechSoftWatchdog?.cancel();
+    _idleWaveTimer?.cancel();
 
-    try {
-      if (_speech.isListening) {
-        await _speech.stop();
-      }
-    } catch (_) {}
-
-    final audioPath = await _stopLocalAudioCapture();
+    final audioPath = await _stopContinuousRecorder();
 
     final spoken = (_speakingTotalSeconds - _speakingSecondsRemaining)
         .clamp(1, _speakingTotalSeconds);
-    final transcript = _liveTranscript.trim();
+
+    String? audioBase64;
+    if (audioPath != null && audioPath.isNotEmpty) {
+      try {
+        final bytes = await File(audioPath).readAsBytes();
+        // ~2.5MB raw keeps the analyze payload under Vercel body limits.
+        if (bytes.isNotEmpty && bytes.length <= 2 * 1024 * 1024) {
+          audioBase64 = base64Encode(bytes);
+        }
+      } catch (_) {}
+    }
 
     if (!mounted) return;
 
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const Center(
-        child: CircularProgressIndicator(color: Color(0xFF2563EB)),
-      ),
-    );
-
     final state = Provider.of<AppStateProvider>(context, listen: false);
-    try {
-      await state.evaluateCurrentSession(
-        transcript: transcript,
+    final hasClip = audioBase64 != null && audioBase64.isNotEmpty;
+
+    await HakkiriLoadingOverlay.run(
+      context,
+      message: hasClip ? 'Transcribing your answer…' : 'Scoring your answer…',
+      detail: hasClip
+          ? 'Saving playback and scoring structure, pace, and fillers.'
+          : 'Matching your answer to the prompt — almost there.',
+      action: () => state.evaluateCurrentSession(
+        transcript: '',
         durationSeconds: spoken,
         conversationMode: 'single',
         localAudioTempPath: audioPath,
-      );
-    } finally {
-      if (mounted && Navigator.of(context).canPop()) {
-        Navigator.of(context).pop(); // loading dialog
-      }
-    }
+        audioBase64: audioBase64,
+        audioMimeType: 'audio/mp4',
+      ),
+    );
 
     if (!mounted) return;
     Navigator.pushReplacement(
@@ -335,10 +432,13 @@ class _RecordingScreenState extends State<RecordingScreen>
     _wordRevealTimer?.cancel();
     _prepCountdownTimer?.cancel();
     _speakingTimer?.cancel();
+    _speechSoftWatchdog?.cancel();
+    _idleWaveTimer?.cancel();
     _prepArcController.dispose();
+    unawaited(_ampSub?.cancel());
     unawaited(_speech.stop());
     unawaited(_speech.cancel());
-    unawaited(_stopLocalAudioCapture());
+    unawaited(_stopContinuousRecorder());
     unawaited(_audioRecorder.dispose());
     _micLevel.dispose();
     super.dispose();

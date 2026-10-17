@@ -6,6 +6,8 @@ import '../models/assessment_model.dart';
 import '../models/activity_model.dart';
 import '../models/session_model.dart';
 import '../core/services/analytics_service.dart';
+import '../core/services/apple_auth_service.dart';
+import '../core/services/coach_tts_service.dart';
 import '../core/services/google_auth_service.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../core/services/push_notification_service.dart';
@@ -24,6 +26,8 @@ class AppStateProvider extends ChangeNotifier {
   bool isOnboarded = false;
   bool isLoggedIn = false;
   bool isBootstrapping = false;
+  /// False until the first home bootstrap finishes (shows shimmer, not placeholder data).
+  bool hasBootstrapped = false;
 
   // Assessment State
   final AssessmentAnswers answers = AssessmentAnswers();
@@ -31,8 +35,8 @@ class AppStateProvider extends ChangeNotifier {
 
   // Subscription State
   String subscriptionTier = 'free_trial';
-  String subscriptionStatus = 'trialing';
-  String subscriptionPriceFormatted = '7-day trial';
+  String subscriptionStatus = 'expired';
+  String subscriptionPriceFormatted = 'No active plan';
   String subscriptionRenewalLabel = '';
   bool isSubscribed = false;
 
@@ -75,6 +79,8 @@ class AppStateProvider extends ChangeNotifier {
 
   // Last evaluation feedback
   EvaluationFeedback? latestFeedback;
+  /// Most recent scored drill (for feedback playback + Progress reopen).
+  PracticeSessionRecord? latestSession;
 
   static const careerLabels = {
     'corporate_finance': 'Corporate & Finance',
@@ -115,9 +121,15 @@ class AppStateProvider extends ChangeNotifier {
   };
 
   static const voiceLabels = {
-    'male': 'Male',
-    'female': 'Female',
-    'non_binary': 'Non-binary / Vocal alignment',
+    'sarah': 'Sarah',
+    'david': 'David',
+    'elena': 'Elena',
+    'marcus': 'Marcus',
+    'alex': 'Alex',
+    // Backward compatibility aliases
+    'female': 'Sarah',
+    'male': 'David',
+    'non_binary': 'Alex',
   };
 
   String get careerTypeLabel =>
@@ -212,6 +224,7 @@ class AppStateProvider extends ChangeNotifier {
     _initCatalog();
     selectedActivity = activities.first;
     _updateSelectedPrompt();
+    answers.voiceProfile = CoachTtsService.instance.activeCoachId;
     _sessionReady = _restoreSession();
   }
 
@@ -320,6 +333,37 @@ class AppStateProvider extends ChangeNotifier {
     return data;
   }
 
+  Future<Map<String, dynamic>> continueWithApple() async {
+    final apple = await AppleAuthService.signIn();
+    _resetAssessmentLocalState(clearOnboardedFlag: false);
+    final data = await _api.loginWithApple(
+      idToken: apple.idToken,
+      fullName: apple.displayName,
+    );
+    _applyAuthPayload(data);
+    final created = data['created'] == true;
+    if (created) {
+      unawaited(AnalyticsService.instance.logSignUp(method: 'apple'));
+    } else {
+      unawaited(AnalyticsService.instance.logLogin(method: 'apple'));
+    }
+    final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
+    final apiSaysNeedsOnboarding = data['needs_onboarding'] == true;
+    final apiSaysComplete = data['onboarding_complete'] == true ||
+        profile['onboarding_complete'] == true;
+    final done = data.containsKey('needs_onboarding')
+        ? !apiSaysNeedsOnboarding
+        : (!created && apiSaysComplete);
+    isOnboarded = done;
+    await _api.persistOnboarded(done);
+    unawaited(PushNotificationService.instance.syncTokenToApi());
+    if (!created) {
+      unawaited(refreshFromApi());
+    }
+    notifyListeners();
+    return data;
+  }
+
   void _resetAssessmentLocalState({bool clearOnboardedFlag = true}) {
     answers.voiceProfile = null;
     answers.careerStage = null;
@@ -365,6 +409,26 @@ class AppStateProvider extends ChangeNotifier {
     final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
     _applyProfile(profile);
     notifyListeners();
+  }
+
+  /// Coach voice used for suggested-answer TTS (male / female / non_binary).
+  Future<void> updateVoiceProfile(String voiceProfile) async {
+    final key = voiceProfile.trim();
+    if (!voiceLabels.containsKey(key)) {
+      throw HakkiriApiException('Pick a valid coach voice.');
+    }
+    answers.voiceProfile = key;
+    CoachTtsService.instance.setActiveCoach(key);
+    notifyListeners();
+    if (!isLoggedIn) return;
+    try {
+      final data = await _api.updateSettings({'voice_profile': key});
+      final settings = (data['settings'] as Map<String, dynamic>?) ?? {};
+      _applySettings(settings);
+      notifyListeners();
+    } catch (_) {
+      // Keep local selection even if sync fails.
+    }
   }
 
   /// Backend allows only 5, 10, or 15 minutes for the daily practice anchor.
@@ -415,6 +479,8 @@ class AppStateProvider extends ChangeNotifier {
     email = '';
     isLoggedIn = false;
     isOnboarded = false;
+    isBootstrapping = false;
+    hasBootstrapped = false;
     answers.voiceProfile = null;
     answers.careerStage = null;
     answers.careerType = null;
@@ -599,6 +665,7 @@ class AppStateProvider extends ChangeNotifier {
     }
     if (settings['voice_profile'] != null) {
       answers.voiceProfile = settings['voice_profile'].toString();
+      CoachTtsService.instance.setActiveCoach(answers.voiceProfile!);
     }
   }
 
@@ -612,8 +679,13 @@ class AppStateProvider extends ChangeNotifier {
 
   Future<void> refreshFromApi() async {
     if (!_api.isLoggedIn) return;
-    isBootstrapping = true;
-    notifyListeners();
+    // Only block the home UI with shimmer on the first load — later refreshes
+    // update quietly so the screen doesn't flash placeholders again.
+    final showHomeShimmer = !hasBootstrapped;
+    if (showHomeShimmer) {
+      isBootstrapping = true;
+      notifyListeners();
+    }
     try {
       final data = await _api.bootstrap(limit: 30);
 
@@ -680,6 +752,7 @@ class AppStateProvider extends ChangeNotifier {
     } catch (_) {
       // Keep last good local snapshot if a refresh fails.
     } finally {
+      hasBootstrapped = true;
       isBootstrapping = false;
       notifyListeners();
     }
@@ -1158,20 +1231,30 @@ class AppStateProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  void selectSubscription(String tier) {
-    subscriptionTier = tier;
-    final isAnnual = tier == 'annual_pro';
+  /// Call only after a verified Play/App Store purchase (or restore).
+  Future<void> activatePaidPlan(String tier) async {
+    final normalized =
+        tier == 'annual_pro' || tier == 'annual' ? 'annual_pro' : 'monthly_pro';
+    final isAnnual = normalized == 'annual_pro';
+    subscriptionTier = normalized;
+    subscriptionStatus = 'active';
     subscriptionPriceFormatted = isAnnual ? '£69.99/yr' : '£9.99/mo';
     isSubscribed = true;
     _supabase.updateSubscription(
       userId: userId,
-      tier: tier,
+      tier: normalized,
       priceGbp: isAnnual ? 69.99 : 9.99,
     );
-    notifyListeners();
     if (isLoggedIn) {
-      choosePlanFromApi(tier);
+      await choosePlanFromApi(normalized);
     }
+    await markOnboardedComplete();
+    notifyListeners();
+  }
+
+  @Deprecated('Use activatePaidPlan after a real IAP purchase')
+  void selectSubscription(String tier) {
+    unawaited(activatePaidPlan(tier));
   }
 
   void selectActivity(String slug) {
@@ -1193,62 +1276,96 @@ class AppStateProvider extends ChangeNotifier {
   }
 
   /// Pull the next practice question from the API catalog (Mongo prompts).
-  Future<void> fetchNextPromptFromApi() async {
+  /// Pass [excludeCurrent] so Begin exercise does not repeat the last question.
+  Future<bool> fetchNextPromptFromApi({bool excludeCurrent = true}) async {
     final activity = selectedActivity;
-    if (!_api.isLoggedIn || activity == null) return;
+    if (activity == null) return false;
+    if (!_api.isLoggedIn) {
+      rotateLocalPrompt();
+      return true;
+    }
     try {
       final difficulty = selectedDifficulty == 'pro'
           ? 'professional'
           : selectedDifficulty == 'i_dont_know'
               ? 'intermediary'
               : selectedDifficulty;
+      final excludeId = excludeCurrent &&
+              selectedPrompt != null &&
+              selectedPrompt!.activitySlug == activity.slug &&
+              _looksLikeCatalogPromptId(selectedPrompt!.id)
+          ? selectedPrompt!.id
+          : null;
       final data = await _api.nextPrompt(
         activitySlug: activity.slug,
         difficulty: difficulty,
         careerType: answers.careerType,
+        excludePromptId: excludeId,
       );
       final promptMap = data['prompt'];
       if (promptMap is Map) {
         selectedPrompt =
             PromptModel.fromJson(Map<String, dynamic>.from(promptMap));
         notifyListeners();
+        return true;
       }
     } catch (_) {
-      // Keep local promptBank selection if the network call fails.
+      // Network failed — still rotate locally so the same question does not stick.
+      rotateLocalPrompt();
+      return true;
     }
+    rotateLocalPrompt();
+    return true;
   }
 
-  void _updateSelectedPrompt() {
+  void _updateSelectedPrompt({bool forceRotate = false}) {
     if (selectedActivity == null) return;
 
-    // If we already hold a catalog prompt for this activity (from /prompts/next),
-    // do not overwrite it with the local stakeholder default.
-    if (selectedPrompt != null &&
+    // Keep a fresh API catalog prompt unless we explicitly rotate.
+    if (!forceRotate &&
+        selectedPrompt != null &&
         selectedPrompt!.activitySlug == selectedActivity!.slug &&
         _looksLikeCatalogPromptId(selectedPrompt!.id)) {
       return;
     }
 
-    // Career specific prompt matching based on assessment:
+    final currentId = selectedPrompt?.id;
     final career = answers.careerType;
+    List<PromptModel> pool = promptBank
+        .where((p) => p.activitySlug == selectedActivity!.slug)
+        .toList();
+
+    final targetDiff = selectedDifficulty == 'i_dont_know'
+        ? 'intermediary'
+        : selectedDifficulty;
+    final byDiff =
+        pool.where((p) => p.difficulty == targetDiff).toList();
+    if (byDiff.isNotEmpty) pool = byDiff;
+
     if (career != null && career.isNotEmpty) {
-      final careerMatches = promptBank.where((p) =>
-          p.activitySlug == selectedActivity!.slug &&
-          p.tags.contains(career)).toList();
-      if (careerMatches.isNotEmpty) {
-        selectedPrompt = careerMatches.first;
-        return;
+      final careerMatches =
+          pool.where((p) => p.tags.contains(career)).toList();
+      // Soft prefer career tags only when there is real variety.
+      if (careerMatches.length >= 3) {
+        pool = careerMatches;
       }
     }
 
-    final targetDiff = selectedDifficulty == 'i_dont_know' ? 'intermediary' : selectedDifficulty;
-    final matches = promptBank.where((p) => p.activitySlug == selectedActivity!.slug && p.difficulty == targetDiff).toList();
-    if (matches.isNotEmpty) {
-      selectedPrompt = matches.first;
-    } else {
-      final actMatches = promptBank.where((p) => p.activitySlug == selectedActivity!.slug).toList();
-      selectedPrompt = actMatches.isNotEmpty ? actMatches.first : promptBank.first;
+    if (pool.isEmpty) {
+      selectedPrompt = promptBank.first;
+      return;
     }
+
+    final fresh = pool.where((p) => p.id != currentId).toList();
+    final pickFrom = fresh.isNotEmpty ? fresh : pool;
+    pickFrom.shuffle();
+    selectedPrompt = pickFrom.first;
+  }
+
+  /// Offline / API-fail fallback: rotate to a different local prompt.
+  void rotateLocalPrompt() {
+    _updateSelectedPrompt(forceRotate: true);
+    notifyListeners();
   }
 
   Future<EvaluationFeedback> evaluateCurrentSession({
@@ -1258,6 +1375,8 @@ class AppStateProvider extends ChangeNotifier {
     String conversationMode = 'single',
     List<ConversationTurn> conversationTurns = const [],
     String? localAudioTempPath,
+    String? audioBase64,
+    String audioMimeType = 'audio/mp4',
   }) async {
     final prompt = selectedPrompt ?? promptBank.first;
     final mode =
@@ -1266,20 +1385,62 @@ class AppStateProvider extends ChangeNotifier {
     // Prefer Gemini Flash analysis via API (doc requirement).
     // Fall back to on-device heuristic only if the AI call fails / offline.
     EvaluationFeedback feedback;
+    var resolvedTranscript = transcript.trim();
     try {
-      feedback = await _analyzeSpeechViaApi(
+      final analyzed = await _analyzeSpeechViaApi(
         prompt: prompt,
-        transcript: transcript,
+        transcript: resolvedTranscript,
         durationSeconds: durationSeconds,
         isRetry: isRetry,
+        audioBase64: audioBase64,
+        audioMimeType: audioMimeType,
       );
-    } catch (_) {
-      feedback = SpeechEvaluatorService.evaluateSpeech(
-        prompt: prompt,
-        transcript: transcript,
-        durationSeconds: durationSeconds,
-        isRetry: isRetry,
-      );
+      feedback = analyzed.feedback;
+      if (analyzed.transcript.trim().isNotEmpty) {
+        resolvedTranscript = analyzed.transcript.trim();
+      }
+    } catch (err) {
+      // If we have a recording but scoring failed, do NOT pretend the user
+      // said nothing ("no clear speech") — that was a false local fallback.
+      if ((audioBase64 ?? '').isNotEmpty && resolvedTranscript.isEmpty) {
+        // Never surface raw AI/model errors in the coach UI.
+        feedback = EvaluationFeedback(
+          overallScore: 2,
+          pillars: const FourPillarsScore(
+            executiveScore: 2,
+            clarityScore: 2,
+            impactScore: 2,
+            engagementScore: 2,
+            crutchCount: 0,
+            powerPauseCount: 0,
+            pacingWpm: 0,
+            intelligibilityPercentage: 50,
+            actionVerbPercentage: 40,
+            isMonotoneWarning: false,
+          ),
+          oneStrength: 'Your voice recording was saved on this device.',
+          oneSpecificImprovement:
+              'We could not score this take yet. Tap Try again in a moment.',
+          highlightedPhrase: const HighlightedPhrase(
+            timestampRange: '00:00 - 00:05',
+            phrase: 'Your answer was recorded.',
+            critique:
+                'Scoring is temporarily unavailable. Please try once more.',
+          ),
+          retryInstruction:
+              'Tap Try again. Keep the answer under ~60 seconds.',
+          exemplarResponse: prompt.exemplarResponse,
+          isCoachedRetry: isRetry,
+          withholdJudgement: true,
+        );
+      } else {
+        feedback = SpeechEvaluatorService.evaluateSpeech(
+          prompt: prompt,
+          transcript: resolvedTranscript,
+          durationSeconds: durationSeconds,
+          isRetry: isRetry,
+        );
+      }
     }
 
     latestFeedback = feedback;
@@ -1303,7 +1464,7 @@ class AppStateProvider extends ChangeNotifier {
               ? '${prompt.promptText.substring(0, 40)}...'
               : prompt.promptText),
       promptText: prompt.promptText,
-      transcript: transcript,
+      transcript: resolvedTranscript,
       conversationMode: mode,
       conversationTurns: conversationTurns,
       timestamp: DateTime.now(),
@@ -1311,6 +1472,7 @@ class AppStateProvider extends ChangeNotifier {
       feedback: feedback,
       localAudioPath: audioPath,
     );
+    latestSession = record;
     sessionHistory.insert(0, record);
 
     // Save session in Supabase backend (best-effort / legacy)
@@ -1318,7 +1480,7 @@ class AppStateProvider extends ChangeNotifier {
       userId: userId,
       activitySlug: prompt.activitySlug,
       promptId: prompt.id,
-      transcript: transcript,
+      transcript: resolvedTranscript,
       feedback: feedback,
     );
 
@@ -1342,7 +1504,7 @@ class AppStateProvider extends ChangeNotifier {
     if (isLoggedIn) {
       await _persistSessionToApi(
         prompt: prompt,
-        transcript: transcript,
+        transcript: resolvedTranscript,
         durationSeconds: durationSeconds,
         feedback: feedback,
         isRetry: isRetry,
@@ -1359,11 +1521,13 @@ class AppStateProvider extends ChangeNotifier {
     return feedback;
   }
 
-  Future<EvaluationFeedback> _analyzeSpeechViaApi({
+  Future<({EvaluationFeedback feedback, String transcript})> _analyzeSpeechViaApi({
     required PromptModel prompt,
     required String transcript,
     required int durationSeconds,
     required bool isRetry,
+    String? audioBase64,
+    String audioMimeType = 'audio/mp4',
   }) async {
     if (!_api.isLoggedIn) {
       throw HakkiriApiException('Sign in required for AI scoring.');
@@ -1391,13 +1555,23 @@ class AppStateProvider extends ChangeNotifier {
       'transcript': transcript,
       'duration_seconds': durationSeconds,
       'is_coached_retry': isRetry,
+      if (audioBase64 != null && audioBase64.isNotEmpty) ...{
+        'audio_base64': audioBase64,
+        'audio_mime_type': audioMimeType,
+      },
     });
 
     final feedbackMap = data['feedback'];
     if (feedbackMap is! Map) {
       throw HakkiriApiException('AI analysis returned no feedback.');
     }
-    return EvaluationFeedback.fromJson(Map<String, dynamic>.from(feedbackMap));
+    final fromApi = (data['transcript'] ?? transcript).toString();
+    return (
+      feedback: EvaluationFeedback.fromJson(
+        Map<String, dynamic>.from(feedbackMap),
+      ),
+      transcript: fromApi,
+    );
   }
 
   bool _looksLikeCatalogPromptId(String id) {
@@ -1468,18 +1642,22 @@ class AppStateProvider extends ChangeNotifier {
         );
         final audio = localAudioPath ??
             await SessionAudioStore.instance.pathFor(apiRecord.id);
+        final merged = apiRecord.copyWith(
+          localAudioPath: audio,
+          // Preserve full prompt/transcript if API omitted older fields.
+          promptText: apiRecord.promptText.isNotEmpty
+              ? apiRecord.promptText
+              : prompt.promptText,
+          transcript: apiRecord.transcript.isNotEmpty
+              ? apiRecord.transcript
+              : transcript,
+        );
         final idx = sessionHistory.indexWhere((s) => s.id == localRecordId);
         if (idx >= 0) {
-          sessionHistory[idx] = apiRecord.copyWith(
-            localAudioPath: audio,
-            // Preserve full prompt/transcript if API omitted older fields.
-            promptText: apiRecord.promptText.isNotEmpty
-                ? apiRecord.promptText
-                : prompt.promptText,
-            transcript: apiRecord.transcript.isNotEmpty
-                ? apiRecord.transcript
-                : transcript,
-          );
+          sessionHistory[idx] = merged;
+        }
+        if (latestSession?.id == localRecordId) {
+          latestSession = merged;
         }
       }
       await refreshFromApi();
@@ -1495,5 +1673,32 @@ class AppStateProvider extends ChangeNotifier {
     totalXp += 50; // XP kept separate from skill scores
     completedSessions += 1;
     notifyListeners();
+  }
+
+  Future<bool> deleteSession(String sessionId) async {
+    try {
+      if (isLoggedIn) {
+        try {
+          await _api.deleteSession(sessionId);
+        } catch (_) {}
+      }
+      await SessionAudioStore.instance.remove(sessionId);
+      sessionHistory.removeWhere((s) => s.id == sessionId);
+      if (latestSession?.id == sessionId) {
+        latestSession = sessionHistory.isNotEmpty ? sessionHistory.first : null;
+      }
+      if (completedSessions > 0) {
+        completedSessions -= 1;
+      }
+      notifyListeners();
+      return true;
+    } catch (_) {
+      sessionHistory.removeWhere((s) => s.id == sessionId);
+      if (latestSession?.id == sessionId) {
+        latestSession = sessionHistory.isNotEmpty ? sessionHistory.first : null;
+      }
+      notifyListeners();
+      return false;
+    }
   }
 }

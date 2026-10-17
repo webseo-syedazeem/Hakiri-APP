@@ -6,10 +6,12 @@ import '../core/services/hakkiri_api_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/auth_waveform_watermark.dart';
+import '../widgets/google_logo.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/hakkiri_logo.dart';
+import 'assessment_screen.dart';
 import 'home_screen.dart';
-import 'landing_screen.dart';
+import 'locked_profile_screen.dart';
 import 'login_screen.dart';
 
 class SignupScreen extends StatefulWidget {
@@ -80,11 +82,11 @@ class _SignupScreenState extends State<SignupScreen> {
             ),
       );
       if (!mounted) return;
-      // New account: Signup → Onboarding → Assessment → Home
+      // Funnel: Get started → onboarding → Signup → Assessment → Home
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (_) => const LandingScreen(postSignup: true),
+          builder: (_) => const AssessmentScreen(),
         ),
         (route) => false,
       );
@@ -118,9 +120,14 @@ class _SignupScreenState extends State<SignupScreen> {
       final needsOnboarding = data.containsKey('needs_onboarding')
           ? data['needs_onboarding'] == true
           : (created || profile['onboarding_complete'] != true);
-      final next = needsOnboarding
-          ? const LandingScreen(postSignup: true)
-          : const HomeScreen();
+      final Widget next;
+      if (needsOnboarding) {
+        next = const AssessmentScreen();
+      } else if (!state.isSubscribed) {
+        next = const LockedProfileScreen();
+      } else {
+        next = const HomeScreen();
+      }
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => next),
@@ -142,8 +149,55 @@ class _SignupScreenState extends State<SignupScreen> {
     }
   }
 
-  void _handleAppleSignup() {
-    _showMessage('Apple Sign-In coming soon. Use Google or email for now.');
+  Future<void> _handleAppleSignup() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    try {
+      final state = context.read<AppStateProvider>();
+      late final Map<String, dynamic> data;
+      await HakkiriLoadingOverlay.run(
+        context,
+        message: 'Getting your information…',
+        detail: 'Signing you in with Apple.',
+        action: () async {
+          data = await state.continueWithApple();
+        },
+      );
+      if (!mounted) return;
+      final created = data['created'] == true;
+      final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
+      final needsOnboarding = data.containsKey('needs_onboarding')
+          ? data['needs_onboarding'] == true
+          : (created || profile['onboarding_complete'] != true);
+      final Widget next;
+      if (needsOnboarding) {
+        next = const AssessmentScreen();
+      } else if (!state.isSubscribed) {
+        next = const LockedProfileScreen();
+      } else {
+        next = const HomeScreen();
+      }
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => next),
+        (route) => false,
+      );
+    } on HakkiriApiException catch (e) {
+      _showMessage(e.message);
+    } catch (e) {
+      final msg = e.toString();
+      if (msg.contains('canceled') ||
+          msg.contains('cancelled') ||
+          msg.contains('AuthorizationErrorCode.canceled')) {
+        _showMessage('Apple sign-in was cancelled.');
+      } else if (msg.contains('not available')) {
+        _showMessage('Apple Sign-In needs an iPhone. Use Google or email on Android.');
+      } else {
+        _showMessage('Apple sign-in failed. Try again on a real iPhone.');
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -258,25 +312,43 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Social Auth Buttons (Apple & Google)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildSocialButton(
-                          label: 'Apple',
-                          icon: Icons.apple_rounded,
-                          onTap: _isSubmitting ? () {} : _handleAppleSignup,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _buildSocialButton(
-                          label: 'Google',
-                          isGoogle: true,
-                          onTap: _isSubmitting ? () {} : _handleGoogleSignup,
-                        ),
-                      ),
-                    ],
+                  // iOS: Apple + Google. Android: Google full width (no Apple).
+                  Builder(
+                    builder: (context) {
+                      final isIOS =
+                          Theme.of(context).platform == TargetPlatform.iOS;
+                      if (!isIOS) {
+                        return SizedBox(
+                          width: double.infinity,
+                          child: _buildSocialButton(
+                            label: 'Google',
+                            isGoogle: true,
+                            onTap: _isSubmitting ? () {} : _handleGoogleSignup,
+                          ),
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: _buildSocialButton(
+                              label: 'Apple',
+                              icon: Icons.apple_rounded,
+                              onTap:
+                                  _isSubmitting ? () {} : _handleAppleSignup,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: _buildSocialButton(
+                              label: 'Google',
+                              isGoogle: true,
+                              onTap:
+                                  _isSubmitting ? () {} : _handleGoogleSignup,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
 
                   const Spacer(),
@@ -394,14 +466,7 @@ class _SignupScreenState extends State<SignupScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (isGoogle)
-                const Text(
-                  'G',
-                  style: TextStyle(
-                    color: Color(0xFF2563EB),
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                  ),
-                )
+                const GoogleLogo(size: 20)
               else if (icon != null)
                 Icon(icon, color: const Color(0xFF0F172A), size: 20),
               const SizedBox(width: 8),

@@ -95,6 +95,49 @@ class ConversationTurn {
       );
 }
 
+class ActivityMeasureScore {
+  final String key;
+  final String label;
+  final double weight;
+  final int? score;
+  final bool included;
+  final double effectiveWeight;
+  final bool isHeaviest;
+
+  const ActivityMeasureScore({
+    required this.key,
+    required this.label,
+    required this.weight,
+    required this.score,
+    this.included = true,
+    this.effectiveWeight = 0,
+    this.isHeaviest = false,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'label': label,
+        'weight': weight,
+        'score': score,
+        'included': included,
+        'effective_weight': effectiveWeight,
+        'is_heaviest': isHeaviest,
+      };
+
+  factory ActivityMeasureScore.fromJson(Map<String, dynamic> json) =>
+      ActivityMeasureScore(
+        key: (json['key'] ?? '').toString(),
+        label: (json['label'] ?? json['key'] ?? '').toString(),
+        weight: (json['weight'] is num) ? (json['weight'] as num).toDouble() : 0,
+        score: json['score'] is num ? (json['score'] as num).round() : null,
+        included: json['included'] != false && json['score'] != null,
+        effectiveWeight: (json['effective_weight'] is num)
+            ? (json['effective_weight'] as num).toDouble()
+            : 0,
+        isHeaviest: json['is_heaviest'] == true,
+      );
+}
+
 class EvaluationFeedback {
   final int overallScore; // 1 to 5
   final FourPillarsScore pillars;
@@ -104,6 +147,10 @@ class EvaluationFeedback {
   final String retryInstruction;
   final String exemplarResponse;
   final bool isCoachedRetry;
+  final List<ActivityMeasureScore> activityMeasures;
+  final bool withholdJudgement;
+  final bool capped;
+  final String? scoringReason;
 
   const EvaluationFeedback({
     required this.overallScore,
@@ -114,6 +161,10 @@ class EvaluationFeedback {
     required this.retryInstruction,
     required this.exemplarResponse,
     required this.isCoachedRetry,
+    this.activityMeasures = const [],
+    this.withholdJudgement = false,
+    this.capped = false,
+    this.scoringReason,
   });
 
   Map<String, dynamic> toJson() => {
@@ -125,12 +176,60 @@ class EvaluationFeedback {
         'retry_instruction': retryInstruction,
         'exemplar_response': exemplarResponse,
         'is_coached_retry': isCoachedRetry,
+        if (activityMeasures.isNotEmpty)
+          'activity_measures':
+              activityMeasures.map((m) => m.toJson()).toList(),
+        'withhold_judgement': withholdJudgement,
+        if (scoringReason != null || capped)
+          'scoring': {
+            'engine': 'weighted_cap_v1',
+            'capped': capped,
+            'withhold_judgement': withholdJudgement,
+            'reason': scoringReason,
+          },
       };
 
   factory EvaluationFeedback.fromJson(Map<String, dynamic>? json) {
     final map = json ?? const <String, dynamic>{};
     final phrase = (map['highlighted_phrase'] as Map<String, dynamic>?) ?? {};
     final overall = map['overall_score'];
+    final scoring = map['scoring'] is Map
+        ? Map<String, dynamic>.from(map['scoring'] as Map)
+        : const <String, dynamic>{};
+
+    final measuresRaw = map['activity_measures'];
+    final measures = <ActivityMeasureScore>[];
+    if (measuresRaw is List) {
+      for (final item in measuresRaw) {
+        if (item is Map) {
+          measures.add(
+            ActivityMeasureScore.fromJson(Map<String, dynamic>.from(item)),
+          );
+        }
+      }
+    } else if (measuresRaw is Map) {
+      for (final entry in measuresRaw.entries) {
+        final v = entry.value;
+        if (v is Map) {
+          measures.add(
+            ActivityMeasureScore.fromJson({
+              'key': entry.key,
+              ...Map<String, dynamic>.from(v),
+            }),
+          );
+        } else if (v is num) {
+          measures.add(
+            ActivityMeasureScore(
+              key: entry.key.toString(),
+              label: entry.key.toString(),
+              weight: 0,
+              score: v.round(),
+            ),
+          );
+        }
+      }
+    }
+
     return EvaluationFeedback(
       overallScore: overall is num ? overall.round().clamp(1, 5) : 3,
       pillars: FourPillarsScore.fromJson(map['pillars'] as Map<String, dynamic>?),
@@ -144,6 +243,11 @@ class EvaluationFeedback {
       retryInstruction: (map['retry_instruction'] ?? '').toString(),
       exemplarResponse: (map['exemplar_response'] ?? '').toString(),
       isCoachedRetry: map['is_coached_retry'] == true,
+      activityMeasures: measures,
+      withholdJudgement:
+          map['withhold_judgement'] == true || scoring['withhold_judgement'] == true,
+      capped: scoring['capped'] == true,
+      scoringReason: scoring['reason']?.toString(),
     );
   }
 }

@@ -7,8 +7,9 @@ import '../widgets/custom_sparkline.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/orbital_background_painter.dart';
 import 'activity_detail_screen.dart';
+import 'all_sessions_screen.dart';
+import 'feedback_screen.dart';
 import 'main_tab_scaffold.dart';
-import 'session_detail_screen.dart';
 
 class ProgressScreen extends StatelessWidget {
   const ProgressScreen({super.key});
@@ -55,7 +56,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
             filteredSessions.length)
         : state.overallAverage;
     final overallText = periodAverage == null
-        ? '—'
+        ? '0.0'
         : periodAverage.toStringAsFixed(1);
 
     final fluency = _periodPillarStat(filteredSessions, state, 'executive_presence');
@@ -351,33 +352,14 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
             const SizedBox(height: 24),
 
             // SKILL BREAKDOWN Section Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'SKILL BREAKDOWN',
-                  style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.2,
-                  ),
-                ),
-                Row(
-                  children: const [
-                    Text(
-                      'Tap a skill to see more details',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(width: 2),
-                    Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.textMuted),
-                  ],
-                ),
-              ],
+            const Text(
+              'SKILL BREAKDOWN',
+              style: TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.2,
+              ),
             ),
             const SizedBox(height: 12),
 
@@ -646,8 +628,8 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                   ],
                 ),
               )
-            else
-              ...filteredSessions.take(10).map((session) {
+            else ...[
+              ...filteredSessions.take(3).map((session) {
                 final score = session.feedback.overallScore;
                 final minutes = (session.durationSeconds / 60).ceil().clamp(1, 99);
                 final modeTag = session.isBackAndForth ? ' · Chat' : '';
@@ -667,13 +649,70 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => SessionDetailScreen(session: session),
+                          builder: (_) => FeedbackScreen(
+                            session: session,
+                            fromHistory: true,
+                          ),
                         ),
                       );
                     },
                   ),
                 );
               }),
+              if (filteredSessions.length > 3)
+                Padding(
+                  padding: const EdgeInsets.only(top: 2, bottom: 8),
+                  child: Material(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AllSessionsScreen(
+                              initialFilterIndex: _selectedFilter,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AppColors.royalBlue.withValues(alpha: 0.25),
+                            width: 1.2,
+                          ),
+                          color: AppColors.royalBlue.withValues(alpha: 0.04),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'See all ${filteredSessions.length} sessions',
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                color: AppColors.royalBlue,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            const Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 15,
+                              color: AppColors.royalBlue,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
             const SizedBox(height: 28),
           ],
         ),
@@ -724,14 +763,16 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
   ) {
     final raw = state.pillarStats[key];
     if (raw is! Map) {
-      return ('--', true, null, null, const [2.0, 2.0, 2.0]);
+      return ('Locked', true, '3 drills needed', null, const [2.0, 2.0, 2.0]);
     }
     final map = Map<String, dynamic>.from(raw);
     final average = map['average'];
     final samples = (map['samples'] as num?)?.round() ?? 0;
     final locked = map['status'] == 'need_more' || average == null || samples < 3;
     if (locked) {
-      return ('--', true, null, null, const [2.0, 2.0, 2.0]);
+      final needed = (3 - samples).clamp(1, 3);
+      final msg = '$needed more drill${needed == 1 ? '' : 's'} needed';
+      return ('Locked', true, msg, null, const [2.0, 2.0, 2.0]);
     }
     final value = (average as num).toDouble();
     return (
@@ -967,21 +1008,15 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: iconBgColor,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: Icon(icon, color: iconColor, size: 18),
-              ),
-              const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
-            ],
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: iconBgColor,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            alignment: Alignment.center,
+            child: Icon(icon, color: iconColor, size: 18),
           ),
           const SizedBox(height: 8),
           Text(
@@ -1000,15 +1035,26 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
               if (isLocked) ...[
                 const Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.textMuted),
                 const SizedBox(width: 4),
-              ],
-              Text(
-                scoreText,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
+                const Text(
+                  'Locked',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: AppColors.textMuted,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
+              ] else ...[
+                Text(
+                  scoreText,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    color: AppColors.textPrimary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
               if (deltaText != null) ...[
                 const SizedBox(width: 6),
                 Flexible(
@@ -1017,9 +1063,12 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: isDeltaPositive == true
-                          ? const Color(0xFF10B981)
-                          : const Color(0xFFEF4444),
+                      fontFamily: 'Inter',
+                      color: isLocked
+                          ? AppColors.textMuted
+                          : (isDeltaPositive == true
+                              ? const Color(0xFF10B981)
+                              : const Color(0xFFEF4444)),
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),

@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [
       function () {
-        return this.authProvider !== "google";
+        return this.authProvider !== "google" && this.authProvider !== "apple";
       },
       "Password is required",
     ],
@@ -30,9 +30,15 @@ const userSchema = new mongoose.Schema({
     unique: true,
     trim: true,
   },
+  appleId: {
+    type: String,
+    sparse: true,
+    unique: true,
+    trim: true,
+  },
   authProvider: {
     type: String,
-    enum: ["password", "google"],
+    enum: ["password", "google", "apple"],
     default: "password",
   },
   avatarUrl: {

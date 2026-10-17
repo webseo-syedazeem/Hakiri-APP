@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../core/services/push_notification_service.dart';
 import '../providers/app_state_provider.dart';
+import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/hakkiri_logo.dart';
+import '../widgets/shimmer_loading.dart';
 import 'activity_detail_screen.dart';
 import 'live_conversation_screen.dart';
 import 'main_tab_scaffold.dart';
@@ -21,7 +24,16 @@ class HomeScreenContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      PushNotificationService.instance.requestPermissionOnHomeScreen();
+    });
+
     final state = Provider.of<AppStateProvider>(context);
+    // First open: shimmer until API bootstrap — don't flash default placeholder data.
+    if (state.isLoggedIn && !state.hasBootstrapped) {
+      return const HomeLoadingShimmer();
+    }
+
     final completedCount = state.completedTodayDrills();
     final bool hasStarted = completedCount > 0 || state.completedSessions > 0;
     final weekDays = state.practiceDaysThisWeek;
@@ -475,10 +487,28 @@ class HomeScreenContent extends StatelessWidget {
             const SizedBox(height: 18),
 
             GestureDetector(
-              onTap: () {
-                Navigator.push(
+              onTap: () async {
+                final nav = Navigator.of(context);
+                final app = context.read<AppStateProvider>();
+                // Prefer today's plan activity so Live Coach stays in work context.
+                final drills = app.todayDrillSlugs;
+                final slug = drills.isNotEmpty
+                    ? drills.first
+                    : (app.selectedActivity?.slug ?? 'think_fast');
+                app.selectActivity(slug);
+                await HakkiriLoadingOverlay.run(
                   context,
-                  MaterialPageRoute(builder: (_) => const LiveConversationScreen()),
+                  message: 'Picking a workplace question…',
+                  detail:
+                      'Matching the live coach to your work track and practice plan.',
+                  action: () =>
+                      app.fetchNextPromptFromApi(excludeCurrent: true),
+                );
+                if (!context.mounted) return;
+                nav.push(
+                  MaterialPageRoute(
+                    builder: (_) => const LiveConversationScreen(),
+                  ),
                 );
               },
               child: Container(

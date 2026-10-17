@@ -15,13 +15,14 @@ import 'signup_screen.dart';
 /// Onboarding experience.
 ///
 /// New-account funnel:
-///   Welcome (Get started) → Signup → onboarding pages → Assessment → Home
+///   Welcome (Get started) → onboarding pages → Signup → Assessment → Home
 ///
-/// [postSignup] = true starts at page 1 (skip welcome) after account create.
+/// [postSignup] = true starts at page 1 (skip welcome) for logged-in users
+/// who still need the marketing pages, then Assessment.
 class LandingScreen extends StatefulWidget {
   final int initialPage;
 
-  /// After signup: show onboarding pages then Assessment (not Signup again).
+  /// Logged-in user finishing onboarding → Assessment (skip Signup).
   final bool postSignup;
 
   const LandingScreen({
@@ -103,8 +104,25 @@ class _LandingScreenState extends State<LandingScreen>
         curve: Curves.easeInOutCubic,
       );
     } else {
-      _goToAssessment();
+      _finishOnboarding();
     }
+  }
+
+  /// End of onboarding carousel: Signup first (new users), Assessment if already logged in.
+  void _finishOnboarding() {
+    AnalyticsService.instance.logOnboardingCompleted();
+    if (widget.postSignup) {
+      _goToAssessment();
+    } else {
+      _goToSignup();
+    }
+  }
+
+  String get _primaryCtaLabel {
+    if (_currentPage == 6 && !widget.postSignup) {
+      return 'Create account';
+    }
+    return _sectionLabels[_currentPage];
   }
 
   void _previousPage() {
@@ -145,7 +163,6 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   void _goToAssessment() {
-    AnalyticsService.instance.logOnboardingCompleted();
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const AssessmentScreen()),
@@ -156,6 +173,13 @@ class _LandingScreenState extends State<LandingScreen>
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+  }
+
+  void _goToSignup() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SignupScreen()),
     );
   }
 
@@ -200,7 +224,7 @@ class _LandingScreenState extends State<LandingScreen>
               child: Column(
             children: [
               // Pinned Still Top Bar (< back, Skip) - stays fixed while pages slide
-              // After signup: first onboarding page has Skip only (no back).
+              // Onboarding pages: back + Skip (Skip → Signup or Assessment).
               if (_currentPage > 0)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(24, 6, 24, 0),
@@ -211,6 +235,7 @@ class _LandingScreenState extends State<LandingScreen>
               Expanded(
                 child: PageView(
                   controller: _pageController,
+                  // Welcome + onboarding pages are swipeable.
                   physics: const BouncingScrollPhysics(),
                   onPageChanged: (idx) {
                     // Don't swipe back to welcome after signup/Google.
@@ -274,9 +299,10 @@ class _LandingScreenState extends State<LandingScreen>
                     ],
 
                     ActionPillButton(
-                      label: _sectionLabels[_currentPage],
+                      label: _primaryCtaLabel,
+                      // Get started → onboarding; last page → Signup (or Assessment if logged in).
                       onTap: _currentPage >= _sectionLabels.length - 1
-                          ? _goToAssessment
+                          ? _finishOnboarding
                           : _nextPage,
                     ),
 
@@ -1323,7 +1349,7 @@ class _LandingScreenState extends State<LandingScreen>
         else
           const SizedBox(width: 28),
         GestureDetector(
-          onTap: _goToAssessment,
+          onTap: _finishOnboarding,
           child: const Padding(
             padding: EdgeInsets.all(4.0),
             child: Text(

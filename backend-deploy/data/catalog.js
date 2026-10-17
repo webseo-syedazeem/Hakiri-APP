@@ -420,6 +420,42 @@ const PROMPTS = [
     prepSeconds: 3,
   }),
   p({
+    code: "tf_i_unexpected_question",
+    activitySlug: "think_fast",
+    difficulty: "intermediary",
+    title: "Unexpected question in a meeting",
+    promptText:
+      "In a leadership meeting someone asks you a question you were not prepared for. How do you answer in the next 60 seconds without freezing or bluffing?",
+    objective: "Buy a clean second, frame what you know, and commit to a follow-up.",
+    exemplarResponse:
+      "Good question. I do not have the exact number here. What I can say is the trend is up this month. I will confirm the figure and send it to the group within the hour.",
+    prepSeconds: 3,
+  }),
+  p({
+    code: "tf_i_bad_news",
+    activitySlug: "think_fast",
+    difficulty: "intermediary",
+    title: "Share bad news upward",
+    promptText:
+      "You need to tell your manager that a key initiative will miss this month's target. How do you say it clearly without sounding defeated?",
+    objective: "Lead with the bottom line, then the cause and the recovery plan.",
+    exemplarResponse:
+      "We will miss this month's target by about 12%. The main driver was a delayed vendor handoff. Here is the recovery: we resequence two items and I will update you Friday with a revised forecast.",
+    prepSeconds: 3,
+  }),
+  p({
+    code: "tf_i_interview_strength",
+    activitySlug: "think_fast",
+    difficulty: "intermediary",
+    title: "Interview strength",
+    promptText:
+      "In a job interview they ask: 'What is your greatest professional strength?' Answer with one clear strength and a short proof story.",
+    objective: "One strength, one proof, no laundry list.",
+    exemplarResponse:
+      "My strength is turning messy updates into decisions. Last quarter I cut our weekly status from 40 minutes to a five-minute brief with three asks, and approvals moved the same day.",
+    prepSeconds: 3,
+  }),
+  p({
     code: "tf_i_colleague_disagrees",
     activitySlug: "think_fast",
     difficulty: "intermediary",
@@ -1030,7 +1066,7 @@ const PROMPTS = [
     objective: "Answer the challenge without going flat or defensive.",
     exemplarResponse:
       "The extra two weeks are not for the original scope. A dependency slipped by six working days. I can deliver the agreed scope on the original date if we cut the two items we added last Tuesday.",
-    industries: ["tech_product", "corporate_finance"],
+    industries: ["general", "tech_product", "corporate_finance"],
     prepSeconds: 5,
   }),
   p({
@@ -1043,7 +1079,79 @@ const PROMPTS = [
     objective: "Listen, then answer the actual claim.",
     exemplarResponse:
       "I am sorry it felt short of what you expected. A full refund applies when the service was unavailable. What you described is the plan working, but not the outcome you wanted. I can offer the unused month back, or a working session to get you to that outcome.",
-    industries: ["sales_marketing"],
+    industries: ["general", "sales_marketing"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "deb_i_hiring_freeze",
+    activitySlug: "debate_me",
+    difficulty: "intermediary",
+    title: "Hiring freeze",
+    promptText:
+      "Act as a cost-focused CFO. Debate my request to hire one more person for the team. Push back on headcount, ask for proof of impact, and suggest we wait a quarter.",
+    objective: "Defend the hire with outcomes, not emotion.",
+    exemplarResponse:
+      "I hear the freeze. This role removes a bottleneck that delayed two releases last quarter. If we wait, we still pay overtime and slip dates. I can start with a six-month contractor and review permanent headcount after the next launch.",
+    prepSeconds: 5,
+  }),
+  p({
+    code: "deb_i_meeting_culture",
+    activitySlug: "debate_me",
+    difficulty: "intermediary",
+    title: "Too many meetings",
+    promptText:
+      "Act as a busy teammate who loves meetings. Debate my proposal to cut recurring meetings by half. Argue that alignment will suffer if we reduce them.",
+    objective: "Protect focus time without dismissing collaboration.",
+    exemplarResponse:
+      "Alignment matters, and most of our status calls repeat the same update. Keep one decision meeting, move status to a written note, and protect two deep-work blocks. We still meet when a choice needs people in the room.",
+    prepSeconds: 5,
+  }),
+  p({
+    code: "deb_i_promotion",
+    activitySlug: "debate_me",
+    difficulty: "intermediary",
+    title: "Promotion timing",
+    promptText:
+      "Act as a sceptical manager. Debate why I should wait another year for a promotion even though I believe I already deliver at the next level.",
+    objective: "Stay composed and evidence-led.",
+    exemplarResponse:
+      "I understand you want more runway. Here is what I already own at the next level: X shipped, Y mentored, Z owned without escalation. If the title needs one more proof point, name it and I will deliver it this quarter.",
+    prepSeconds: 5,
+  }),
+  p({
+    code: "deb_i_scope_creep",
+    activitySlug: "debate_me",
+    difficulty: "intermediary",
+    title: "Scope creep",
+    promptText:
+      "Act as an excited stakeholder. Debate why we should add three new features before launch. Push back when I say we should protect the release date.",
+    objective: "Hold the line on scope without sounding rigid.",
+    exemplarResponse:
+      "Those ideas are good, and they belong in the next release. Shipping the core promise on time builds trust. If we add all three now, we risk a late, buggy launch. Let’s lock v1 and schedule the extras for the sprint after.",
+    prepSeconds: 5,
+  }),
+  p({
+    code: "deb_i_remote_policy",
+    activitySlug: "debate_me",
+    difficulty: "intermediary",
+    title: "Return to office",
+    promptText:
+      "Act as a leader who wants everyone back in the office three days a week. Debate my view that flexible remote work still delivers strong results.",
+    objective: "Argue with results, not lifestyle preferences alone.",
+    exemplarResponse:
+      "Presence helps for workshops. Our delivery metrics were stronger with two office days and clear collaboration blocks. Force three days and we lose focus time without gaining better decisions. Let’s keep two and review after one quarter.",
+    prepSeconds: 5,
+  }),
+  p({
+    code: "deb_i_price_increase",
+    activitySlug: "debate_me",
+    difficulty: "intermediary",
+    title: "Price increase",
+    promptText:
+      "Act as a long-term client angry about a 12% price increase. Debate why you should keep the old price, and challenge any value claims I make.",
+    objective: "Acknowledge frustration, then reframe value calmly.",
+    exemplarResponse:
+      "I understand a 12% jump stings. The increase funds the support and uptime you asked for last year. I can hold your current rate for one more quarter if we renew for twelve months, or move you to a lighter plan without the extras you do not use.",
     prepSeconds: 5,
   }),
   p({

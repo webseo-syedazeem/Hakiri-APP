@@ -5,6 +5,8 @@ import '../core/services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
+import '../widgets/hakkiri_loading_overlay.dart';
+import 'live_conversation_screen.dart';
 import 'recording_screen.dart';
 
 /// Activity detail screen rendered pixel-perfect matching Image 2 ("Think Fast.")
@@ -215,22 +217,67 @@ class ActivityDetailScreen extends StatelessWidget {
                       ),
                     ),
 
-                    // Bottom Primary Action CTA
+                    // Bottom CTAs: single drill + optional live conversation
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 22),
-                      child: ActionPillButton(
-                        label: 'Begin exercise',
-                        onTap: () async {
-                          final nav = Navigator.of(context);
-                          final app = context.read<AppStateProvider>();
-                          if (app.isLoggedIn) {
-                            await app.fetchNextPromptFromApi();
-                          }
-                          if (!context.mounted) return;
-                          nav.push(
-                            MaterialPageRoute(builder: (_) => const RecordingScreen()),
-                          );
-                        },
+                      child: Column(
+                        children: [
+                          ActionPillButton(
+                            label: 'Begin exercise',
+                            onTap: () async {
+                              final nav = Navigator.of(context);
+                              final app = context.read<AppStateProvider>();
+                              if (app.isLoggedIn) {
+                                await HakkiriLoadingOverlay.run(
+                                  context,
+                                  message: 'Getting your question…',
+                                  detail:
+                                      'Picking a fresh prompt for this drill.',
+                                  action: () => app.fetchNextPromptFromApi(
+                                    excludeCurrent: true,
+                                  ),
+                                );
+                              } else {
+                                app.setDifficulty(app.selectedDifficulty);
+                              }
+                              if (!context.mounted) return;
+                              nav.push(
+                                MaterialPageRoute(
+                                  builder: (_) => const RecordingScreen(
+                                    promptAlreadyLoaded: true,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                          ActionPillButton(
+                            label: 'Live coach conversation',
+                            isSecondary: true,
+                            onTap: () async {
+                              final nav = Navigator.of(context);
+                              final app = context.read<AppStateProvider>();
+                              if (app.isLoggedIn) {
+                                await HakkiriLoadingOverlay.run(
+                                  context,
+                                  message: 'Setting up live coach…',
+                                  detail:
+                                      'Loading a workplace prompt for this activity.',
+                                  action: () => app.fetchNextPromptFromApi(
+                                    excludeCurrent: true,
+                                  ),
+                                );
+                              }
+                              if (!context.mounted) return;
+                              nav.push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const LiveConversationScreen(),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ],

@@ -17,6 +17,8 @@ class MainActivity : FlutterActivity() {
     private var pendingWsUrl: String? = null
     private var pendingModel: String? = null
     private var pendingInstruction: String? = null
+    private var pendingAuthHeader: String? = null
+    private var pendingKickoff: String? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -39,11 +41,13 @@ class MainActivity : FlutterActivity() {
                         val wsUrl = call.argument<String>("ws_url").orEmpty()
                         val model = call.argument<String>("model") ?: "gemini-3.8-live"
                         val instruction = call.argument<String>("system_instruction").orEmpty()
+                        val authHeader = call.argument<String>("auth_header")
+                        val kickoff = call.argument<String>("kickoff")
                         if (wsUrl.isEmpty()) {
                             result.error("bad_args", "ws_url is required", null)
                             return@setMethodCallHandler
                         }
-                        beginLiveSession(wsUrl, model, instruction, result)
+                        beginLiveSession(wsUrl, model, instruction, authHeader, kickoff, result)
                     }
                     "stop" -> {
                         clearPendingStart()
@@ -60,10 +64,12 @@ class MainActivity : FlutterActivity() {
         wsUrl: String,
         model: String,
         instruction: String,
+        authHeader: String?,
+        kickoff: String?,
         result: MethodChannel.Result,
     ) {
         if (hasMicPermission()) {
-            startSessionNow(wsUrl, model, instruction, result)
+            startSessionNow(wsUrl, model, instruction, authHeader, kickoff, result)
             return
         }
 
@@ -72,6 +78,8 @@ class MainActivity : FlutterActivity() {
         pendingWsUrl = wsUrl
         pendingModel = model
         pendingInstruction = instruction
+        pendingAuthHeader = authHeader
+        pendingKickoff = kickoff
         ActivityCompat.requestPermissions(
             this,
             arrayOf(Manifest.permission.RECORD_AUDIO),
@@ -83,11 +91,13 @@ class MainActivity : FlutterActivity() {
         wsUrl: String,
         model: String,
         instruction: String,
+        authHeader: String?,
+        kickoff: String?,
         result: MethodChannel.Result,
     ) {
         session?.stop()
         session = LiveVoiceSession(this, eventSink)
-        session?.start(wsUrl, model, instruction, result)
+        session?.start(wsUrl, model, instruction, authHeader, kickoff, result)
     }
 
     private fun hasMicPermission(): Boolean {
@@ -100,6 +110,8 @@ class MainActivity : FlutterActivity() {
         pendingWsUrl = null
         pendingModel = null
         pendingInstruction = null
+        pendingAuthHeader = null
+        pendingKickoff = null
     }
 
     override fun onRequestPermissionsResult(
@@ -114,6 +126,8 @@ class MainActivity : FlutterActivity() {
         val wsUrl = pendingWsUrl
         val model = pendingModel
         val instruction = pendingInstruction
+        val authHeader = pendingAuthHeader
+        val kickoff = pendingKickoff
         clearPendingStart()
 
         if (result == null || wsUrl == null || model == null || instruction == null) return
@@ -121,7 +135,7 @@ class MainActivity : FlutterActivity() {
         val granted = grantResults.isNotEmpty() &&
             grantResults[0] == PackageManager.PERMISSION_GRANTED
         if (granted) {
-            startSessionNow(wsUrl, model, instruction, result)
+            startSessionNow(wsUrl, model, instruction, authHeader, kickoff, result)
         } else {
             result.error(
                 "mic_permission",

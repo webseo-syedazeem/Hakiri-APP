@@ -49,9 +49,18 @@ const analyzeSpeech = async (req, res) => {
     }
 
     const body = req.body || {};
-    if (body.audio || body.audio_base64 || body.audio_file || body.recording) {
-      return error(res, "Send the transcript from on-device speech-to-text, not the audio file.");
+    // Optional on-device m4a (base64) — app records file-only to avoid mic thrash with STT.
+    // Cap ~2.5MB raw → keeps Live scoring payloads reasonable.
+    let audioBase64 = String(body.audio_base64 || body.audio || "").trim();
+    if (audioBase64.includes(",")) {
+      audioBase64 = audioBase64.split(",").pop() || "";
     }
+    audioBase64 = audioBase64.replace(/\s/g, "");
+    if (audioBase64.length > 3_500_000) {
+      return error(res, "Audio clip is too large. Keep answers under ~90 seconds.");
+    }
+    const audioMimeType = String(body.audio_mime_type || body.mime_type || "audio/mp4").trim() ||
+      "audio/mp4";
 
     const transcript = String(body.transcript || "").slice(0, 20000);
     const durationSeconds = Number(body.duration_seconds || 0);
@@ -91,12 +100,14 @@ const analyzeSpeech = async (req, res) => {
       exemplarResponse,
       difficulty,
       isRetry,
+      audioBase64: audioBase64 || undefined,
+      audioMimeType,
     });
 
     return success(res, "AI analysis ready.", {
       model: result.model,
       feedback: result.feedback,
-      transcript,
+      transcript: result.transcript || transcript,
       duration_seconds: durationSeconds,
       activity_slug: activity?.slug || activitySlug || null,
       prompt_id: prompt?.code || body.prompt_id || null,

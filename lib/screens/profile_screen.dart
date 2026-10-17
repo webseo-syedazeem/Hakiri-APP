@@ -1,14 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/orbital_background_painter.dart';
 import 'edit_profile_screen.dart';
+import 'how_hakkiri_works_screen.dart';
 import 'landing_screen.dart';
 import 'main_tab_scaffold.dart';
 import 'paywall_screen.dart';
+import 'practice_context_screen.dart';
+import 'privacy_permissions_screen.dart';
 import 'profile_section_screen.dart';
+import 'voice_coach_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -52,9 +58,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const ProfileSectionScreen(
-          focus: ProfileSectionFocus.practiceContext,
-        ),
+        builder: (_) => const PracticeContextScreen(),
       ),
     );
   }
@@ -65,6 +69,152 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
       MaterialPageRoute(
         builder: (_) => const ProfileSectionScreen(
           focus: ProfileSectionFocus.dailyPractice,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openHowHakkiriWorks() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const HowHakkiriWorksScreen()),
+    );
+  }
+
+  Future<void> _openPrivacyPermissions() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PrivacyPermissionsScreen()),
+    );
+  }
+
+  Future<void> _openHelpAndFeedback() async {
+    final state = Provider.of<AppStateProvider>(context, listen: false);
+    final subject = Uri.encodeComponent('Hakkiri App Support & Feedback');
+    final body = Uri.encodeComponent(
+      'Hi Hakkiri Team,\n\n'
+      'I would like to share feedback / need help with:\n\n'
+      '---\n'
+      'User: ${state.fullName.isNotEmpty ? state.fullName : "User"}\n'
+      'Email: ${state.email}\n'
+      'App: Hakkiri Gym v1.0.0\n',
+    );
+    final emailUri = Uri.parse('mailto:support@hakkiri.com?subject=$subject&body=$body');
+
+    try {
+      final launched = await launchUrl(
+        emailUri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        _showEmailFallbackSheet();
+      }
+    } catch (_) {
+      if (mounted) {
+        _showEmailFallbackSheet();
+      }
+    }
+  }
+
+  void _showEmailFallbackSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE2E8F0),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Contact Support',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Email our team directly for feedback, feature requests, or help with your drills.',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 13,
+                color: Color(0xFF64748B),
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.email_outlined, color: AppColors.royalBlue, size: 20),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: SelectableText(
+                      'support@hakkiri.com',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.royalBlue,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                onPressed: () {
+                  Clipboard.setData(const ClipboardData(text: 'support@hakkiri.com'));
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Support email copied to clipboard! (support@hakkiri.com)'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.copy_rounded, size: 18),
+                label: const Text(
+                  'Copy Email Address',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -297,7 +447,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                         Text(
                           state.subscriptionPriceFormatted.isNotEmpty
                               ? state.subscriptionPriceFormatted
-                              : '7-day trial',
+                              : 'No active plan',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -310,7 +460,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                               ? state.subscriptionRenewalLabel
                               : (state.isSubscribed
                                   ? 'Manage your plan anytime'
-                                  : '7-day free trial active'),
+                                  : 'Subscribe to unlock practice'),
                           style: const TextStyle(
                             color: Color(0xFF94A3B8),
                             fontSize: 11,
@@ -458,8 +608,18 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     iconColor: const Color(0xFF10B981),
                     iconBgColor: const Color(0xFFECFDF5),
                     title: 'Coach voice',
-                    subtitle: 'Choose the voice you hear',
+                    subtitle: state.voiceProfileLabel == 'Not set'
+                        ? 'Choose the voice you hear'
+                        : state.voiceProfileLabel,
                     showDivider: false,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const VoiceCoachScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -492,14 +652,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     title: 'How Hakkiri works',
                     subtitle: 'AI, feedback and scoring explained',
                     showDivider: true,
-                  ),
-                  _buildSettingRow(
-                    icon: Icons.mic_none_rounded,
-                    iconColor: const Color(0xFF10B981),
-                    iconBgColor: const Color(0xFFECFDF5),
-                    title: 'Recordings & data',
-                    subtitle: 'Listen, download or delete your recordings',
-                    showDivider: true,
+                    onTap: _openHowHakkiriWorks,
                   ),
                   _buildSettingRow(
                     icon: Icons.lock_outline_rounded,
@@ -508,6 +661,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     title: 'Privacy & permissions',
                     subtitle: 'Manage your data and microphone access',
                     showDivider: true,
+                    onTap: _openPrivacyPermissions,
                   ),
                   _buildSettingRow(
                     icon: Icons.help_outline_rounded,
@@ -516,6 +670,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     title: 'Help & feedback',
                     subtitle: 'Get support or share feedback',
                     showDivider: false,
+                    onTap: _openHelpAndFeedback,
                   ),
                 ],
               ),
@@ -543,19 +698,6 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                   ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Footer Links
-            const Center(
-              child: Text(
-                'Privacy Policy  ·  Terms  ·  Delete account',
-                style: TextStyle(
-                  color: AppColors.textMuted,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),

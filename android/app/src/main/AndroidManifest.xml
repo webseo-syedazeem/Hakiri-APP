@@ -3,8 +3,9 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <uses-permission android:name="com.android.vending.BILLING"/>
     <application
-        android:label="hakkiri_app"
+        android:label="Hakkiri"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <meta-data

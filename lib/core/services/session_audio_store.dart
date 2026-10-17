@@ -80,4 +80,19 @@ class SessionAudioStore {
     if (await fallback.exists()) return fallback.path;
     return null;
   }
+
+  Future<void> remove(String sessionId) async {
+    if (sessionId.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getString('$_prefPrefix$sessionId');
+      if (stored != null && stored.isNotEmpty) {
+        final f = File(stored);
+        if (await f.exists()) await f.delete();
+      }
+      await prefs.remove('$_prefPrefix$sessionId');
+      final fallback = File('${(await _dir()).path}/$sessionId.m4a');
+      if (await fallback.exists()) await fallback.delete();
+    } catch (_) {}
+  }
 }

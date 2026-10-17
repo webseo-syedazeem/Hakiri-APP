@@ -7,9 +7,11 @@ import 'firebase_options.dart';
 import 'core/constants/app_colors.dart';
 import 'core/smooth_page_transitions.dart';
 import 'core/services/analytics_service.dart';
+import 'core/services/coach_tts_service.dart';
 import 'core/services/crashlytics_service.dart';
 import 'core/services/google_auth_service.dart';
 import 'core/services/hakkiri_api_service.dart';
+import 'core/services/iap_service.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/services/supabase_service.dart';
 import 'providers/app_state_provider.dart';
@@ -37,8 +39,11 @@ void main() async {
   // Initialize Supabase with remote credentials or safe offline demo fallback
   await SupabaseService.instance.initialize();
   await GoogleAuthService.bootstrap();
+  await CoachTtsService.instance.init();
   // FCM device token at cold start (syncs to API when logged in).
   await PushNotificationService.instance.init();
+  // Play / App Store billing — loads monthly & yearly product prices.
+  await IapService.instance.init();
 
   runApp(const HakkiriApp());
 }

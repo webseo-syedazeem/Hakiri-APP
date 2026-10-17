@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Profile = require("../models/Profile");
@@ -8,6 +9,62 @@ const { success, error } = require("../helpers/response");
 const { userJson, profileJson, subscriptionJson, streakJson, settingsJson } = require("../services/serializers");
 
 const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "30d" });
+
+/** Native iOS aud = bundle id. Optional Services ID via env for Android/web. */
+const APPLE_AUDIENCES = [
+  "com.hakkiri.app",
+  ...(process.env.APPLE_CLIENT_IDS
+    ? String(process.env.APPLE_CLIENT_IDS)
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : []),
+];
+
+let _appleKeysCache = { fetchedAt: 0, keys: [] };
+
+async function getApplePublicKey(kid) {
+  const fresh = Date.now() - _appleKeysCache.fetchedAt < 60 * 60 * 1000;
+  if (!fresh || !_appleKeysCache.keys.length) {
+    const res = await fetch("https://appleid.apple.com/auth/keys");
+    const data = await res.json();
+    if (!res.ok || !Array.isArray(data.keys)) {
+      throw new Error("Could not load Apple public keys");
+    }
+    _appleKeysCache = { fetchedAt: Date.now(), keys: data.keys };
+  }
+  const jwk = _appleKeysCache.keys.find((k) => k.kid === kid);
+  if (!jwk) throw new Error("Apple signing key not found");
+  return crypto.createPublicKey({ key: jwk, format: "jwk" });
+}
+
+async function verifyAppleIdToken(idToken) {
+  const decoded = jwt.decode(idToken, { complete: true });
+  if (!decoded?.header?.kid || !decoded.payload) {
+    throw new Error("Invalid Apple identity token");
+  }
+  const key = await getApplePublicKey(decoded.header.kid);
+  const payload = jwt.verify(idToken, key, {
+    algorithms: ["RS256"],
+    issuer: "https://appleid.apple.com",
+  });
+  const aud = String(payload.aud || "");
+  if (!APPLE_AUDIENCES.includes(aud)) {
+    throw new Error(`Unexpected Apple token audience: ${aud}`);
+  }
+  const appleId = String(payload.sub || "").trim();
+  if (!appleId) throw new Error("Apple account id is missing");
+
+  const email = String(payload.email || "")
+    .trim()
+    .toLowerCase();
+  return {
+    appleId,
+    email: email || `apple_${appleId}@privaterelay.appleid.com`,
+    emailVerified: payload.email_verified === true || payload.email_verified === "true",
+    fullName: "",
+  };
+}
 
 /** Web OAuth client from Firebase google-services.json (serverClientId). */
 const GOOGLE_ALLOWED_CLIENT_IDS = [
@@ -73,17 +130,17 @@ async function loadAuthBundle(user) {
 }
 
 async function createAccountShell(userId) {
-  const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  // No free trial — practise unlocks only after a paid monthly/yearly IAP.
   const [profile, settings, subscription, streak] = await Promise.all([
     Profile.create({ user: userId }),
     Settings.create({ user: userId, dailyAnchorMinutes: 5, audioPrivacy: "encrypted_on_device" }),
     Subscription.create({
       user: userId,
       tier: "free_trial",
-      status: "trialing",
+      status: "expired",
       priceGbp: 0,
-      trialEnd,
-      currentPeriodEnd: trialEnd,
+      trialEnd: null,
+      currentPeriodEnd: null,
     }),
     Streak.create({ user: userId }),
   ]);
@@ -222,6 +279,79 @@ const googleAuth = async (req, res) => {
   }
 };
 
+const appleAuth = async (req, res) => {
+  try {
+    const idToken = String(req.body.id_token || req.body.idToken || "").trim();
+    const fullNameHint = String(req.body.full_name || req.body.fullName || "").trim();
+    if (!idToken) return error(res, "Apple ID token is required.");
+
+    let appleUser;
+    try {
+      appleUser = await verifyAppleIdToken(idToken);
+    } catch (err) {
+      console.error("Apple token verify failed:", err.message);
+      return error(res, "Could not verify Apple sign-in.", 401);
+    }
+
+    if (fullNameHint.length >= 2) {
+      appleUser.fullName = fullNameHint;
+    }
+
+    let user = await User.findOne({
+      $or: [
+        { appleId: appleUser.appleId, isDeleted: false },
+        { email: appleUser.email, isDeleted: false },
+      ],
+    });
+
+    let created = false;
+    if (!user) {
+      await User.deleteMany({ email: appleUser.email, isDeleted: true });
+      user = await User.create({
+        fullName: appleUser.fullName || appleUser.email.split("@")[0] || "Hakkiri member",
+        email: appleUser.email,
+        appleId: appleUser.appleId,
+        authProvider: "apple",
+      });
+      await createAccountShell(user._id);
+      created = true;
+    } else {
+      let dirty = false;
+      if (!user.appleId) {
+        user.appleId = appleUser.appleId;
+        dirty = true;
+      }
+      if (user.authProvider !== "apple" && !user.password) {
+        user.authProvider = "apple";
+        dirty = true;
+      }
+      if (appleUser.fullName && (!user.fullName || user.fullName.length < 2)) {
+        user.fullName = appleUser.fullName;
+        dirty = true;
+      }
+      if (dirty) await user.save();
+    }
+
+    const bundle = await loadAuthBundle(user);
+    const onboardingComplete = Boolean(bundle.profile?.onboarding_complete);
+    const needsOnboarding = created || !onboardingComplete;
+    return success(
+      res,
+      created ? "Account created with Apple." : "Logged in with Apple.",
+      {
+        ...bundle,
+        created,
+        onboarding_complete: onboardingComplete,
+        needs_onboarding: needsOnboarding,
+      },
+      created ? 201 : 200
+    );
+  } catch (err) {
+    console.error(err);
+    return error(res, "Could not complete Apple sign-in.", 500);
+  }
+};
+
 const me = async (req, res) => {
   const [profile, subscription, streak, settings] = await Promise.all([
     Profile.findOne({ user: req.user._id }),
@@ -238,4 +368,4 @@ const me = async (req, res) => {
   });
 };
 
-module.exports = { register, login, googleAuth, me };
+module.exports = { register, login, googleAuth, appleAuth, me };

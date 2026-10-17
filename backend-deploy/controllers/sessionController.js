@@ -29,7 +29,7 @@ const createSession = async (req, res) => {
   const subscription = await Subscription.findOne({ user: req.user._id });
   const access = subscriptionJson(subscription);
   if (!access?.can_practise) {
-    return error(res, "Your trial has ended. Choose monthly or yearly to keep practising.", 402);
+    return error(res, "Hakkiri Pro is required. Choose monthly or yearly to keep practising.", 402);
   }
 
   const activity = await Activity.findOne({ slug: body.activity_slug });
@@ -55,9 +55,18 @@ const createSession = async (req, res) => {
       integerScore(feedback.pillars?.impact_score, "impact_score", { required: true }),
       integerScore(feedback.pillars?.engagement_score, "engagement_score", { required: true }),
     ].filter(Boolean);
-    if (feedback.activity_measures && typeof feedback.activity_measures === "object") {
+    if (Array.isArray(feedback.activity_measures)) {
+      for (const row of feedback.activity_measures) {
+        if (!row || typeof row !== "object") continue;
+        if (row.score == null || row.included === false) continue;
+        const problem = integerScore(row.score, row.key || "measure", { required: true });
+        if (problem) problems.push(problem);
+      }
+    } else if (feedback.activity_measures && typeof feedback.activity_measures === "object") {
       for (const [key, value] of Object.entries(feedback.activity_measures)) {
-        const problem = integerScore(value, key, { required: true });
+        if (value == null || (typeof value === "object" && value.score == null)) continue;
+        const scoreVal = typeof value === "object" ? value.score : value;
+        const problem = integerScore(scoreVal, key, { required: true });
         if (problem) problems.push(problem);
       }
     }
@@ -202,4 +211,17 @@ const dashboard = async (req, res) => {
   });
 };
 
-module.exports = { createSession, listSessions, getSession, dashboard };
+const deleteSession = async (req, res) => {
+  try {
+    const session = await PracticeSession.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user._id,
+    });
+    if (!session) return error(res, "Session not found.", 404);
+    return success(res, "Session deleted successfully.", { id: req.params.id });
+  } catch (err) {
+    return error(res, err.message || "Failed to delete session.", 500);
+  }
+};
+
+module.exports = { createSession, listSessions, getSession, deleteSession, dashboard };

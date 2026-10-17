@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
-import '../widgets/dashed_border.dart';
+import 'feedback_screen.dart';
 import 'main_tab_scaffold.dart';
-import 'session_detail_screen.dart';
 
 class AnalyticsDashboardScreen extends StatelessWidget {
   const AnalyticsDashboardScreen({super.key});
@@ -225,8 +224,10 @@ class AnalyticsDashboardContent extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) =>
-                              SessionDetailScreen(session: session),
+                          builder: (_) => FeedbackScreen(
+                            session: session,
+                            fromHistory: true,
+                          ),
                         ),
                       );
                     },
@@ -242,12 +243,12 @@ class AnalyticsDashboardContent extends StatelessWidget {
 
   static (bool, String, double) _barFromPillar(AppStateProvider state, String key) {
     final raw = state.pillarStats[key];
-    if (raw is! Map) return (true, '--', 0);
+    if (raw is! Map) return (true, '0.0', 0);
     final map = Map<String, dynamic>.from(raw);
     final average = map['average'];
     final samples = (map['samples'] as num?)?.round() ?? 0;
     if (average == null || samples < 3 || map['status'] == 'need_more') {
-      return (true, '--', 0);
+      return (true, '0.0', 0);
     }
     final value = (average as num).toDouble();
     return (false, value.toStringAsFixed(1), (value / 5).clamp(0.0, 1.0));
@@ -313,34 +314,32 @@ class AnalyticsDashboardContent extends StatelessWidget {
   Widget _buildNeedMoreBarColumn({required String label}) {
     return Column(
       children: [
-        const Text(
-          '–',
-          style: TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.w900,
+        const SizedBox(
+          height: 19,
+          child: Icon(
+            Icons.lock_outline_rounded,
+            size: 15,
+            color: AppColors.textMuted,
           ),
         ),
         const SizedBox(height: 8),
-        // Dotted / Dashed Box with DashedBorderContainer
-        DashedBorderContainer(
-          borderRadius: 12,
-          strokeWidth: 1.5,
-          dashWidth: 4.5,
-          dashGap: 4.0,
-          color: const Color(0xFFC4C2B8),
-          child: const SizedBox(
-            height: 120,
-            width: double.infinity,
-            child: Center(
-              child: Text(
-                'NEED MORE',
-                style: TextStyle(
-                  color: Color(0xFF8B8E9E),
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
-                ),
+        Container(
+          height: 120,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0), width: 1.2),
+          ),
+          child: const Center(
+            child: Text(
+              'NEED MORE',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                color: Color(0xFF8B8E9E),
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
               ),
             ),
           ),

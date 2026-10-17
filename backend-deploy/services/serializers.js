@@ -83,10 +83,17 @@ function subscriptionJson(sub) {
   if (!sub) return null;
   const now = new Date();
   let status = sub.status;
+  // Legacy free trials are treated as expired — no practise without paid IAP.
+  if (sub.tier === "free_trial") status = "expired";
   if (status === "trialing" && sub.trialEnd && sub.trialEnd < now) status = "expired";
   if (status === "active" && sub.currentPeriodEnd && sub.currentPeriodEnd < now) status = "expired";
   const price =
-    sub.tier === "annual_pro" ? "£69.99/yr" : sub.tier === "monthly_pro" ? "£9.99/mo" : "7-day trial";
+    sub.tier === "annual_pro"
+      ? "£69.99/yr"
+      : sub.tier === "monthly_pro"
+        ? "£9.99/mo"
+        : "No active plan";
+  const paidTier = sub.tier === "monthly_pro" || sub.tier === "annual_pro";
   return {
     tier: sub.tier,
     status,
@@ -94,7 +101,7 @@ function subscriptionJson(sub) {
     price_label: price,
     trial_end: sub.trialEnd,
     current_period_end: sub.currentPeriodEnd,
-    can_practise: status === "trialing" || status === "active",
+    can_practise: status === "active" && paidTier,
   };
 }
 

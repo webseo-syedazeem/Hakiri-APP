@@ -1,12 +1,19 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../core/constants/app_colors.dart';
 import '../core/services/analytics_service.dart';
+import '../core/services/hakkiri_api_service.dart';
+import '../core/services/iap_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_logo.dart';
-import 'home_screen.dart';
-
 import '../widgets/paywall_wave_background.dart';
+import 'home_screen.dart';
+import 'locked_profile_screen.dart';
 
 class PaywallScreen extends StatefulWidget {
   const PaywallScreen({super.key});
@@ -16,229 +23,484 @@ class PaywallScreen extends StatefulWidget {
 }
 
 class _PaywallScreenState extends State<PaywallScreen> {
-  String _selectedTier = 'annual_pro'; // 'annual_pro' or 'monthly'
+  /// API tiers: monthly_pro | annual_pro
+  String _selectedTier = 'annual_pro';
+  bool _purchasing = false;
+  bool _loadingProducts = true;
+  String? _statusMessage;
+  StreamSubscription<PurchaseDetails>? _purchaseSub;
+
+  final _iap = IapService.instance;
 
   @override
   void initState() {
     super.initState();
     AnalyticsService.instance.logViewPaywall();
     AnalyticsService.instance.logScreenView(screenName: 'PaywallScreen');
+    _purchaseSub = _iap.purchaseUpdates.listen(_onPurchaseUpdate);
+    _bootstrap();
   }
 
-  Future<void> _onContinue() async {
-    final state = Provider.of<AppStateProvider>(context, listen: false);
-    state.selectSubscription(_selectedTier);
-    AnalyticsService.instance.logSelectPlan(
-      planId: _selectedTier,
-      price: _selectedTier == 'annual_pro' ? 'USD 99.99/yr' : 'USD 14.99/mo',
-    );
-    // Lock the user onto Home for every future cold start.
-    await state.markOnboardedComplete();
+  @override
+  void dispose() {
+    _purchaseSub?.cancel();
+    super.dispose();
+  }
 
+  Future<void> _bootstrap() async {
+    setState(() {
+      _loadingProducts = true;
+      _statusMessage = null;
+    });
+    await _iap.init();
     if (!mounted) return;
+    // Don't show red "plan not found" on load — only snackbar if user taps buy.
+    setState(() => _loadingProducts = false);
+  }
+
+  void _showSnack(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  String _priceForTier(String tier, String fallback) {
+    final p = _iap.productForTier(tier);
+    return p?.price ?? fallback;
+  }
+
+  String _subtitleForTier(String tier, String fallback) {
+    final p = _iap.productForTier(tier);
+    if (p == null) return fallback;
+    if (tier == 'annual_pro') {
+      return '${p.price} per year · billed yearly';
+    }
+    return '${p.price} per month · billed monthly';
+  }
+
+  void _dismissWithoutPurchase() {
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      MaterialPageRoute(builder: (_) => const LockedProfileScreen()),
       (route) => false,
     );
   }
 
+  Future<void> _onContinue() async {
+    if (_purchasing) return;
+    setState(() {
+      _purchasing = true;
+      _statusMessage = null;
+    });
+
+    AnalyticsService.instance.logSelectPlan(
+      planId: _selectedTier,
+      price: _priceForTier(
+        _selectedTier,
+        _selectedTier == 'annual_pro' ? 'annual' : 'monthly',
+      ),
+    );
+
+    final started = await _iap.buyTier(_selectedTier);
+    if (!mounted) return;
+    if (!started) {
+      setState(() {
+        _purchasing = false;
+        _statusMessage = null;
+      });
+      _showSnack(
+        _iap.lastError ??
+            'This plan is not available right now. Please try again later.',
+      );
+    }
+    // Success path continues in _onPurchaseUpdate.
+  }
+
+  Future<void> _onPurchaseUpdate(PurchaseDetails purchase) async {
+    if (purchase.status == PurchaseStatus.pending) {
+      if (mounted) {
+        setState(() {
+          _purchasing = true;
+          _statusMessage = 'Confirming purchase…';
+        });
+      }
+      return;
+    }
+
+    if (purchase.status == PurchaseStatus.error) {
+      await _iap.complete(purchase);
+      if (!mounted) return;
+      setState(() {
+        _purchasing = false;
+        _statusMessage = null;
+      });
+      _showSnack(
+        purchase.error?.message ?? 'Purchase failed. Please try again.',
+      );
+      return;
+    }
+
+    if (purchase.status == PurchaseStatus.canceled) {
+      await _iap.complete(purchase);
+      if (!mounted) return;
+      setState(() {
+        _purchasing = false;
+        _statusMessage = null;
+      });
+      return;
+    }
+
+    if (purchase.status == PurchaseStatus.purchased ||
+        purchase.status == PurchaseStatus.restored) {
+      final tier = IapProducts.tierForProductId(purchase.productID);
+      if (tier == null) {
+        await _iap.complete(purchase);
+        if (!mounted) return;
+        setState(() {
+          _purchasing = false;
+          _statusMessage = null;
+        });
+        _showSnack('Unknown product. Contact support.');
+        return;
+      }
+
+      try {
+        final state = context.read<AppStateProvider>();
+        await state.activatePaidPlan(tier);
+        await _iap.complete(purchase);
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      } on HakkiriApiException catch (e) {
+        await _iap.complete(purchase);
+        if (!mounted) return;
+        setState(() {
+          _purchasing = false;
+          _statusMessage = null;
+        });
+        _showSnack(e.message);
+      } catch (e) {
+        await _iap.complete(purchase);
+        if (!mounted) return;
+        setState(() {
+          _purchasing = false;
+          _statusMessage = null;
+        });
+        _showSnack('Purchase succeeded but plan sync failed. Try Restore.');
+      }
+    }
+  }
+
+  Future<void> _restore() async {
+    if (_purchasing) return;
+    setState(() {
+      _purchasing = true;
+      _statusMessage = 'Restoring purchases…';
+    });
+    try {
+      await _iap.restore();
+      // Restored items arrive on purchase stream.
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (!mounted) return;
+      final state = context.read<AppStateProvider>();
+      if (state.isSubscribed) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+        return;
+      }
+      setState(() {
+        _purchasing = false;
+        _statusMessage = null;
+      });
+      _showSnack('No active subscription found to restore.');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _purchasing = false;
+        _statusMessage = null;
+      });
+      _showSnack('Could not restore purchases. Try again.');
+    }
+  }
+
+  Future<void> _openUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF020617),
-      body: Stack(
-        children: [
-          const PaywallWaveBackground(),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top Bar
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const HakkiriLogo(
-                    variant: HakkiriLogoVariant.paywallDarkLockup,
-                    size: 28,
-                  ),
-                  GestureDetector(
-                    onTap: _onContinue,
-                    child: const Padding(
-                      padding: EdgeInsets.all(4.0),
-                      child: Icon(
-                        Icons.close,
-                        color: Colors.white,
-                        size: 24,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-                  // Scrollable Content
-                  Expanded(
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Tag
-                      const Text(
-                        'HAKKIRI PRO',
-                        style: TextStyle(
-                          color: Color(0xFF5B6BFF),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _dismissWithoutPurchase();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF020617),
+        body: Stack(
+          children: [
+            const PaywallWaveBackground(),
+            SafeArea(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const HakkiriLogo(
+                          variant: HakkiriLogoVariant.paywallDarkLockup,
+                          size: 28,
                         ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Headline: "Keep improving every day."
-                      RichText(
-                        text: const TextSpan(
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            color: Colors.white,
-                            fontSize: 36,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -1.0,
-                            height: 1.15,
-                          ),
-                          children: [
-                            TextSpan(text: 'Keep improving\n'),
-                            TextSpan(
-                              text: 'every day.',
-                              style: TextStyle(color: Color(0xFF4E75FF)),
+                        GestureDetector(
+                          onTap: _purchasing ? null : _dismissWithoutPurchase,
+                          child: const Padding(
+                            padding: EdgeInsets.all(4.0),
+                            child: Icon(
+                              Icons.close,
+                              color: Colors.white,
+                              size: 24,
                             ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'HAKKIRI PRO',
+                              style: TextStyle(
+                                color: Color(0xFF5B6BFF),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            RichText(
+                              text: const TextSpan(
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  color: Colors.white,
+                                  fontSize: 36,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -1.0,
+                                  height: 1.15,
+                                ),
+                                children: [
+                                  TextSpan(text: 'Keep improving\n'),
+                                  TextSpan(
+                                    text: 'every day.',
+                                    style: TextStyle(color: Color(0xFF4E75FF)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            _buildFeatureRow(
+                              icon: Icons.article_outlined,
+                              title: 'New prompts every day',
+                              subtitle:
+                                  'Matched to your goals and challenges',
+                            ),
+                            const SizedBox(height: 14),
+                            _buildFeatureRow(
+                              icon: Icons.chat_bubble_outline_rounded,
+                              title: 'Specific feedback after every answer',
+                              subtitle:
+                                  "Understand what's working and how to improve",
+                            ),
+                            const SizedBox(height: 14),
+                            _buildFeatureRow(
+                              icon: Icons.tune_rounded,
+                              title: 'A plan that adapts each week',
+                              subtitle: 'Personalised to your progress',
+                            ),
+                            const SizedBox(height: 14),
+                            _buildFeatureRow(
+                              icon: Icons.bar_chart_rounded,
+                              title: 'More exercises, every level',
+                              subtitle:
+                                  'From everyday conversations to high-stakes moments',
+                            ),
+                            const SizedBox(height: 14),
+                            _buildFeatureRow(
+                              icon: Icons.track_changes_rounded,
+                              title: 'Progress tracking and streaks',
+                              subtitle:
+                                  'Stay consistent and see real improvement',
+                            ),
+                            const SizedBox(height: 24),
+                            if (_loadingProducts)
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 12),
+                                child: LinearProgressIndicator(
+                                  minHeight: 2,
+                                  color: Color(0xFF3B82F6),
+                                  backgroundColor: Color(0xFF23263B),
+                                ),
+                              ),
+                            _buildPlanCard(
+                              id: 'annual_pro',
+                              title: 'Yearly',
+                              subtitle: _subtitleForTier(
+                                'annual_pro',
+                                '£69.99 per year · billed yearly',
+                              ),
+                              priceText: _priceForTier(
+                                'annual_pro',
+                                '£69.99/yr',
+                              ),
+                              badgeText: 'BEST VALUE',
+                              isSelected: _selectedTier == 'annual_pro',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildPlanCard(
+                              id: 'monthly_pro',
+                              title: 'Monthly',
+                              subtitle: _subtitleForTier(
+                                'monthly_pro',
+                                '£9.99 per month · billed monthly',
+                              ),
+                              priceText: _priceForTier(
+                                'monthly_pro',
+                                '£9.99/mo',
+                              ),
+                              isSelected: _selectedTier == 'monthly_pro',
+                            ),
+                            if (_statusMessage != null) ...[
+                              const SizedBox(height: 14),
+                              Text(
+                                _statusMessage!,
+                                style: const TextStyle(
+                                  color: Color(0xFF93C5FD),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 16),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 24),
-
-                      // 5 Feature Points with circular icons
-                      _buildFeatureRow(
-                        icon: Icons.article_outlined,
-                        title: 'New prompts every day',
-                        subtitle: 'Matched to your goals and challenges',
-                      ),
-                      const SizedBox(height: 14),
-
-                      _buildFeatureRow(
-                        icon: Icons.chat_bubble_outline_rounded,
-                        title: 'Specific feedback after every answer',
-                        subtitle: "Understand what's working and how to improve",
-                      ),
-                      const SizedBox(height: 14),
-
-                      _buildFeatureRow(
-                        icon: Icons.tune_rounded,
-                        title: 'A plan that adapts each week',
-                        subtitle: 'Personalised to your progress',
-                      ),
-                      const SizedBox(height: 14),
-
-                      _buildFeatureRow(
-                        icon: Icons.bar_chart_rounded,
-                        title: 'More exercises, every level',
-                        subtitle: 'From everyday conversations to high-stakes moments',
-                      ),
-                      const SizedBox(height: 14),
-
-                      _buildFeatureRow(
-                        icon: Icons.track_changes_rounded,
-                        title: 'Progress tracking and streaks',
-                        subtitle: 'Stay consistent and see real improvement',
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Pricing Options
-                      // 1. Yearly Card
-                      _buildPlanCard(
-                        id: 'annual_pro',
-                        title: 'Yearly',
-                        subtitle: '£5.83 per month',
-                        priceText: '£69.99/yr',
-                        badgeText: 'SAVE 41%',
-                        isSelected: _selectedTier == 'annual_pro',
-                      ),
-                      const SizedBox(height: 12),
-
-                      // 2. Monthly Card
-                      _buildPlanCard(
-                        id: 'monthly',
-                        title: 'Monthly',
-                        subtitle: '£9.99 per month',
-                        priceText: '£9.99/mo',
-                        isSelected: _selectedTier == 'monthly',
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Bottom Continue to Pro Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: Material(
-                  color: AppColors.royalBlue,
-                  borderRadius: BorderRadius.circular(16),
-                  child: InkWell(
-                    onTap: _onContinue,
-                    borderRadius: BorderRadius.circular(16),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Spacer(),
-                          Text(
-                            'Continue to Pro',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
+                    ),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: Material(
+                        color: _purchasing
+                            ? AppColors.royalBlue.withValues(alpha: 0.6)
+                            : AppColors.royalBlue,
+                        borderRadius: BorderRadius.circular(16),
+                        child: InkWell(
+                          onTap: _purchasing ? null : _onContinue,
+                          borderRadius: BorderRadius.circular(16),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                if (_purchasing) ...[
+                                  const SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.2,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  const Text(
+                                    'Processing…',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ] else ...[
+                                  const Spacer(),
+                                  const Text(
+                                    'Continue to Pro',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  const Icon(
+                                    Icons.arrow_forward_rounded,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
-                          Spacer(),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildFooterLink('Restore purchase', _restore),
+                        const Text(
+                          '  ·  ',
+                          style: TextStyle(
+                            color: Color(0xFF6B7280),
+                            fontSize: 12,
+                          ),
+                        ),
+                        _buildFooterLink(
+                          'Terms',
+                          () => _openUrl('https://hakkiri.com/terms'),
+                        ),
+                        const Text(
+                          '  ·  ',
+                          style: TextStyle(
+                            color: Color(0xFF6B7280),
+                            fontSize: 12,
+                          ),
+                        ),
+                        _buildFooterLink(
+                          'Privacy',
+                          () => _openUrl('https://hakkiri.com/privacy'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                  ],
                 ),
               ),
-              const SizedBox(height: 14),
-
-              // Footer Links
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _buildFooterLink('Restore purchase'),
-                  const Text('  ·  ', style: TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
-                  _buildFooterLink('Terms'),
-                  const Text('  ·  ', style: TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
-                  _buildFooterLink('Privacy'),
-                ],
-              ),
-              const SizedBox(height: 6),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    ],
-  ),
-);
+    );
   }
 
   Widget _buildFeatureRow({
@@ -297,7 +559,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
     required bool isSelected,
   }) {
     return GestureDetector(
-      onTap: () => setState(() => _selectedTier = id),
+      onTap: _purchasing ? null : () => setState(() => _selectedTier = id),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -305,13 +567,14 @@ class _PaywallScreenState extends State<PaywallScreen> {
           color: const Color(0xFF141624),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? const Color(0xFF3B82F6) : const Color(0xFF23263B),
+            color: isSelected
+                ? const Color(0xFF3B82F6)
+                : const Color(0xFF23263B),
             width: isSelected ? 1.8 : 1.0,
           ),
         ),
         child: Row(
           children: [
-            // Radio Circle
             Container(
               width: 24,
               height: 24,
@@ -319,18 +582,19 @@ class _PaywallScreenState extends State<PaywallScreen> {
                 shape: BoxShape.circle,
                 color: isSelected ? AppColors.royalBlue : Colors.transparent,
                 border: Border.all(
-                  color: isSelected ? AppColors.royalBlue : const Color(0xFF4B5563),
+                  color: isSelected
+                      ? AppColors.royalBlue
+                      : const Color(0xFF4B5563),
                   width: 1.5,
                 ),
               ),
               alignment: Alignment.center,
               child: isSelected
-                  ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
+                  ? const Icon(Icons.check_rounded,
+                      color: Colors.white, size: 16)
                   : null,
             ),
             const SizedBox(width: 14),
-
-            // Plan Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -348,7 +612,10 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       if (badgeText != null) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFF2563EB),
                             borderRadius: BorderRadius.circular(6),
@@ -378,8 +645,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
                 ],
               ),
             ),
-
-            // Price Text
             Text(
               priceText,
               style: const TextStyle(
@@ -394,9 +659,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
     );
   }
 
-  Widget _buildFooterLink(String text) {
+  Widget _buildFooterLink(String text, VoidCallback onTap) {
     return GestureDetector(
-      onTap: () {},
+      onTap: _purchasing ? null : onTap,
       child: Text(
         text,
         style: const TextStyle(
@@ -409,5 +674,3 @@ class _PaywallScreenState extends State<PaywallScreen> {
     );
   }
 }
-
-

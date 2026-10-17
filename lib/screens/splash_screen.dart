@@ -6,8 +6,10 @@ import 'package:video_player/video_player.dart';
 import '../core/constants/app_colors.dart';
 import '../core/services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
+import 'assessment_screen.dart';
 import 'home_screen.dart';
 import 'landing_screen.dart';
+import 'locked_profile_screen.dart';
 
 /// Cinematic Fish Video Splash Screen.
 /// Plays the bioluminescent live-animation video (assets/video/splash.mp4)
@@ -96,13 +98,25 @@ class _SplashScreenState extends State<SplashScreen>
     await state.restoreLocalSessionOnly();
     if (!mounted) return;
 
+    // Sync subscription from API before routing — local session has no plan flag.
+    if (state.isLoggedIn) {
+      try {
+        await state.refreshFromApi();
+      } catch (_) {
+        // Offline: fall back to last known in-memory flags (default locked).
+      }
+    }
+    if (!mounted) return;
+
     final Widget next;
-    if (state.isLoggedIn && state.isOnboarded) {
+    if (state.isLoggedIn && state.isOnboarded && state.isSubscribed) {
       next = const HomeScreen();
-      unawaited(state.refreshFromApi());
+    } else if (state.isLoggedIn && state.isOnboarded && !state.isSubscribed) {
+      // Assessment done but no Pro — locked profile until they subscribe.
+      next = const LockedProfileScreen();
     } else if (state.isLoggedIn && !state.isOnboarded) {
-      next = const LandingScreen(postSignup: true);
-      unawaited(state.refreshFromApi());
+      // Account exists but assessment not done — continue assessment funnel.
+      next = const AssessmentScreen();
     } else {
       next = const LandingScreen();
     }

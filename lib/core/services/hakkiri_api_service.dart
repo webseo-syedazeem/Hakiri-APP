@@ -266,6 +266,29 @@ class HakkiriApiService {
     return data;
   }
 
+  Future<Map<String, dynamic>> loginWithApple({
+    required String idToken,
+    String? fullName,
+  }) async {
+    final data = await _post('/auth/apple', body: {
+      'id_token': idToken,
+      if (fullName != null && fullName.trim().length >= 2)
+        'full_name': fullName.trim(),
+    });
+    final user = (data['user'] as Map<String, dynamic>?) ?? {};
+    final token = (data['token'] ?? '').toString();
+    if (token.isEmpty) {
+      throw HakkiriApiException('Apple sign-in succeeded but no token was returned.');
+    }
+    await _persistSession(
+      token: token,
+      userId: (user['id'] ?? '').toString(),
+      fullName: (user['full_name'] ?? '').toString(),
+      email: (user['email'] ?? '').toString(),
+    );
+    return data;
+  }
+
   Future<Map<String, dynamic>> me() => _get('/auth/me', auth: true);
 
   /// Single round-trip for home/login refresh (replaces 5 separate calls).
@@ -296,6 +319,9 @@ class HakkiriApiService {
 
   Future<Map<String, dynamic>> sessions({int limit = 20}) =>
       _get('/sessions?limit=$limit', auth: true);
+
+  Future<Map<String, dynamic>> deleteSession(String sessionId) =>
+      _delete('/sessions/$sessionId', auth: true);
 
   Future<Map<String, dynamic>> dailyAnchor() => _get('/daily-anchor', auth: true);
 
@@ -329,13 +355,14 @@ class HakkiriApiService {
           'system_instruction': systemInstruction.trim(),
       });
 
-  /// Gemini Flash scoring for a practice transcript (doc Week 3).
+  /// Gemini Flash scoring (optional audio base64 → transcribe + score).
   Future<Map<String, dynamic>> analyzeSpeech(Map<String, dynamic> body) =>
       _post(
         '/ai/analyze-speech',
         auth: true,
         body: body,
-        timeout: const Duration(seconds: 55),
+        // Audio transcription + scoring can take longer than text-only.
+        timeout: const Duration(seconds: 90),
       );
 
   /// Save FCM device token for daily practice reminders.
@@ -357,11 +384,14 @@ class HakkiriApiService {
     required String activitySlug,
     String? difficulty,
     String? careerType,
+    String? excludePromptId,
   }) {
     final q = <String, String>{
       'activity': activitySlug,
       if (difficulty != null && difficulty.isNotEmpty) 'difficulty': difficulty,
       if (careerType != null && careerType.isNotEmpty) 'career_type': careerType,
+      if (excludePromptId != null && excludePromptId.isNotEmpty)
+        'exclude': excludePromptId,
     };
     final query = q.entries
         .map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')

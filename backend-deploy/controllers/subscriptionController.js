@@ -35,7 +35,7 @@ const choosePlan = async (req, res) => {
     { new: true, upsert: true }
   );
 
-  return success(res, `Plan set to ${plan.label}. Payment capture is not part of this API yet.`, {
+  return success(res, `Plan set to ${plan.label}.`, {
     subscription: subscriptionJson(subscription),
   });
 };

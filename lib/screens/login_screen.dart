@@ -6,10 +6,12 @@ import '../core/services/hakkiri_api_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/auth_waveform_watermark.dart';
+import '../widgets/google_logo.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/hakkiri_logo.dart';
+import 'assessment_screen.dart';
 import 'home_screen.dart';
-import 'landing_screen.dart';
+import 'locked_profile_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -65,10 +67,18 @@ class _LoginScreenState extends State<LoginScreen> {
         action: () => state.loginAccount(email: email, password: password),
       );
       if (!mounted) return;
-      // Login → Home (simple).
+      // Assessment → Pro gate → Home.
+      final Widget next;
+      if (!state.isOnboarded) {
+        next = const AssessmentScreen();
+      } else if (!state.isSubscribed) {
+        next = const LockedProfileScreen();
+      } else {
+        next = const HomeScreen();
+      }
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+        MaterialPageRoute(builder: (_) => next),
         (route) => false,
       );
     } on HakkiriApiException catch (e) {
@@ -101,13 +111,17 @@ class _LoginScreenState extends State<LoginScreen> {
       final needsOnboarding = data.containsKey('needs_onboarding')
           ? data['needs_onboarding'] == true
           : (created || profile['onboarding_complete'] != true);
+      final Widget next;
+      if (needsOnboarding) {
+        next = const AssessmentScreen();
+      } else if (!state.isSubscribed) {
+        next = const LockedProfileScreen();
+      } else {
+        next = const HomeScreen();
+      }
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (_) => needsOnboarding
-              ? const LandingScreen(postSignup: true)
-              : const HomeScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => next),
         (route) => false,
       );
     } on HakkiriApiException catch (e) {
@@ -120,6 +134,59 @@ class _LoginScreenState extends State<LoginScreen> {
         _showMessage('Add your Android SHA-1 fingerprint in Firebase Console.');
       } else {
         _showMessage('Google sign-in failed. Try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _handleAppleLogin() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    try {
+      final state = context.read<AppStateProvider>();
+      late final Map<String, dynamic> data;
+      await HakkiriLoadingOverlay.run(
+        context,
+        message: 'Getting your information…',
+        detail: 'Signing you in with Apple.',
+        action: () async {
+          data = await state.continueWithApple();
+        },
+      );
+      if (!mounted) return;
+      final created = data['created'] == true;
+      final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
+      final needsOnboarding = data.containsKey('needs_onboarding')
+          ? data['needs_onboarding'] == true
+          : (created || profile['onboarding_complete'] != true);
+      final Widget next;
+      if (needsOnboarding) {
+        next = const AssessmentScreen();
+      } else if (!state.isSubscribed) {
+        next = const LockedProfileScreen();
+      } else {
+        next = const HomeScreen();
+      }
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => next),
+        (route) => false,
+      );
+    } on HakkiriApiException catch (e) {
+      _showMessage(e.message);
+    } catch (e) {
+      final msg = e.toString();
+      if (msg.contains('canceled') ||
+          msg.contains('cancelled') ||
+          msg.contains('AuthorizationErrorCode.canceled')) {
+        _showMessage('Apple sign-in was cancelled.');
+      } else if (msg.contains('not available')) {
+        _showMessage(
+          'Apple Sign-In needs an iPhone. Use Google or email on Android.',
+        );
+      } else {
+        _showMessage('Apple sign-in failed. Try again on a real iPhone.');
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -275,27 +342,43 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Social Auth Buttons (Apple & Google)
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildSocialButton(
-                          label: 'Apple',
-                          icon: Icons.apple_rounded,
-                          onTap: () => _showMessage(
-                            'Apple Sign-In coming soon. Use Google or email.',
+                  // iOS: Apple + Google. Android: Google full width (no Apple).
+                  Builder(
+                    builder: (context) {
+                      final isIOS =
+                          Theme.of(context).platform == TargetPlatform.iOS;
+                      if (!isIOS) {
+                        return SizedBox(
+                          width: double.infinity,
+                          child: _buildSocialButton(
+                            label: 'Google',
+                            isGoogle: true,
+                            onTap: _isSubmitting ? () {} : _handleGoogleLogin,
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: _buildSocialButton(
-                          label: 'Google',
-                          isGoogle: true,
-                          onTap: _isSubmitting ? () {} : _handleGoogleLogin,
-                        ),
-                      ),
-                    ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: _buildSocialButton(
+                              label: 'Apple',
+                              icon: Icons.apple_rounded,
+                              onTap:
+                                  _isSubmitting ? () {} : _handleAppleLogin,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: _buildSocialButton(
+                              label: 'Google',
+                              isGoogle: true,
+                              onTap:
+                                  _isSubmitting ? () {} : _handleGoogleLogin,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
 
                   const Spacer(),
@@ -413,7 +496,7 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (isGoogle)
-                _buildGoogleLogo()
+                const GoogleLogo(size: 20)
               else if (icon != null)
                 Icon(icon, color: const Color(0xFF0F172A), size: 20),
               const SizedBox(width: 8),
@@ -431,35 +514,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
-  Widget _buildGoogleLogo() {
-    return SizedBox(
-      width: 18,
-      height: 18,
-      child: CustomPaint(
-        painter: _GoogleGLogoPainter(),
-      ),
-    );
-  }
-}
-
-class _GoogleGLogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final textPainter = TextPainter(
-      text: const TextSpan(
-        text: 'G',
-        style: TextStyle(
-          color: Color(0xFF4285F4),
-          fontSize: 16,
-          fontWeight: FontWeight.w900,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    textPainter.paint(canvas, const Offset(1, 0));
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

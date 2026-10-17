@@ -14,6 +14,18 @@ function hashSeed(value) {
   return hash;
 }
 
+function dedupePrompts(list) {
+  const seen = new Set();
+  const out = [];
+  for (const item of list) {
+    const code = String(item.code || "");
+    if (!code || seen.has(code)) continue;
+    seen.add(code);
+    out.push(item);
+  }
+  return out;
+}
+
 async function choosePrompt({ activitySlug, difficulty, careerType, excludeCodes = [], seed }) {
   const requested = canonical("difficulty", difficulty) || "beginner";
   const storedDifficulty = requested === "i_dont_know" ? "intermediary" : requested;
@@ -24,12 +36,32 @@ async function choosePrompt({ activitySlug, difficulty, careerType, excludeCodes
     careerType && careerType !== "general" && careerType !== "other"
       ? pool.filter((item) => (item.industries || []).includes(careerType))
       : [];
-  const general = pool.filter((item) => (item.industries || []).includes("general") || !(item.industries || []).length);
-  const ranked = specific.length ? specific : general.length ? general : pool;
-  const fresh = ranked.filter((item) => !excludeCodes.includes(item.code));
-  const list = fresh.length ? fresh : ranked;
+  const general = pool.filter(
+    (item) => (item.industries || []).includes("general") || !(item.industries || []).length
+  );
+
+  // Never trap users in a 1–2 prompt industry niche (e.g. always "project deadline").
+  // Use the full difficulty pool for variety; soft-prefer career matches when plenty exist.
+  const ranked = dedupePrompts([...specific, ...general, ...pool]);
+  const exclude = new Set((excludeCodes || []).filter(Boolean).map(String));
+  const fresh = ranked.filter((item) => !exclude.has(item.code));
+  let list = fresh.length ? fresh : ranked;
   if (!list.length) return null;
-  const index = hashSeed(seed) % list.length;
+
+  const careerFresh = list.filter((item) => specific.some((s) => s.code === item.code));
+  // Soft bias only when career pool itself has real variety.
+  if (
+    careerFresh.length >= 3 &&
+    !(seed && String(seed).includes(":stable:")) &&
+    Math.random() < 0.4
+  ) {
+    list = careerFresh;
+  }
+
+  const index =
+    seed && String(seed).includes(":stable:")
+      ? hashSeed(seed) % list.length
+      : Math.floor(Math.random() * list.length);
   return { prompt: list[index], inferLevel: requested === "i_dont_know", servedDifficulty: storedDifficulty };
 }
 
@@ -90,15 +122,27 @@ const nextPrompt = async (req, res) => {
     isCoachedRetry: false,
   })
     .sort({ createdAt: -1 })
-    .limit(8)
+    .limit(20)
     .select("promptCode");
+
+  const excludeParam = String(req.query.exclude || req.query.exclude_codes || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const excludeCodes = [
+    ...new Set([
+      ...recent.map((row) => row.promptCode).filter(Boolean),
+      ...excludeParam,
+    ]),
+  ];
 
   const chosen = await choosePrompt({
     activitySlug,
     difficulty,
     careerType: career,
-    excludeCodes: recent.map((row) => row.promptCode).filter(Boolean),
-    seed: `${req.user._id}:${activitySlug}:${difficulty}:${new Date().toISOString().slice(0, 10)}`,
+    excludeCodes,
+    // Random rotation each Begin exercise (daily-anchor still uses stable seed).
+    seed: `${req.user._id}:${activitySlug}:${difficulty}:${Date.now()}`,
   });
   if (!chosen) return error(res, "No prompt is available for this activity.", 404);
 
@@ -139,7 +183,7 @@ const dailyAnchor = async (req, res) => {
       activitySlug: slug,
       difficulty,
       careerType: career,
-      seed: `${req.user._id}:${slug}:${dateStamp()}`,
+      seed: `${req.user._id}:${slug}:stable:${dateStamp()}`,
     });
     return {
       order,

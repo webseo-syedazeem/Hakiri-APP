@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/constants/app_colors.dart';
+import '../core/services/session_audio_store.dart';
 import '../models/session_model.dart';
 
 /// Full session review: question, transcript / turns, scores, local playback.
@@ -39,12 +40,20 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
   }
 
   Future<void> _initAudio() async {
-    final path = s.localAudioPath;
+    var path = s.localAudioPath;
+    if (path == null || path.isEmpty) {
+      path = await SessionAudioStore.instance.pathFor(s.id);
+    }
     if (path == null || path.isEmpty) return;
     final file = File(path);
     if (!await file.exists()) return;
     try {
       _audioPath = path;
+      await _player.setSource(DeviceFileSource(path));
+      final d = await _player.getDuration();
+      if (d != null && d.inMilliseconds > 0 && mounted) {
+        setState(() => _duration = d);
+      }
       _posSub = _player.onPositionChanged.listen((p) {
         if (mounted) setState(() => _position = p);
       });
@@ -173,8 +182,10 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
               ),
             ),
             const SizedBox(height: 22),
-            _buildAudioCard(),
-            const SizedBox(height: 22),
+            if (_hasAudio) ...[
+              _buildAudioCard(),
+              const SizedBox(height: 22),
+            ],
             const Text(
               'MARKS',
               style: TextStyle(

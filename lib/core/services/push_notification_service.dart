@@ -9,7 +9,8 @@ import '../../firebase_options.dart';
 import 'google_auth_service.dart';
 import 'hakkiri_api_service.dart';
 
-/// FCM only — grabs the device token at app start and syncs it to the API.
+/// FCM only — grabs the device token and syncs it to the API.
+/// Notification permission is requested on the Home screen, never on the native splash.
 class PushNotificationService {
   PushNotificationService._();
   static final PushNotificationService instance = PushNotificationService._();
@@ -18,9 +19,11 @@ class PushNotificationService {
   bool _ready = false;
   /// When false (Profile Reminder off), never sync tokens to the API.
   bool allowSync = true;
+  bool _requestedThisSession = false;
 
   String? get token => _token;
 
+  /// Background initialization on app launch. Does NOT prompt for notification permissions.
   Future<void> init() async {
     if (kIsWeb) return;
     try {
@@ -41,44 +44,6 @@ class PushNotificationService {
         );
       }
 
-      final settings = await messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
-      );
-      // ignore: avoid_print
-      print('FCM permission: ${settings.authorizationStatus}');
-      if (settings.authorizationStatus == AuthorizationStatus.denied) {
-        // ignore: avoid_print
-        print('FCM TOKEN: permission denied by user (OS settings)');
-        await clearTokenFromApi();
-        return;
-      }
-
-      // iOS: FCM token ONLY works after APNs token is set.
-      if (Platform.isIOS) {
-        final apns = await _waitForApnsToken(messaging);
-        if (apns == null) {
-          // ignore: avoid_print
-          print(
-            'FCM TOKEN: APNs still null. Use a real iPhone (not Simulator), '
-            'enable Push Notifications capability, and ensure network + Apple login.',
-          );
-        } else {
-          // ignore: avoid_print
-          print('APNs token OK (${apns.substring(0, apns.length.clamp(0, 12))}…)');
-        }
-      }
-
-      try {
-        _token = await messaging.getToken();
-      } catch (e) {
-        // ignore: avoid_print
-        print('FCM getToken error (will retry via onTokenRefresh): $e');
-        _token = null;
-      }
-
       messaging.onTokenRefresh.listen((t) {
         _token = t;
         _logToken(t, source: 'refresh');
@@ -86,18 +51,98 @@ class PushNotificationService {
       });
 
       _ready = true;
-      if (_token != null && _token!.isNotEmpty) {
-        _logToken(_token!, source: 'start');
-        await syncTokenToApi();
-      } else {
-        // ignore: avoid_print
-        print('FCM TOKEN: null at start — waiting for onTokenRefresh…');
+
+      // If user already granted permission in a previous session, silently fetch & sync token.
+      final settings = await messaging.getNotificationSettings();
+      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional) {
+        await _fetchAndSyncToken(messaging);
       }
     } catch (e, st) {
       // ignore: avoid_print
       print('FCM init skipped: $e');
       // ignore: avoid_print
       print(st);
+    }
+  }
+
+  /// Request notification permission smoothly on the Home screen.
+  Future<void> requestPermissionOnHomeScreen() async {
+    if (kIsWeb) return;
+    if (_requestedThisSession) return;
+    _requestedThisSession = true;
+
+    try {
+      final messaging = FirebaseMessaging.instance;
+      final currentSettings = await messaging.getNotificationSettings();
+
+      // If already authorized, ensure token is synced.
+      if (currentSettings.authorizationStatus == AuthorizationStatus.authorized ||
+          currentSettings.authorizationStatus == AuthorizationStatus.provisional) {
+        await _fetchAndSyncToken(messaging);
+        return;
+      }
+
+      // If user previously permanently denied in OS settings, don't spam.
+      if (currentSettings.authorizationStatus == AuthorizationStatus.denied) {
+        await clearTokenFromApi();
+        return;
+      }
+
+      // Small delay so home screen UI finishes rendering before system dialog appears
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+
+      final settings = await messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
+
+      // ignore: avoid_print
+      print('FCM permission on Home: ${settings.authorizationStatus}');
+      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional) {
+        await _fetchAndSyncToken(messaging);
+      } else {
+        await clearTokenFromApi();
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('FCM permission request error: $e');
+    }
+  }
+
+  Future<void> _fetchAndSyncToken(FirebaseMessaging messaging) async {
+    // iOS: FCM token ONLY works after APNs token is set.
+    if (Platform.isIOS) {
+      final apns = await _waitForApnsToken(messaging);
+      if (apns == null) {
+        // ignore: avoid_print
+        print(
+          'FCM TOKEN: APNs still null. Use a real iPhone (not Simulator), '
+          'enable Push Notifications capability, and ensure network + Apple login.',
+        );
+      } else {
+        // ignore: avoid_print
+        print('APNs token OK (${apns.substring(0, apns.length.clamp(0, 12))}…)');
+      }
+    }
+
+    try {
+      _token = await messaging.getToken();
+    } catch (e) {
+      // ignore: avoid_print
+      print('FCM getToken error (will retry via onTokenRefresh): $e');
+      _token = null;
+    }
+
+    if (_token != null && _token!.isNotEmpty) {
+      _logToken(_token!, source: 'token_ready');
+      await syncTokenToApi();
+    } else {
+      // ignore: avoid_print
+      print('FCM TOKEN: null at start — waiting for onTokenRefresh…');
     }
   }
 

@@ -5,8 +5,13 @@ import '../core/constants/app_strings.dart';
 import '../core/services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_logo.dart';
+import 'how_hakkiri_works_screen.dart';
 import 'main_tab_scaffold.dart';
 import 'paywall_screen.dart';
+import 'privacy_permissions_screen.dart';
+import 'practice_context_screen.dart';
+import 'profile_section_screen.dart';
+import 'voice_coach_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -120,11 +125,27 @@ class SettingsScreen extends StatelessWidget {
                 title: 'Industry Track',
                 value: state.careerTypeLabel,
                 icon: Icons.business_center_outlined,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PracticeContextScreen(),
+                    ),
+                  );
+                },
               ),
               _buildSettingTile(
-                title: 'Voice Resonance Profile',
+                title: 'Voice Coach',
                 value: state.voiceProfileLabel,
-                icon: Icons.mic_none_outlined,
+                icon: Icons.record_voice_over_outlined,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const VoiceCoachScreen(),
+                    ),
+                  );
+                },
               ),
               _buildSettingTile(
                 title: 'Progress & Insights',
@@ -136,10 +157,31 @@ class SettingsScreen extends StatelessWidget {
                 title: 'Daily Anchor Duration',
                 value: '${state.dailyAnchorMinutes} Minutes / Day',
                 icon: Icons.timer_outlined,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ProfileSectionScreen(
+                        focus: ProfileSectionFocus.dailyPractice,
+                      ),
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 20),
               _buildSectionHeader('TRUST & TRANSPARENCY'),
+              _buildSettingTile(
+                title: 'How Hakkiri Works',
+                value: 'AI & methodology',
+                icon: Icons.shield_outlined,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HowHakkiriWorksScreen()),
+                  );
+                },
+              ),
               _buildSettingTile(
                 title: 'Fair Scoring Principles',
                 value: 'Zero accent penalty',
@@ -147,9 +189,15 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => _showFairScoringDialog(context),
               ),
               _buildSettingTile(
-                title: 'Audio Privacy & Telemetry',
-                value: state.audioPrivacy.replaceAll('_', ' '),
-                icon: Icons.security_outlined,
+                title: 'Privacy & Permissions',
+                value: 'Manage your data',
+                icon: Icons.lock_outline_rounded,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PrivacyPermissionsScreen()),
+                  );
+                },
               ),
 
               const SizedBox(height: 32),

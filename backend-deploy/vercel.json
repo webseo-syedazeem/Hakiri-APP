@@ -12,7 +12,7 @@
   ],
   "functions": {
     "api/index.js": {
-      "maxDuration": 60,
+      "maxDuration": 90,
       "includeFiles": "{server.js,controllers/**,models/**,routes/**,middleware/**,config/**,helpers/**,data/**,services/**}"
     }
   }

@@ -110,6 +110,124 @@ class ShimmerBox extends StatelessWidget {
   }
 }
 
+/// Home tab skeleton — shown instead of default placeholder stats while API loads.
+class HomeLoadingShimmer extends StatelessWidget {
+  const HomeLoadingShimmer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: ShimmerEffect(
+        child: SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: const [
+                  ShimmerBox(width: 28, height: 28, borderRadius: 8),
+                  ShimmerBox(width: 64, height: 28, borderRadius: 20),
+                ],
+              ),
+              const SizedBox(height: 18),
+              const ShimmerBox(width: 56, height: 12, borderRadius: 6),
+              const SizedBox(height: 10),
+              const ShimmerBox(
+                width: double.infinity,
+                height: 34,
+                borderRadius: 8,
+              ),
+              const SizedBox(height: 10),
+              FractionallySizedBox(
+                widthFactor: 0.62,
+                alignment: Alignment.centerLeft,
+                child: const ShimmerBox(height: 34, borderRadius: 8),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        ShimmerBox(width: 120, height: 14, borderRadius: 6),
+                        ShimmerBox(width: 90, height: 14, borderRadius: 6),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: List.generate(7, (i) {
+                        return Expanded(
+                          child: Container(
+                            height: 7,
+                            margin: EdgeInsets.only(right: i < 6 ? 6 : 0),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE2E8F0),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              const ShimmerBox(
+                width: double.infinity,
+                height: 66,
+                borderRadius: 16,
+              ),
+              const SizedBox(height: 18),
+              const ShimmerBox(
+                width: double.infinity,
+                height: 108,
+                borderRadius: 22,
+              ),
+              const SizedBox(height: 24),
+              const ShimmerBox(width: 180, height: 12, borderRadius: 6),
+              const SizedBox(height: 12),
+              const ShimmerBox(
+                width: double.infinity,
+                height: 72,
+                borderRadius: 16,
+              ),
+              const SizedBox(height: 10),
+              const ShimmerBox(
+                width: double.infinity,
+                height: 72,
+                borderRadius: 16,
+              ),
+              const SizedBox(height: 10),
+              const ShimmerBox(
+                width: double.infinity,
+                height: 72,
+                borderRadius: 16,
+              ),
+              const SizedBox(height: 18),
+              const ShimmerBox(
+                width: double.infinity,
+                height: 84,
+                borderRadius: 18,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// Full screen question skeleton shimmer matching Hakkiri's drill question stage.
 class QuestionLoadingShimmer extends StatelessWidget {
   final String? activityName;

@@ -152,10 +152,73 @@ class SpeechEvaluatorService {
       engagementScore = (engagementScore + 1).clamp(1, 5);
     }
 
-    final overall = ((execScore + clarityScore + impactScore + engagementScore) /
-            4.0)
-        .round()
-        .clamp(1, 5);
+    // Offline Think Fast: spreadsheet weights (structure 0.4, latency 0.3, fillers 0.3)
+    // + heaviest-low cap ≤ 3 when structure ≤ 2.
+    final activityMeasures = <ActivityMeasureScore>[];
+    int overall;
+    var capped = false;
+    String? scoringReason;
+
+    if (prompt.activitySlug == 'think_fast') {
+      final structure = isNonAnswer
+          ? 1
+          : isThin
+              ? (overlap >= 0.08 ? 2 : 1)
+              : clarityScore;
+      final latency = isNonAnswer
+          ? 1
+          : isThin
+              ? 2
+              : engagementScore;
+      final fillers = isNonAnswer
+          ? 1
+          : detectedCrutches.isEmpty
+              ? execScore
+              : (execScore - 1).clamp(1, 5);
+
+      var raw = structure * 0.4 + latency * 0.3 + fillers * 0.3;
+      if (structure <= 2 && raw > 3) {
+        raw = 3;
+        capped = true;
+        scoringReason =
+            'Capped at 3 because Structure scored $structure.';
+      }
+      overall = raw.round().clamp(1, 5);
+      activityMeasures.addAll([
+        ActivityMeasureScore(
+          key: 'structure',
+          label: 'Structure',
+          weight: 0.4,
+          score: structure,
+          isHeaviest: true,
+          effectiveWeight: 0.4,
+        ),
+        ActivityMeasureScore(
+          key: 'latency',
+          label: 'Latency',
+          weight: 0.3,
+          score: latency,
+          effectiveWeight: 0.3,
+        ),
+        ActivityMeasureScore(
+          key: 'fillers',
+          label: 'Fillers',
+          weight: 0.3,
+          score: fillers,
+          effectiveWeight: 0.3,
+        ),
+      ]);
+      // Keep pillars aligned with measures for dashboard.
+      clarityScore = structure;
+      impactScore = structure;
+      engagementScore = latency;
+      execScore = fillers;
+    } else {
+      overall = ((execScore + clarityScore + impactScore + engagementScore) /
+              4.0)
+          .round()
+          .clamp(1, 5);
+    }
 
     final spokenSnippet = _snippet(words, maxWords: 10);
     final heard = spokenSnippet.isEmpty
@@ -258,6 +321,9 @@ class SpeechEvaluatorService {
       retryInstruction: retryInstruction,
       exemplarResponse: prompt.exemplarResponse,
       isCoachedRetry: isRetry,
+      activityMeasures: activityMeasures,
+      capped: capped,
+      scoringReason: scoringReason,
     );
   }
 

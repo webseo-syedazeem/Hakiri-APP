@@ -15,6 +15,7 @@ const router = express.Router();
 router.post("/auth/register", auth.register);
 router.post("/auth/login", auth.login);
 router.post("/auth/google", auth.googleAuth);
+router.post("/auth/apple", auth.appleAuth);
 router.get("/auth/me", verifyJWT, auth.me);
 router.get("/bootstrap", verifyJWT, bootstrap.bootstrap);
 router.get("/ai/status", ai.status);
@@ -48,6 +49,7 @@ router.get("/daily-anchor", verifyJWT, catalog.dailyAnchor);
 router.post("/sessions", verifyJWT, session.createSession);
 router.get("/sessions", verifyJWT, session.listSessions);
 router.get("/sessions/:id", verifyJWT, session.getSession);
+router.delete("/sessions/:id", verifyJWT, session.deleteSession);
 router.get("/dashboard", verifyJWT, session.dashboard);
 
 router.get("/challenges", verifyJWT, challenge.listChallenges);
