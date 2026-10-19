@@ -1,8 +1,8 @@
 import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:video_player/video_player.dart';
 import '../core/constants/app_colors.dart';
 import '../core/services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
@@ -11,10 +11,12 @@ import 'home_screen.dart';
 import 'landing_screen.dart';
 import 'locked_profile_screen.dart';
 
-/// Cinematic Fish Video Splash Screen.
-/// Plays the bioluminescent live-animation video (assets/video/splash.mp4)
-/// with a clean seamless blue background (no concentric circular rings/banding)
-/// and the glowing Hakkiri brand mark.
+/// Native Interactive Splash Screen matching the Figma prototype:
+/// - Deep royal blue cosmic canvas with dynamic radiating light rays (360° warp-speed burst)
+/// - Glowing Hakkiri brand mark with breathing pulse
+/// - "Say what you mean. First time." tagline
+/// - "Touch the light" invitation
+/// - "Begin ->" action pill button
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -22,77 +24,84 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-const String _kSplashVideoAsset = 'assets/video/splash.mp4';
-
 class _SplashScreenState extends State<SplashScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _entryController;
-  late final Animation<double> _scaleAnimation;
-  late final Animation<double> _opacityAnimation;
-  VideoPlayerController? _videoController;
-  bool _videoReady = false;
+    with TickerProviderStateMixin {
+  late final AnimationController _rayController;
+  late final AnimationController _pulseController;
   Timer? _timer;
   bool _hasNavigated = false;
+
+  late final List<_LightRayData> _rays;
 
   @override
   void initState() {
     super.initState();
     AnalyticsService.instance.logScreenView(screenName: 'SplashScreen');
 
-    // Entry fade & scale animation
-    _entryController = AnimationController(
+    // Continuous outward cosmic light ray streaks
+    _rayController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    );
+      duration: const Duration(milliseconds: 3200),
+    )..repeat();
 
-    _scaleAnimation = Tween<double>(begin: 0.92, end: 1.0).animate(
-      CurvedAnimation(parent: _entryController, curve: Curves.easeOutCubic),
-    );
+    // Subtle gentle breathing pulse on the glowing brand mark
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat(reverse: true);
 
-    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _entryController, curve: Curves.easeIn),
-    );
+    // Initialize deterministic high-density light rays (streaks radiating in 360°)
+    _rays = _generateLightRays();
 
-    _entryController.forward();
-
-    // Default safety timer in case video takes longer to initialize
-    _timer = Timer(const Duration(milliseconds: 4000), _navigateToNext);
-
-    _initVideo();
+    // Default safety timer: automatically advance after 4.5s if untouched
+    _timer = Timer(const Duration(milliseconds: 4500), _navigateToNext);
   }
 
-  Future<void> _initVideo() async {
-    final controller = VideoPlayerController.asset(_kSplashVideoAsset);
-    try {
-      await controller.initialize();
-      await controller.setLooping(true);
-      await controller.setVolume(0);
-      await controller.play();
-      if (!mounted) {
-        await controller.dispose();
-        return;
-      }
-      setState(() {
-        _videoController = controller;
-        _videoReady = true;
-      });
-      // Allow user to enjoy the live bioluminescent video animation
-      _timer?.cancel();
-      _timer = Timer(const Duration(milliseconds: 3800), _navigateToNext);
-    } catch (_) {
-      // If video playback fails, proceed promptly with the clean blue splash
-      if (mounted) {
-        _timer?.cancel();
-        _timer = Timer(const Duration(milliseconds: 2500), _navigateToNext);
-      }
+  List<_LightRayData> _generateLightRays() {
+    final rand = Random(42); // deterministic seed for consistent, beautiful layout
+    final list = <_LightRayData>[];
+
+    const colors = [
+      Color(0xFFFFFFFF), // pure white core
+      Color(0xFF38BDF8), // neon sky cyan
+      Color(0xFF00E5FF), // electric cyan
+      Color(0xFF60A5FA), // royal blue
+      Color(0xFFC084FC), // light neon violet
+      Color(0xFFE879F9), // electric lavender
+      Color(0xFF93C5FD), // soft ice blue
+    ];
+
+    const int count = 76;
+    for (int i = 0; i < count; i++) {
+      // Angle spanning full 360 degrees with natural organic jitter
+      final baseAngle = (i / count) * 2 * pi;
+      final angle = baseAngle + (rand.nextDouble() - 0.5) * 0.12;
+
+      final length = 60.0 + rand.nextDouble() * 190.0;
+      final speed = 0.65 + rand.nextDouble() * 0.70;
+      final phase = rand.nextDouble();
+      final strokeWidth = 1.3 + rand.nextDouble() * 2.2;
+      final color = colors[rand.nextInt(colors.length)];
+      final maxReach = 0.85 + rand.nextDouble() * 0.45;
+
+      list.add(_LightRayData(
+        angle: angle,
+        length: length,
+        speed: speed,
+        phase: phase,
+        strokeWidth: strokeWidth,
+        color: color,
+        maxReach: maxReach,
+      ));
     }
+    return list;
   }
 
   Future<void> _navigateToNext() async {
     if (_hasNavigated || !mounted) return;
     _hasNavigated = true;
 
-    _videoController?.pause();
+    _timer?.cancel();
 
     final state = Provider.of<AppStateProvider>(context, listen: false);
     await state.restoreLocalSessionOnly();
@@ -103,7 +112,7 @@ class _SplashScreenState extends State<SplashScreen>
       try {
         await state.refreshFromApi();
       } catch (_) {
-        // Offline: fall back to last known in-memory flags (default locked).
+        // Offline: fall back to last known in-memory flags.
       }
     }
     if (!mounted) return;
@@ -112,10 +121,8 @@ class _SplashScreenState extends State<SplashScreen>
     if (state.isLoggedIn && state.isOnboarded && state.isSubscribed) {
       next = const HomeScreen();
     } else if (state.isLoggedIn && state.isOnboarded && !state.isSubscribed) {
-      // Assessment done but no Pro — locked profile until they subscribe.
       next = const LockedProfileScreen();
     } else if (state.isLoggedIn && !state.isOnboarded) {
-      // Account exists but assessment not done — continue assessment funnel.
       next = const AssessmentScreen();
     } else {
       next = const LandingScreen();
@@ -153,13 +160,16 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void dispose() {
     _timer?.cancel();
-    _entryController.dispose();
-    _videoController?.dispose();
+    _rayController.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final bottomInset = media.padding.bottom;
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -169,64 +179,173 @@ class _SplashScreenState extends State<SplashScreen>
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: _navigateToNext,
         child: Scaffold(
           backgroundColor: const Color(0xFF000512),
           body: Stack(
             fit: StackFit.expand,
             children: [
-              // 1. Clean, seamless deep blue gradient base (no circles, rings or banding)
+              // 1. Deep royal blue cosmic background gradient
               const DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
-                    center: Alignment(0.0, -0.05),
-                    radius: 1.0,
+                    center: Alignment(0.0, -0.15),
+                    radius: 1.15,
                     colors: [
-                      Color(0xFF0038B8), // vibrant royal blue center
-                      Color(0xFF00227A),
-                      Color(0xFF001452),
-                      Color(0xFF000B32), // deep dark navy
+                      Color(0xFF0044D6), // vibrant electric royal blue center
+                      Color(0xFF00289E),
+                      Color(0xFF001460),
+                      Color(0xFF000826),
+                      Color(0xFF000414), // midnight edge
                     ],
-                    stops: [0.0, 0.40, 0.70, 1.0],
+                    stops: [0.0, 0.32, 0.60, 0.85, 1.0],
                   ),
                 ),
                 child: SizedBox.expand(),
               ),
 
-              // 2. Real live-animation fish video (crossfaded in cleanly)
-              if (_videoController != null)
-                AnimatedOpacity(
-                  opacity: _videoReady ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 400),
-                  child: FittedBox(
-                    fit: BoxFit.cover,
-                    clipBehavior: Clip.hardEdge,
-                    child: SizedBox(
-                      width: _videoController!.value.size.width,
-                      height: _videoController!.value.size.height,
-                      child: VideoPlayer(_videoController!),
+              // 2. Dynamic 360° radiating light ray streaks
+              AnimatedBuilder(
+                animation: _rayController,
+                builder: (context, _) {
+                  return CustomPaint(
+                    painter: _RadiatingLightRaysPainter(
+                      progress: _rayController.value,
+                      rays: _rays,
                     ),
-                  ),
-                ),
+                    child: const SizedBox.expand(),
+                  );
+                },
+              ),
 
-              // 3. Glowing Hakkiri Logo in Center
-              Center(
-                child: AnimatedBuilder(
-                  animation: _entryController,
-                  builder: (context, _) {
-                    return Opacity(
-                      opacity: _opacityAnimation.value,
-                      child: Transform.scale(
-                        scale: _scaleAnimation.value,
-                        child: Image.asset(
-                          'assets/images/splash_glowing_logo_hi.png',
-                          width: 220,
-                          fit: BoxFit.contain,
-                          filterQuality: FilterQuality.high,
+              // 3. Foreground Content: Logo, Taglines, "Touch the light", "Begin ->"
+              SafeArea(
+                child: Column(
+                  children: [
+                    const Spacer(flex: 3),
+
+                    // Central Glowing Emblem + "Hakkiri" + "Say what you mean. First time."
+                    AnimatedBuilder(
+                      animation: _pulseController,
+                      builder: (context, child) {
+                        final breathe = 1.0 + 0.025 * _pulseController.value;
+                        final glowAlpha = 0.85 + 0.15 * _pulseController.value;
+                        return Transform.scale(
+                          scale: breathe,
+                          child: Opacity(
+                            opacity: glowAlpha,
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Glowing emblem (Circle + Sound Waves + Hakkiri text with luminous aura)
+                          Image.asset(
+                            'assets/images/splash_glowing_logo_hi.png',
+                            width: 215,
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high,
+                          ),
+                          const SizedBox(height: 12),
+                          // Subtitle matching Figma video prototype
+                          Text(
+                            'Say what you mean. First time.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 15.5,
+                              fontWeight: FontWeight.w400,
+                              color: Colors.white.withValues(alpha: 0.95),
+                              letterSpacing: -0.2,
+                              shadows: const [
+                                Shadow(
+                                  color: Color(0x800044D6),
+                                  blurRadius: 16,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const Spacer(flex: 4),
+
+                    // "Touch the light" prompt
+                    AnimatedBuilder(
+                      animation: _pulseController,
+                      builder: (context, child) {
+                        final alpha = 0.55 + 0.35 * _pulseController.value;
+                        return Opacity(
+                          opacity: alpha,
+                          child: child,
+                        );
+                      },
+                      child: Text(
+                        'Touch the light',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white.withValues(alpha: 0.80),
+                          letterSpacing: 0.1,
                         ),
                       ),
-                    );
-                  },
+                    ),
+
+                    const SizedBox(height: 22),
+
+                    // "Begin ->" Rounded Pill Button matching video
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: Material(
+                          color: const Color(0xFFF1EFEA), // warm off-white pill
+                          borderRadius: BorderRadius.circular(28),
+                          elevation: 6,
+                          shadowColor: const Color(0x66000000),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(28),
+                            onTap: _navigateToNext,
+                            splashColor: const Color(0x220038B8),
+                            child: const Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Begin',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 16.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF1E293B),
+                                      letterSpacing: -0.2,
+                                    ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Icon(
+                                    Icons.arrow_forward_rounded,
+                                    size: 19,
+                                    color: Color(0xFF1E293B),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    SizedBox(height: bottomInset > 0 ? 12 : 24),
+                  ],
                 ),
               ),
             ],
@@ -234,5 +353,113 @@ class _SplashScreenState extends State<SplashScreen>
         ),
       ),
     );
+  }
+}
+
+/// Metadata model for a radiating light ray streak
+class _LightRayData {
+  final double angle;
+  final double length;
+  final double speed;
+  final double phase;
+  final double strokeWidth;
+  final Color color;
+  final double maxReach;
+
+  const _LightRayData({
+    required this.angle,
+    required this.length,
+    required this.speed,
+    required this.phase,
+    required this.strokeWidth,
+    required this.color,
+    required this.maxReach,
+  });
+}
+
+/// Custom painter rendering dynamic 360° radiating light ray streaks bursting from center
+class _RadiatingLightRaysPainter extends CustomPainter {
+  final double progress;
+  final List<_LightRayData> rays;
+
+  _RadiatingLightRaysPainter({
+    required this.progress,
+    required this.rays,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width * 0.5, size.height * 0.38);
+    final maxDistance = size.longestSide * 0.78;
+
+    // 1. Soft glowing bloom core behind the emblem
+    final pulseScale = 1.0 + 0.08 * sin(progress * 2 * pi);
+    final coreBloomPaint = Paint()
+      ..shader = RadialGradient(
+        center: Alignment.center,
+        radius: 1.0,
+        colors: [
+          const Color(0xFF00E5FF).withValues(alpha: 0.28 * pulseScale),
+          const Color(0xFF0052FF).withValues(alpha: 0.32),
+          const Color(0xFF002288).withValues(alpha: 0.15),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.35, 0.65, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: 190 * pulseScale));
+    canvas.drawCircle(center, 190 * pulseScale, coreBloomPaint);
+
+    // 2. Radiating light ray streaks
+    final rayPaint = Paint()
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final glowPaint = Paint()
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0);
+
+    final angleOffset = progress * 0.18; // smooth subtle celestial rotation
+
+    for (final ray in rays) {
+      // Outward progression (0.0 to 1.0)
+      final t = (ray.phase + progress * ray.speed) % 1.0;
+      final innerDist = 45.0 + t * (maxDistance * ray.maxReach);
+      final outerDist = innerDist + ray.length;
+
+      // Opacity envelope: fade in near center, stay bright, fade out at periphery
+      double alpha = 1.0;
+      if (innerDist < 95.0) {
+        alpha = (innerDist - 45.0) / 50.0;
+      } else if (outerDist > maxDistance * 0.75) {
+        alpha = ((maxDistance - outerDist) / (maxDistance * 0.25)).clamp(0.0, 1.0);
+      }
+      alpha = alpha.clamp(0.0, 1.0);
+
+      if (alpha <= 0.01) continue;
+
+      final currentAngle = ray.angle + angleOffset;
+      final cosA = cos(currentAngle);
+      final sinA = sin(currentAngle);
+
+      final p1 = Offset(center.dx + cosA * innerDist, center.dy + sinA * innerDist);
+      final p2 = Offset(center.dx + cosA * outerDist, center.dy + sinA * outerDist);
+
+      // Soft ambient bloom streak
+      glowPaint
+        ..strokeWidth = ray.strokeWidth * 3.0
+        ..color = ray.color.withValues(alpha: alpha * 0.28);
+      canvas.drawLine(p1, p2, glowPaint);
+
+      // Sharp luminous core streak
+      rayPaint
+        ..strokeWidth = ray.strokeWidth
+        ..color = ray.color.withValues(alpha: alpha * 0.85);
+      canvas.drawLine(p1, p2, rayPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _RadiatingLightRaysPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }

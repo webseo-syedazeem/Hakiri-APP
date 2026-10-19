@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:provider/provider.dart';
@@ -110,6 +111,23 @@ class _PaywallScreenState extends State<PaywallScreen> {
     final started = await _iap.buyTier(_selectedTier);
     if (!mounted) return;
     if (!started) {
+      if (kDebugMode) {
+        try {
+          final state = context.read<AppStateProvider>();
+          await state.activatePaidPlan(_selectedTier);
+          if (!mounted) return;
+          _showSnack('Debug mode: Plan activated (Store IAP bypassed).');
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+            (route) => false,
+          );
+          return;
+        } catch (e) {
+          debugPrint('Debug mode activatePaidPlan failed: $e');
+        }
+      }
+
       setState(() {
         _purchasing = false;
         _statusMessage = null;
@@ -220,6 +238,18 @@ class _PaywallScreenState extends State<PaywallScreen> {
         );
         return;
       }
+      if (kDebugMode) {
+        final state = context.read<AppStateProvider>();
+        await state.activatePaidPlan(_selectedTier);
+        if (!mounted) return;
+        _showSnack('Debug mode: Plan restored.');
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+        return;
+      }
       setState(() {
         _purchasing = false;
         _statusMessage = null;
@@ -227,6 +257,18 @@ class _PaywallScreenState extends State<PaywallScreen> {
       _showSnack('No active subscription found to restore.');
     } catch (_) {
       if (!mounted) return;
+      if (kDebugMode) {
+        final state = context.read<AppStateProvider>();
+        await state.activatePaidPlan(_selectedTier);
+        if (!mounted) return;
+        _showSnack('Debug mode: Plan restored.');
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+        return;
+      }
       setState(() {
         _purchasing = false;
         _statusMessage = null;

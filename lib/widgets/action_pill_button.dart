@@ -8,6 +8,7 @@ class ActionPillButton extends StatelessWidget {
   final bool isDark;
   final bool showArrow;
   final bool isSecondary;
+  final bool isEnabled;
 
   const ActionPillButton({
     super.key,
@@ -17,14 +18,17 @@ class ActionPillButton extends StatelessWidget {
     this.isDark = true,
     this.showArrow = true,
     this.isSecondary = false,
+    this.isEnabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final bgColor = isSecondary
         ? AppColors.surfaceWhite
-        : (isDark ? const Color(0xFF13141F) : const Color(0xFF13141F));
-    final textColor = isSecondary ? AppColors.textPrimary : Colors.white;
+        : (isEnabled ? const Color(0xFF13141F) : const Color(0xFF13141F).withValues(alpha: 0.35));
+    final textColor = isSecondary
+        ? AppColors.textPrimary
+        : (isEnabled ? Colors.white : Colors.white.withValues(alpha: 0.6));
 
     return SizedBox(
       height: 56,
@@ -59,8 +63,8 @@ class ActionPillButton extends StatelessWidget {
                   Container(
                     width: 36,
                     height: 36,
-                    decoration: const BoxDecoration(
-                      color: AppColors.royalBlue,
+                    decoration: BoxDecoration(
+                      color: isEnabled ? AppColors.royalBlue : AppColors.royalBlue.withValues(alpha: 0.35),
                       shape: BoxShape.circle,
                     ),
                     alignment: Alignment.center,

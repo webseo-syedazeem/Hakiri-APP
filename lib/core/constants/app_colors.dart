@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 class AppColors {
-  // Editorial warm ivory canvas (as seen in screenshots)
-  static const Color background = Color(0xFFF4F3ED);
-  static const Color backgroundLight = Color(0xFFFAF9F5);
+  // Clean, crisp, modern canvas (no yellowish / ivory tint)
+  static const Color background = Color(0xFFF8FAFC);
+  static const Color backgroundLight = Color(0xFFFFFFFF);
   static const Color surfaceWhite = Color(0xFFFFFFFF);
-  static const Color surfaceBorder = Color(0xFFE2E0D5);
-  static const Color surfaceBorderLight = Color(0xFFEAE8DE);
+  static const Color surfaceBorder = Color(0xFFE2E8F0);
+  static const Color surfaceBorderLight = Color(0xFFF1F5F9);
 
   // Dark High-Contrast Canvas (used on Recording screen, Paywall, and Dark Cards)
   static const Color darkBackground = Color(0xFF10111A);
@@ -25,7 +25,7 @@ class AppColors {
   // Chart & Metric Tints
   static const Color chartLavender = Color(0xFF9EA7FA);
   static const Color chartBlue = Color(0xFF2563EB);
-  static const Color chartMuted = Color(0xFFE4E2D8);
+  static const Color chartMuted = Color(0xFFE2E8F0);
 
   // Text Colors
   static const Color textPrimary = Color(0xFF10121E);
@@ -42,5 +42,5 @@ class AppColors {
   static const Color accentPurple = chartLavender;
   static const Color accentAmber = Color(0xFFF59E0B);
   static const Color surface = surfaceWhite;
-  static const Color metricTrack = Color(0xFFECEAE2);
+  static const Color metricTrack = Color(0xFFE2E8F0);
 }

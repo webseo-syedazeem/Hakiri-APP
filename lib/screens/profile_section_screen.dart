@@ -22,12 +22,6 @@ class ProfileSectionScreen extends StatefulWidget {
 }
 
 class _ProfileSectionScreenState extends State<ProfileSectionScreen> {
-  static const _dailyOptions = <int, String>{
-    5: '5 minutes a day',
-    10: '10 minutes a day',
-    15: '15 minutes a day',
-  };
-
   late final PageController _pageController;
   int _activeCategoryIndex = 0;
 
@@ -214,7 +208,7 @@ class _ProfileSectionScreenState extends State<ProfileSectionScreen> {
             Expanded(
               child: _isDaily
                   ? SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -250,7 +244,7 @@ class _ProfileSectionScreenState extends State<ProfileSectionScreen> {
 
             // Bottom Save Button
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+              padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
               child: ActionPillButton(
                 label: _saving ? 'Saving…' : 'Save changes',
                 onTap: _saving ? null : _save,
@@ -271,7 +265,7 @@ class _ProfileSectionScreenState extends State<ProfileSectionScreen> {
       height: 38,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         itemCount: titles.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, index) {
@@ -470,7 +464,7 @@ class _ProfileSectionScreenState extends State<ProfileSectionScreen> {
     required ValueChanged<String> onSelected,
   }) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -648,60 +642,147 @@ class _ProfileSectionScreenState extends State<ProfileSectionScreen> {
   }
 
   Widget _buildDailyOptions() {
+    final options = [
+      {
+        'minutes': 5,
+        'title': '5 minutes',
+        'sub1': 'Quick practice',
+        'sub2': '3 focused exercises',
+        'icon': Icons.speed_rounded,
+        'iconBg': const Color(0xFFDCFCE7),
+        'iconColor': const Color(0xFF16A34A),
+      },
+      {
+        'minutes': 10,
+        'title': '10 minutes',
+        'sub1': 'Balanced practice',
+        'sub2': '3+ exercises with targeted retries',
+        'icon': Icons.timer_outlined,
+        'iconBg': const Color(0xFFEFF6FF),
+        'iconColor': const Color(0xFF2563EB),
+      },
+      {
+        'minutes': 15,
+        'title': '15 minutes',
+        'sub1': 'Deeper practice',
+        'sub2': 'More exercises, retries and\ntougher challenges',
+        'icon': Icons.auto_graph_rounded,
+        'iconBg': const Color(0xFFFFEDE8),
+        'iconColor': const Color(0xFFF95B3D),
+      },
+    ];
+
     return Column(
-      children: _dailyOptions.entries.map((entry) {
-        final selected = entry.key == _dailyMinutes;
+      children: options.map((opt) {
+        final minutes = opt['minutes'] as int;
+        final selected = minutes == _dailyMinutes;
         return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => setState(() => _dailyMinutes = entry.key),
-              child: Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: selected
-                        ? AppColors.royalBlue
-                        : AppColors.surfaceBorder,
-                    width: selected ? 1.6 : 1.0,
-                  ),
-                  color: selected ? const Color(0xFFEFF6FF) : Colors.white,
+          padding: const EdgeInsets.only(bottom: 12),
+          child: GestureDetector(
+            onTap: () => setState(() => _dailyMinutes = minutes),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: selected ? const Color(0xFFF8FAFF) : Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(
+                  color: selected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+                  width: selected ? 1.8 : 1.0,
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.timer_outlined,
-                      color: selected
-                          ? AppColors.royalBlue
-                          : AppColors.textMuted,
-                      size: 22,
+                boxShadow: [
+                  BoxShadow(
+                    color: selected
+                        ? const Color(0xFF2563EB).withValues(alpha: 0.08)
+                        : Colors.black.withValues(alpha: 0.02),
+                    blurRadius: selected ? 8 : 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 52,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: opt['iconBg'] as Color,
+                      borderRadius: BorderRadius.circular(15),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        entry.value,
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 15,
-                          fontWeight:
-                              selected ? FontWeight.w800 : FontWeight.w600,
-                          color: AppColors.textPrimary,
+                    alignment: Alignment.center,
+                    child: Icon(
+                      opt['icon'] as IconData,
+                      color: opt['iconColor'] as Color,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          opt['title'] as String,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          opt['sub1'] as String,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF334155),
+                          ),
+                        ),
+                        Text(
+                          opt['sub2'] as String,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF64748B),
+                            height: 1.25,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (selected)
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFF2563EB),
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    )
+                  else
+                    Container(
+                      width: 24,
+                      height: 24,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFFCBD5E1),
+                          width: 2.0,
                         ),
                       ),
                     ),
-                    if (selected)
-                      const Icon(
-                        Icons.check_circle_rounded,
-                        color: AppColors.royalBlue,
-                      ),
-                  ],
-                ),
+                ],
               ),
             ),
           ),

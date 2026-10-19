@@ -6,9 +6,17 @@ import 'package:flutter/material.dart';
 /// with code-drawn painter fallbacks.
 class ExerciseIllustration extends StatelessWidget {
   final String type;
-  final double size;
+  final double? size;
+  final BoxFit fit;
+  final AlignmentGeometry alignment;
 
-  const ExerciseIllustration({super.key, required this.type, this.size = 150});
+  const ExerciseIllustration({
+    super.key,
+    required this.type,
+    this.size,
+    this.fit = BoxFit.contain,
+    this.alignment = Alignment.bottomCenter,
+  });
 
   String _assetPath(String type) {
     switch (type) {
@@ -39,18 +47,24 @@ class ExerciseIllustration extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final asset = _assetPath(type);
-    return SizedBox(
-      width: size,
-      height: size * 0.85,
-      child: Image.asset(
-        asset,
-        fit: BoxFit.contain,
-        filterQuality: FilterQuality.high,
-        errorBuilder: (context, error, stackTrace) {
-          return CustomPaint(painter: _painterFor(type));
-        },
-      ),
+    final imageWidget = Image.asset(
+      asset,
+      fit: fit,
+      alignment: alignment,
+      filterQuality: FilterQuality.high,
+      errorBuilder: (context, error, stackTrace) {
+        return CustomPaint(painter: _painterFor(type));
+      },
     );
+
+    if (size != null) {
+      return SizedBox(
+        width: size,
+        height: size,
+        child: imageWidget,
+      );
+    }
+    return imageWidget;
   }
 
   CustomPainter _painterFor(String type) {

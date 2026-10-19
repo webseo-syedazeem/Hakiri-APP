@@ -118,6 +118,7 @@ class AppStateProvider extends ChangeNotifier {
     'calmer_confident': 'Feel calmer and more confident under pressure',
     'persuasive_arguments': 'Build clear, persuasive arguments on the spot',
     'clear_daily': 'Speak more clearly in everyday conversations',
+    'keep_engaged': 'Keep people engaged and make an impact',
   };
 
   static const voiceLabels = {
@@ -208,6 +209,16 @@ class AppStateProvider extends ChangeNotifier {
     return slugs;
   }
 
+  bool isTargetedRetryCompletedToday = false;
+  bool isTougherChallengeCompletedToday = false;
+
+  void setDailyMinutesLocal(int minutes) {
+    if ([5, 10, 15].contains(minutes)) {
+      dailyAnchorMinutes = minutes;
+      notifyListeners();
+    }
+  }
+
   int completedTodayDrills() {
     final today = DateTime.now();
     final key = '${today.year}-${today.month}-${today.day}';
@@ -216,6 +227,82 @@ class AppStateProvider extends ChangeNotifier {
       return stamp == key && todayDrillSlugs.contains(s.activitySlug);
     }).map((s) => s.activitySlug).toSet();
     return done.length;
+  }
+
+  int totalTodayActivitiesCount() {
+    if (dailyAnchorMinutes == 10) return 4;
+    if (dailyAnchorMinutes == 15) return 5;
+    return 3;
+  }
+
+  int completedTotalActivitiesToday() {
+    final coreDone = completedTodayDrills().clamp(0, 3);
+    if (dailyAnchorMinutes == 5) return coreDone;
+    if (dailyAnchorMinutes == 10) {
+      return coreDone + (isTargetedRetryCompletedToday ? 1 : 0);
+    }
+    if (dailyAnchorMinutes == 15) {
+      return coreDone +
+          (isTargetedRetryCompletedToday ? 1 : 0) +
+          (isTougherChallengeCompletedToday ? 1 : 0);
+    }
+    return coreDone;
+  }
+
+  Map<String, dynamic> getWeakestExerciseToday() {
+    final today = DateTime.now();
+    final todaySessions = sessionHistory.where((s) {
+      return s.timestamp.year == today.year &&
+          s.timestamp.month == today.month &&
+          s.timestamp.day == today.day;
+    }).toList();
+
+    // Default fallback matching doc_img_2.png
+    if (todaySessions.isEmpty) {
+      return {
+        'slug': 'cut_it_in_half',
+        'name': 'Cut It in Half',
+        'weakestArea': 'Conciseness',
+        'score': 3.1,
+        'feedback': 'Your answers were clear, but you took too long to land the point.',
+        'stretchSlug': 'debate_me',
+        'stretchName': 'Debate Me',
+        'stretchArea': 'Response to pushback',
+        'stretchFeedback': 'You held your position well, but your rebuttal could be sharper under pressure.',
+      };
+    }
+
+    todaySessions.sort((a, b) => a.feedback.overallScore.compareTo(b.feedback.overallScore));
+    final lowest = todaySessions.first;
+    final slug = lowest.activitySlug;
+    final activity = activities.firstWhere(
+      (a) => a.slug == slug,
+      orElse: () => activities.first,
+    );
+
+    String weakestArea = 'Conciseness';
+    String feedback = 'Your answers were clear, but you took too long to land the point.';
+    if (slug == 'think_fast') {
+      weakestArea = 'Thinking on the spot';
+      feedback = 'Good thoughts, but you hesitated before landing your primary thesis.';
+    } else if (slug == 'debate_me' || slug == 'debate') {
+      weakestArea = 'Response to pushback';
+      feedback = 'You held your position well, but your rebuttal could be sharper under pressure.';
+    }
+
+    return {
+      'slug': slug,
+      'name': activity.name,
+      'weakestArea': weakestArea,
+      'score': lowest.feedback.overallScore > 0 ? lowest.feedback.overallScore.toDouble() : 3.1,
+      'feedback': lowest.feedback.oneSpecificImprovement.isNotEmpty
+          ? lowest.feedback.oneSpecificImprovement
+          : feedback,
+      'stretchSlug': slug == 'debate_me' ? 'think_fast' : 'debate_me',
+      'stretchName': slug == 'debate_me' ? 'Think Fast' : 'Debate Me',
+      'stretchArea': slug == 'debate_me' ? 'Rapid thesis delivery' : 'Response to pushback',
+      'stretchFeedback': 'A tougher round with stronger pushback.',
+    };
   }
 
   Future<void>? _sessionReady;
@@ -1246,7 +1333,11 @@ class AppStateProvider extends ChangeNotifier {
       priceGbp: isAnnual ? 69.99 : 9.99,
     );
     if (isLoggedIn) {
-      await choosePlanFromApi(normalized);
+      try {
+        await choosePlanFromApi(normalized);
+      } catch (e) {
+        debugPrint('[Hakkiri] Warning syncing subscription to API: $e');
+      }
     }
     await markOnboardedComplete();
     notifyListeners();

@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../core/services/analytics_service.dart';
@@ -9,6 +10,7 @@ import '../widgets/who_its_for_roadmap_view.dart';
 import '../widgets/twelve_months_roadmap_view.dart';
 import 'activity_detail_screen.dart';
 import 'assessment_screen.dart';
+import 'debate_me_screen.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
 
@@ -36,11 +38,12 @@ class LandingScreen extends StatefulWidget {
 }
 
 class _LandingScreenState extends State<LandingScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final PageController _pageController;
   late final PageController _trainCardController;
   late final AnimationController _entryController;
   late final Animation<Offset> _entrySlide;
+  late final AnimationController _floatAnimationController;
   int _currentPage = 0;
   int _carouselIndex = 0;
   DateTime? _lastBackPress;
@@ -49,9 +52,6 @@ class _LandingScreenState extends State<LandingScreen>
   int get _minPage => widget.postSignup ? 1 : 0;
 
   static const _sectionLabels = [
-    'Get started',
-    'See feedback',
-    'Explore exercises',
     'Is Hakkiri for me?',
     'Why Hakkiri?',
     'Explore your learning path',
@@ -61,13 +61,19 @@ class _LandingScreenState extends State<LandingScreen>
   @override
   void initState() {
     super.initState();
-    // Post-signup onboarding skips the welcome/signup page.
+    // Post-signup onboarding skips to assessment or next step
     final start = widget.postSignup
-        ? (widget.initialPage > 0 ? widget.initialPage : 1)
+        ? (widget.initialPage > 0 ? widget.initialPage : 0)
         : widget.initialPage;
     _currentPage = start;
     _pageController = PageController(initialPage: start);
-    _trainCardController = PageController(viewportFraction: 0.84);
+    _trainCardController = PageController(viewportFraction: 0.70);
+
+    // Continuous subtle 3D breathing / floating animation for the active exercise card
+    _floatAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2600),
+    )..repeat(reverse: true);
 
     // Smooth entrance: the screen fades in and gently rises into place as it
     // opens, so it never pops in abruptly after the splash transition.
@@ -93,11 +99,12 @@ class _LandingScreenState extends State<LandingScreen>
     _pageController.dispose();
     _trainCardController.dispose();
     _entryController.dispose();
+    _floatAnimationController.dispose();
     super.dispose();
   }
 
   void _nextPage() {
-    if (_currentPage < 6) {
+    if (_currentPage < _sectionLabels.length - 1) {
       _pageController.animateToPage(
         _currentPage + 1,
         duration: const Duration(milliseconds: 380),
@@ -119,19 +126,21 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   String get _primaryCtaLabel {
-    if (_currentPage == 6 && !widget.postSignup) {
+    if (_currentPage == _sectionLabels.length - 1 && !widget.postSignup) {
       return 'Create account';
     }
     return _sectionLabels[_currentPage];
   }
 
   void _previousPage() {
-    if (_currentPage > _minPage) {
+    if (_currentPage > 0) {
       _pageController.animateToPage(
         _currentPage - 1,
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeInOutCubic,
       );
+    } else {
+      Navigator.maybePop(context);
     }
   }
 
@@ -211,10 +220,7 @@ class _LandingScreenState extends State<LandingScreen>
         backgroundColor: Colors.white,
         body: Stack(
           children: [
-            // On page 0 (Welcome), keep clean simple white canvas matching reference image.
-            // On subsequent pages (See how it works, etc.), show the 3D blue ambient background.
-            if (_currentPage > 0)
-              const OnboardingBubbleBackground(),
+            const OnboardingBubbleBackground(),
             SafeArea(
           bottom: !isIOS,
           child: SlideTransition(
@@ -224,25 +230,17 @@ class _LandingScreenState extends State<LandingScreen>
               child: Column(
             children: [
               // Pinned Still Top Bar (< back, Skip) - stays fixed while pages slide
-              // Onboarding pages: back + Skip (Skip → Signup or Assessment).
-              if (_currentPage > 0)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 6, 24, 0),
-                  child: _buildTopBar(
-                    showBack: _currentPage > _minPage && _currentPage != 4,
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 6, 24, 0),
+                child: _buildTopBar(
+                  showBack: true,
                 ),
+              ),
               Expanded(
                 child: PageView(
                   controller: _pageController,
-                  // Welcome + onboarding pages are swipeable.
                   physics: const BouncingScrollPhysics(),
                   onPageChanged: (idx) {
-                    // Don't swipe back to welcome after signup/Google.
-                    if (widget.postSignup && idx < 1) {
-                      _pageController.jumpToPage(1);
-                      return;
-                    }
                     setState(() => _currentPage = idx);
                     final label = (idx >= 0 && idx < _sectionLabels.length)
                         ? _sectionLabels[idx]
@@ -256,9 +254,6 @@ class _LandingScreenState extends State<LandingScreen>
                     );
                   },
                   children: [
-                    _buildWelcomePage(),
-                    _buildSeeHowItWorksPage(),
-                    _buildSeeFeedbackPage(),
                     _buildTrainCarouselPage(),
                     _buildWhoItsForPage(),
                     _buildTrustedByProfessionalsPage(),
@@ -271,27 +266,27 @@ class _LandingScreenState extends State<LandingScreen>
                 child: Column(
                   children: [
                     // Screen-specific pagination indicators above button
-                    if (_currentPage == 4) ...[
-                      // Who it's for: step 2 of 5 (matching media_1791893121601_b8967434.png)
+                    if (_currentPage == 1) ...[
+                      // Who it's for: step 1 of 3
+                      _buildDotsIndicator(
+                        activeIndex: 0,
+                        totalDots: 3,
+                        activeColor: const Color(0xFF2563EB),
+                      ),
+                      const SizedBox(height: 12),
+                    ] else if (_currentPage == 2) ...[
+                      // Why Hakkiri: step 2 of 3
                       _buildDotsIndicator(
                         activeIndex: 1,
-                        totalDots: 5,
+                        totalDots: 3,
                         activeColor: const Color(0xFF2563EB),
                       ),
                       const SizedBox(height: 12),
-                    ] else if (_currentPage == 5) ...[
-                      // Why Hakkiri / Trusted by professionals: step 3 of 5 (matching Image 1!)
+                    ] else if (_currentPage == 3) ...[
+                      // Learning path: step 3 of 3
                       _buildDotsIndicator(
                         activeIndex: 2,
-                        totalDots: 5,
-                        activeColor: const Color(0xFF2563EB),
-                      ),
-                      const SizedBox(height: 12),
-                    ] else if (_currentPage == 6) ...[
-                      // A guided practice path / Twelve months: step 4 of 5 (matching Image 4!)
-                      _buildDotsIndicator(
-                        activeIndex: 3,
-                        totalDots: 5,
+                        totalDots: 3,
                         activeColor: const Color(0xFF2563EB),
                         alignment: MainAxisAlignment.center,
                       ),
@@ -300,7 +295,6 @@ class _LandingScreenState extends State<LandingScreen>
 
                     ActionPillButton(
                       label: _primaryCtaLabel,
-                      // Get started → onboarding; last page → Signup (or Assessment if logged in).
                       onTap: _currentPage >= _sectionLabels.length - 1
                           ? _finishOnboarding
                           : _nextPage,
@@ -332,12 +326,6 @@ class _LandingScreenState extends State<LandingScreen>
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      _buildDotsIndicator(
-                        activeIndex: 0,
-                        totalDots: 3,
-                        activeColor: const Color(0xFF0F172A),
-                      ),
                     ],
                   ],
                 ),
@@ -356,6 +344,7 @@ class _LandingScreenState extends State<LandingScreen>
   // ==========================================
   // PAGE 0: WELCOME (media_1791376750433.png)
   // ==========================================
+  // ignore: unused_element
   Widget _buildWelcomePage() {
     return Stack(
       children: [
@@ -578,63 +567,63 @@ class _LandingScreenState extends State<LandingScreen>
   Widget _buildTrainCarouselPage() {
     final exercises = [
       {
-        'tag': '01 • 07',
-        'title': 'Think Fast.',
+        'tag': '01 · 07',
+        'title': 'Think Fast',
         'tagline': 'Think clearly under pressure.',
         'desc': 'Answer an unexpected question with a few seconds to prepare, then speak for 60 seconds.',
         'type': 'think_fast',
       },
       {
-        'tag': '02 • 07',
-        'title': 'Connect\nthe Dots.',
+        'tag': '02 · 07',
+        'title': 'Connect the Dots',
         'tagline': 'Make unexpected connections.',
-        'desc': 'Link two random ideas into a clear, compelling story.',
+        'desc': 'Link two unrelated topics into one clear, logical idea.',
         'type': 'connect_the_dots',
       },
       {
-        'tag': '03 • 07',
-        'title': 'Explain\nIt Simply.',
+        'tag': '03 · 07',
+        'title': 'Explain It Simply',
         'tagline': 'Make complex ideas easy to understand.',
         'desc': 'Take a complex topic and explain it in clear, simple language.',
         'type': 'explain',
       },
       {
-        'tag': '04 • 07',
-        'title': 'Cut It\nin Half.',
-        'tagline': 'Get to the point faster.',
+        'tag': '04 · 07',
+        'title': 'Cut It in Half',
+        'tagline': 'Lead with the point, cut the clutter.',
         'desc': 'Read a longer message and make it shorter, clearer and more impactful.',
         'type': 'cut_it_in_half',
       },
       {
-        'tag': '05 • 07',
-        'title': 'Storytelling\nGym.',
+        'tag': '05 · 07',
+        'title': 'Storytelling Gym',
         'tagline': 'Make people lean in.',
         'desc': 'Turn information into a structured, memorable story with a clear point.',
         'type': 'storytelling',
       },
       {
-        'tag': '06 • 07',
-        'title': 'One Minute\nExpert.',
+        'tag': '06 · 07',
+        'title': 'One Minute Expert',
         'tagline': 'Know it. Explain it.',
         'desc': 'Choose a topic and explain it clearly, confidently and coherently in 60 seconds.',
         'type': 'stopwatch',
       },
       {
-        'tag': '07 • 07',
-        'title': 'Debate\nMe.',
+        'tag': '07 · 07',
+        'title': 'Debate Me',
         'tagline': 'Hold your ground.',
         'desc': 'Respond to a challenging position with a clear, confident rebuttal under pressure.',
         'type': 'debate',
       },
     ];
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(22, 4, 22, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Headline
-          Column(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Headline
+        Padding(
+          padding: const EdgeInsets.fromLTRB(22, 4, 22, 0),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
@@ -653,7 +642,7 @@ class _LandingScreenState extends State<LandingScreen>
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const Text(
-                    'think and speak.',
+                    'think and speak',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 32,
@@ -670,131 +659,208 @@ class _LandingScreenState extends State<LandingScreen>
                   ),
                 ],
               ),
+              const SizedBox(height: 6),
+
+              // Subtitle
+              const Text(
+                'Short guided exercises for clearer,\nquicker, more confident communication.',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  color: Color(0xFF64748B),
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w500,
+                  height: 1.35,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 6),
+        ),
+        const SizedBox(height: 10),
 
-          // Subtitle
-          const Text(
-            'Short guided exercises for clearer,\nquicker, more confident communication.',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              color: Color(0xFF64748B),
-              fontSize: 13.5,
-              fontWeight: FontWeight.w500,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 10),
+        // Exercise Carousel Cards — Edge-to-Edge with 3D Cover Flow animation
+        Expanded(
+          child: PageView.builder(
+            itemCount: exercises.length,
+            controller: _trainCardController,
+            padEnds: false,
+            physics: const BouncingScrollPhysics(),
+            onPageChanged: (idx) => setState(() => _carouselIndex = idx),
+            itemBuilder: (context, idx) {
+              final ex = exercises[idx];
+              return AnimatedBuilder(
+                animation: Listenable.merge([_trainCardController, _floatAnimationController]),
+                builder: (context, child) {
+                  double diff = 0.0;
+                  if (_trainCardController.position.haveDimensions &&
+                      _trainCardController.page != null) {
+                    diff = (_trainCardController.page! - idx);
+                  } else {
+                    diff = (_carouselIndex - idx).toDouble();
+                  }
 
-          // Exercise Carousel Cards
-          Expanded(
-            child: PageView.builder(
-              itemCount: exercises.length,
-              controller: _trainCardController,
-              onPageChanged: (idx) => setState(() => _carouselIndex = idx),
-              itemBuilder: (context, idx) {
-                final ex = exercises[idx];
-                return Padding(
-                  padding: const EdgeInsets.only(right: 14, bottom: 6, top: 2),
-                  child: GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => ActivityDetailScreen(activitySlug: ex['type']),
+                  final dist = diff.abs().clamp(0.0, 1.0);
+                  // Active card: scale 1.0. Next card: 0.88 scale (depth reduction)
+                  final scale = (1.0 - (dist * 0.12)).clamp(0.85, 1.0);
+                  final opacity = (1.0 - (dist * 0.18)).clamp(0.82, 1.0);
+                  // Vertical stepped offset: next card drops ~18px down
+                  final translateY = dist * 18.0;
+
+                  // 3D perspective rotation around Y axis
+                  final rotationY = (-diff.clamp(-1.0, 1.0)) * 0.16;
+
+                  // ignore: deprecated_member_use
+                  final transformMatrix = Matrix4.identity()
+                    ..setEntry(3, 2, 0.0012)
+                    // ignore: deprecated_member_use
+                    ..translate(0.0, translateY)
+                    // ignore: deprecated_member_use
+                    ..scale(scale, scale)
+                    ..rotateY(rotationY);
+
+                  return Transform(
+                    transform: transformMatrix,
+                    alignment: diff > 0 ? Alignment.centerRight : Alignment.centerLeft,
+                    child: Opacity(
+                      opacity: opacity,
+                      child: child,
+                    ),
+                  );
+                },
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: idx == 0 ? 22 : 6,
+                    right: 8,
+                    bottom: 4,
+                    top: 2,
+                  ),
+                    child: GestureDetector(
+                      onTap: () {
+                        if (ex['type'] == 'debate') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const DebateMeScreen(),
+                            ),
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ActivityDetailScreen(activitySlug: ex['type']),
+                            ),
+                          );
+                        }
+                      },
+                      child: Container(
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: const Color(0xFFE2E8F0).withValues(alpha: 0.8),
+                            width: 1.2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                              blurRadius: 20,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
                         ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: const Color(0xFFE2E8F0).withValues(alpha: 0.8), width: 1.2),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF2563EB).withValues(alpha: 0.08),
-                            blurRadius: 20,
-                            offset: const Offset(0, 6),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Badge: 01 • 07
-                          Text(
-                            ex['tag']!,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              color: Color(0xFF2563EB),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.6,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Badge: 01 • 07
+                                  Text(
+                                    ex['tag']!,
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      color: Color(0xFF2563EB),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.6,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
 
-                          // Title
-                          Text(
-                            ex['title']!,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              color: Color(0xFF0F172A),
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              height: 1.15,
-                              letterSpacing: -0.6,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
+                                  // Title
+                                  Text(
+                                    ex['title']!,
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      color: Color(0xFF0F172A),
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w900,
+                                      height: 1.15,
+                                      letterSpacing: -0.6,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
 
-                          // Tagline (blue)
-                          Text(
-                            ex['tagline']!,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              color: Color(0xFF2563EB),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
+                                  // Tagline (blue)
+                                  Text(
+                                    ex['tagline']!,
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      color: Color(0xFF2563EB),
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      height: 1.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
 
-                          // Description
-                          Text(
-                            ex['desc']!,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              color: Color(0xFF64748B),
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w500,
-                              height: 1.35,
+                                  // Description
+                                  Text(
+                                    ex['desc']!,
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      color: Color(0xFF64748B),
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w500,
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 6),
+                            const SizedBox(height: 4),
 
-                          // Large 3D illustration anchored to the lower part of card
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.bottomCenter,
-                              child: Padding(
-                                padding: const EdgeInsets.only(bottom: 6),
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    final s = constraints.maxWidth.clamp(190.0, 320.0);
-                                    return ExerciseIllustration(
-                                      type: ex['type']!,
-                                      size: s,
+                            // Large 3D illustration anchored to the lower part of card, bottom-aligned
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: AnimatedBuilder(
+                                  animation: _floatAnimationController,
+                                  builder: (context, illChild) {
+                                    final floatY = sin(_floatAnimationController.value * 2 * pi) * 3.5;
+                                    return Transform.translate(
+                                      offset: Offset(0, floatY),
+                                      child: illChild,
                                     );
                                   },
+                                  child: Padding(
+                                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 0),
+                                    child: SizedBox(
+                                      width: double.infinity,
+                                      child: ExerciseIllustration(
+                                        type: ex['type']!,
+                                        fit: BoxFit.contain,
+                                        alignment: Alignment.bottomCenter,
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -826,13 +892,13 @@ class _LandingScreenState extends State<LandingScreen>
           ),
           const SizedBox(height: 6),
         ],
-      ),
-    );
+      );
   }
 
   // ==========================================
   // PAGE 3: SEE HOW IT WORKS (media_1791376757890.png)
   // ==========================================
+  // ignore: unused_element
   Widget _buildSeeHowItWorksPage() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
@@ -929,6 +995,7 @@ class _LandingScreenState extends State<LandingScreen>
   // ==========================================
   // PAGE 2: SEE YOUR FEEDBACK (own swipe-screen, no scroll)
   // ==========================================
+  // ignore: unused_element
   Widget _buildSeeFeedbackPage() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
@@ -1340,9 +1407,9 @@ class _LandingScreenState extends State<LandingScreen>
             child: const Padding(
               padding: EdgeInsets.all(4.0),
               child: Icon(
-                Icons.arrow_back_ios_new_rounded,
+                Icons.arrow_back_rounded,
                 color: Color(0xFF0F172A),
-                size: 20,
+                size: 24,
               ),
             ),
           )

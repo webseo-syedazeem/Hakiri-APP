@@ -6,7 +6,7 @@ import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
-import 'live_conversation_screen.dart';
+import 'debate_me_screen.dart';
 import 'recording_screen.dart';
 
 /// Activity detail screen rendered pixel-perfect matching Image 2 ("Think Fast.")
@@ -99,7 +99,7 @@ class ActivityDetailScreen extends StatelessWidget {
                   children: [
                     // Top Bar (< back arrow)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 6, 20, 4),
+                      padding: const EdgeInsets.fromLTRB(14, 6, 14, 4),
                       child: GestureDetector(
                         onTap: () => Navigator.pop(context),
                         child: const Padding(
@@ -117,7 +117,7 @@ class ActivityDetailScreen extends StatelessWidget {
                     Expanded(
                       child: SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -125,20 +125,20 @@ class ActivityDetailScreen extends StatelessWidget {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
-                                // Squircle badge
+                                // Squircle badge (enlarged, matching design specs)
                                 Container(
-                                  width: 62,
-                                  height: 62,
+                                  width: 78,
+                                  height: 78,
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFEFF6FF),
-                                    borderRadius: BorderRadius.circular(18),
+                                    borderRadius: BorderRadius.circular(22),
                                   ),
                                   alignment: Alignment.center,
                                   child: spec.customIconWidget ??
                                       Icon(
                                         spec.icon,
                                         color: const Color(0xFF2563EB),
-                                        size: 34,
+                                        size: 44,
                                       ),
                                 ),
                                 const SizedBox(width: 14),
@@ -203,81 +203,57 @@ class ActivityDetailScreen extends StatelessWidget {
                                 height: 1.35,
                               ),
                             ),
-                            const SizedBox(height: 18),
+                            const SizedBox(height: 14),
 
                             // 3. Card: HOW IT WORKS
                             _buildHowItWorksCard(spec.steps),
-                            const SizedBox(height: 16),
-
+                            const SizedBox(height: 12),
                             // 4. Card: Strategy (USE YOUR 5 SECONDS / BUILD THE CONNECTION)
                             _buildStrategyCard(spec.strategyTitle, spec.strategy),
-                            const SizedBox(height: 14),
+                            const SizedBox(height: 16),
+
+                            // 5. Primary Action Button: flows naturally directly below cards
+                            ActionPillButton(
+                              label: 'Begin exercise',
+                              onTap: () async {
+                                final nav = Navigator.of(context);
+                                final app = context.read<AppStateProvider>();
+
+                                if (slug == 'debate' || slug == 'debate_me') {
+                                  nav.push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const DebateMeScreen(),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                if (app.isLoggedIn) {
+                                  await HakkiriLoadingOverlay.run(
+                                    context,
+                                    message: 'Getting your question…',
+                                    detail:
+                                        'Picking a fresh prompt for this drill.',
+                                    action: () => app.fetchNextPromptFromApi(
+                                      excludeCurrent: true,
+                                    ),
+                                  );
+                                } else {
+                                  app.setDifficulty(app.selectedDifficulty);
+                                }
+                                if (!context.mounted) return;
+                                nav.push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const RecordingScreen(
+                                      promptAlreadyLoaded: true,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 18),
                           ],
                         ),
-                      ),
-                    ),
-
-                    // Bottom CTAs: single drill + optional live conversation
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 22),
-                      child: Column(
-                        children: [
-                          ActionPillButton(
-                            label: 'Begin exercise',
-                            onTap: () async {
-                              final nav = Navigator.of(context);
-                              final app = context.read<AppStateProvider>();
-                              if (app.isLoggedIn) {
-                                await HakkiriLoadingOverlay.run(
-                                  context,
-                                  message: 'Getting your question…',
-                                  detail:
-                                      'Picking a fresh prompt for this drill.',
-                                  action: () => app.fetchNextPromptFromApi(
-                                    excludeCurrent: true,
-                                  ),
-                                );
-                              } else {
-                                app.setDifficulty(app.selectedDifficulty);
-                              }
-                              if (!context.mounted) return;
-                              nav.push(
-                                MaterialPageRoute(
-                                  builder: (_) => const RecordingScreen(
-                                    promptAlreadyLoaded: true,
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 10),
-                          ActionPillButton(
-                            label: 'Live coach conversation',
-                            isSecondary: true,
-                            onTap: () async {
-                              final nav = Navigator.of(context);
-                              final app = context.read<AppStateProvider>();
-                              if (app.isLoggedIn) {
-                                await HakkiriLoadingOverlay.run(
-                                  context,
-                                  message: 'Setting up live coach…',
-                                  detail:
-                                      'Loading a workplace prompt for this activity.',
-                                  action: () => app.fetchNextPromptFromApi(
-                                    excludeCurrent: true,
-                                  ),
-                                );
-                              }
-                              if (!context.mounted) return;
-                              nav.push(
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      const LiveConversationScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
                       ),
                     ),
                   ],
@@ -367,8 +343,8 @@ class ActivityDetailScreen extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            width: 44,
-            height: 44,
+            width: 50,
+            height: 50,
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
@@ -381,7 +357,7 @@ class ActivityDetailScreen extends StatelessWidget {
                 ),
               ],
             ),
-            child: Icon(icon, color: const Color(0xFF2563EB), size: 21),
+            child: Icon(icon, color: const Color(0xFF2563EB), size: 23),
           ),
           const SizedBox(height: 8),
           Text(
@@ -389,7 +365,7 @@ class ActivityDetailScreen extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 11,
+              fontSize: 11.5,
               fontWeight: FontWeight.w800,
               color: Color(0xFF0F172A),
             ),
@@ -400,10 +376,10 @@ class ActivityDetailScreen extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 9.5,
+              fontSize: 10,
               fontWeight: FontWeight.w500,
               color: Color(0xFF64748B),
-              height: 1.2,
+              height: 1.25,
             ),
           ),
         ],
@@ -481,40 +457,40 @@ class ActivityDetailScreen extends StatelessWidget {
     required Color numColor,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.start,
         children: [
           Container(
-            width: 22,
-            height: 22,
+            width: 26,
+            height: 26,
             decoration: BoxDecoration(color: numColor, shape: BoxShape.circle),
             child: Center(
               child: Text(
                 number,
                 style: const TextStyle(
                   fontFamily: 'Inter',
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,
                 ),
               ),
             ),
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 8),
           Text(
             text,
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 10.5,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
               color: Color(0xFF0F172A),
-              height: 1.2,
+              height: 1.25,
             ),
           ),
         ],
@@ -564,8 +540,8 @@ final Map<String, _ActivitySpec> _activitySpecs = {
   'think_fast': _ActivitySpec(
     icon: Icons.bolt_rounded,
     customIconWidget: SizedBox(
-      width: 32,
-      height: 32,
+      width: 38,
+      height: 38,
       child: CustomPaint(painter: _LightningBoltPainter()),
     ),
     label: '1. THINK FAST',
@@ -599,8 +575,8 @@ final Map<String, _ActivitySpec> _activitySpecs = {
   'connect_the_dots': _ActivitySpec(
     icon: Icons.hub_rounded,
     customIconWidget: SizedBox(
-      width: 34,
-      height: 34,
+      width: 38,
+      height: 38,
       child: CustomPaint(painter: _ConnectedNodesPainter()),
     ),
     label: '2. CONNECT THE DOTS',
@@ -748,7 +724,7 @@ class _LightningBoltPainter extends CustomPainter {
     final paint = Paint()
       ..color = const Color(0xFF2563EB)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.8
+      ..strokeWidth = 3.2
       ..strokeJoin = StrokeJoin.round
       ..strokeCap = StrokeCap.round;
 

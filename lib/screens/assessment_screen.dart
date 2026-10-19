@@ -23,25 +23,18 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   late int _currentStepIndex;
   late final PageController _pageController;
   late final TextEditingController _nameController;
-  String _selectedOptionId = 'female';
+  String _selectedOptionId = '';
   bool _isSubmitting = false;
 
-  // Default selections matching the user's screenshots exactly
-  final Map<int, String> _stepSelections = {
-    2: 'female',
-    3: 'mid_level',
-    4: 'tech_product',
-    5: 'fairly',
-    6: 'filler_rush',
-    7: 'calmer_confident',
-  };
+  // Answers selected by the user. Starts empty so no option is pre-selected.
+  final Map<int, String> _stepSelections = {};
 
   @override
   void initState() {
     super.initState();
     final savedName = Provider.of<AppStateProvider>(context, listen: false).fullName.trim();
     _nameController = TextEditingController(
-      text: savedName.isNotEmpty ? savedName : 'Alex Rivera',
+      text: savedName,
     );
     _currentStepIndex = widget.initialStep;
     _selectedOptionId = _stepSelections[_currentStepIndex] ?? '';
@@ -94,19 +87,19 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           'id': 'male',
           'symbol': '♂',
           'title': 'Male',
-          'subtitle': 'Build stronger resonance and steady projection',
+          'subtitle': '',
         },
         {
           'id': 'female',
           'symbol': '♀',
           'title': 'Female',
-          'subtitle': 'Develop pitch clarity and vocal control',
+          'subtitle': '',
         },
         {
           'id': 'non_binary',
           'symbol': '⚧',
           'title': 'Non-binary / Vocal alignment',
-          'subtitle': 'Personalise your pitch and vocal range',
+          'subtitle': '',
         },
       ],
     },
@@ -125,25 +118,25 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           'id': 'early',
           'icon': Icons.school_outlined,
           'title': 'Student / Early career',
-          'subtitle': 'Interviews, presentations and starting work',
+          'subtitle': '',
         },
         {
           'id': 'mid_level',
           'icon': Icons.business_center_outlined,
           'title': 'Mid-level professional',
-          'subtitle': 'Meetings, projects and performance conversations',
+          'subtitle': '',
         },
         {
           'id': 'exec',
           'icon': Icons.groups_2_outlined,
           'title': 'Senior executive / Founder',
-          'subtitle': 'Pitches, keynotes and high-stakes conversations',
+          'subtitle': '',
         },
         {
           'id': 'self_learner',
           'icon': Icons.person_outline_rounded,
           'title': 'General self-learner',
-          'subtitle': 'Everyday communication and personal development',
+          'subtitle': '',
         },
       ],
     },
@@ -162,31 +155,31 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           'id': 'corporate_finance',
           'icon': Icons.apartment_rounded,
           'title': 'Corporate & Finance',
-          'subtitle': 'Meetings, data reviews and formal presentations',
+          'subtitle': '',
         },
         {
           'id': 'tech_product',
           'icon': Icons.laptop_chromebook_rounded,
           'title': 'Tech, Engineering & Product',
-          'subtitle': 'Explaining complex ideas simply',
+          'subtitle': '',
         },
         {
           'id': 'sales_marketing',
           'icon': Icons.campaign_outlined,
           'title': 'Sales, Marketing & Content',
-          'subtitle': 'Persuasion, negotiation and audience engagement',
+          'subtitle': '',
         },
         {
           'id': 'healthcare_edu',
           'icon': Icons.health_and_safety_outlined,
           'title': 'Healthcare & Education',
-          'subtitle': 'Clear, empathetic communication',
+          'subtitle': '',
         },
         {
           'id': 'other',
           'icon': Icons.more_horiz_rounded,
           'title': 'Other',
-          'subtitle': 'Something else',
+          'subtitle': '',
         },
       ],
     },
@@ -224,37 +217,37 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           'id': 'blank_pressure',
           'icon': Icons.psychology_outlined,
           'title': 'I go blank under pressure',
-          'subtitle': 'I struggle to organise my thoughts quickly',
+          'subtitle': '',
         },
         {
           'id': 'too_long',
           'icon': Icons.access_time_rounded,
           'title': 'I take too long to get to the point',
-          'subtitle': 'I over-explain before getting to my message',
+          'subtitle': '',
         },
         {
           'id': 'filler_rush',
           'icon': Icons.graphic_eq_rounded,
           'title': 'I rush or use too many filler words',
-          'subtitle': "I use words like 'um' or 'so' while thinking",
+          'subtitle': '',
         },
         {
           'id': 'explain_simple',
           'icon': Icons.description_outlined,
           'title': 'I struggle to explain things simply',
-          'subtitle': 'I know what I mean, but make it sound complicated',
+          'subtitle': '',
         },
         {
           'id': 'keep_engaged',
           'icon': Icons.groups_outlined,
           'title': 'I struggle to keep people engaged',
-          'subtitle': "My message doesn't always land or stick",
+          'subtitle': '',
         },
         {
           'id': 'lose_confidence',
           'icon': Icons.shield_outlined,
           'title': 'I lose confidence when challenged',
-          'subtitle': 'I struggle to respond clearly when someone disagrees',
+          'subtitle': '',
         },
       ],
     },
@@ -356,8 +349,30 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     );
   }
 
+  bool get _canProceedCurrentStep {
+    if (_currentStepIndex == 0) return true;
+    if (_currentStepIndex == 1) return _nameController.text.trim().isNotEmpty;
+    final options = (_steps[_currentStepIndex]['options'] as List<dynamic>?) ?? [];
+    if (options.isNotEmpty) {
+      return (_stepSelections[_currentStepIndex] ?? _selectedOptionId).isNotEmpty;
+    }
+    return true;
+  }
+
   Future<void> _nextStep() async {
     if (_isSubmitting) return;
+
+    if (!_canProceedCurrentStep) {
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select an option to continue.'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
     if (_currentStepIndex < _steps.length - 1) {
       final nextIndex = _currentStepIndex + 1;
@@ -434,11 +449,9 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   }
 
   void _onPageChanged(int index) {
-    final options = (_steps[index]['options'] as List<dynamic>?) ?? [];
-    final fallback = options.isNotEmpty ? options.first['id'] as String : '';
     setState(() {
       _currentStepIndex = index;
-      _selectedOptionId = _stepSelections[index] ?? fallback;
+      _selectedOptionId = _stepSelections[index] ?? '';
     });
   }
 
@@ -463,7 +476,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       body: SafeArea(
         bottom: !isIOS,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(24, 14, 24, bottomGap),
+          padding: EdgeInsets.fromLTRB(14, 10, 14, bottomGap),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -565,6 +578,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               // Bottom Action Pill Button
               ActionPillButton(
                 label: _isSubmitting ? 'Saving...' : buttonLabel,
+                isEnabled: _canProceedCurrentStep,
                 onTap: _isSubmitting ? null : _nextStep,
               ),
             ],
@@ -627,9 +641,10 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           child: isNameInput
               ? _buildNameInput()
               : ListView.separated(
+                  padding: EdgeInsets.zero,
                   physics: const BouncingScrollPhysics(),
                   itemCount: options.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 11),
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (context, optionIndex) {
                     final opt = options[optionIndex] as Map<String, dynamic>;
                     final selectedId = index == _currentStepIndex
@@ -874,7 +889,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         duration: const Duration(milliseconds: 200),
         padding: EdgeInsets.symmetric(
           horizontal: 16,
-          vertical: hasSubtitle ? 14 : 16,
+          vertical: hasSubtitle ? 12 : 11,
         ),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF141522) : Colors.white,
@@ -886,18 +901,18 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: isSelected ? 0.08 : 0.02),
-              blurRadius: isSelected ? 12 : 8,
-              offset: const Offset(0, 3),
+              blurRadius: isSelected ? 12 : 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
         child: Row(
           children: [
-            // Leading Symbol / Icon (if present)
+            // Leading Symbol / Icon (Bigger icons)
             if (symbol != null)
               Container(
-                width: 42,
-                height: 42,
+                width: 48,
+                height: 48,
                 margin: const EdgeInsets.only(right: 14),
                 decoration: BoxDecoration(
                   color: isSelected ? const Color(0xFF222438) : const Color(0xFFF3F4F6),
@@ -907,7 +922,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                 child: Text(
                   symbol,
                   style: TextStyle(
-                    fontSize: 22,
+                    fontSize: 26,
                     color: isSelected ? Colors.white : AppColors.textPrimary,
                     fontWeight: FontWeight.bold,
                   ),
@@ -915,8 +930,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               )
             else if (icon != null)
               Container(
-                width: 42,
-                height: 42,
+                width: 48,
+                height: 48,
                 margin: const EdgeInsets.only(right: 14),
                 decoration: BoxDecoration(
                   color: isSelected ? const Color(0xFF222438) : const Color(0xFFF3F4F6),
@@ -926,7 +941,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                 child: Icon(
                   icon,
                   color: isSelected ? Colors.white : AppColors.textPrimary,
-                  size: 20,
+                  size: 24,
                 ),
               ),
 

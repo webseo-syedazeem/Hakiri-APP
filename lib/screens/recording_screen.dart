@@ -65,6 +65,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   bool _finishing = false;
   bool _speechReady = false;
   bool _speechResumeInFlight = false;
+  // ignore: unused_field
   bool _fileRecorderActive = false;
   String? _audioTempPath;
   Timer? _speechSoftWatchdog;
@@ -73,6 +74,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   DateTime? _lastMicLevelAt;
   double _idlePhase = 0;
 
+  // ignore: unused_element
   String get _liveTranscript =>
       '$_committedTranscript $_partialTranscript'.trim();
 
@@ -154,19 +156,25 @@ class _RecordingScreenState extends State<RecordingScreen>
   // PHASE 1: WORD-BY-WORD REVEAL (doc_images/img_0.png)
   // -------------------------------------------------------------
   void _startWordByWordReveal() {
-    _revealedWordCount = 1; // start with first word
+    _wordRevealTimer?.cancel();
+    _revealedWordCount = 0;
     setState(() {});
 
-    _wordRevealTimer = Timer.periodic(const Duration(milliseconds: 280), (timer) {
+    // Calm, readable word-by-word reveal (340ms per word as requested)
+    _wordRevealTimer = Timer.periodic(const Duration(milliseconds: 340), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
       if (_revealedWordCount < _words.length) {
         setState(() {
           _revealedWordCount++;
         });
       } else {
-        _wordRevealTimer?.cancel();
-        // Wait brief beat after last word, then start 5s countdown
-        Future.delayed(const Duration(milliseconds: 400), () {
-          if (mounted) {
+        timer.cancel();
+        // Generous reading pause after full sentence is visible before prep countdown
+        Future.delayed(const Duration(milliseconds: 2200), () {
+          if (mounted && _stage == ExerciseStage.wordByWordReveal) {
             _start5sCountdown();
           }
         });
@@ -246,6 +254,7 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   /// Soft STT recovery only — rare restarts, never start a second mic/file recorder.
+  // ignore: unused_element
   void _startSoftSpeechWatchdog() {
     _speechSoftWatchdog?.cancel();
     _speechSoftWatchdog = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -299,6 +308,7 @@ class _RecordingScreenState extends State<RecordingScreen>
     return _audioTempPath;
   }
 
+  // ignore: unused_element
   Future<void> _startSpeechCapture() async {
     try {
       _speechReady = await _speech.initialize(
@@ -467,37 +477,50 @@ class _RecordingScreenState extends State<RecordingScreen>
   // SCREEN 1: WORD-BY-WORD REVEAL (doc_images/img_0.png)
   // =============================================================
   Widget _buildWordByWordRevealScreen() {
+    final state = Provider.of<AppStateProvider>(context, listen: false);
+    final activity = state.selectedActivity;
+    final activityName = activity?.name.toUpperCase() ?? 'THINK FAST';
+    IconData tagIcon = Icons.bolt_rounded;
+    if (activityName.contains('CUT')) {
+      tagIcon = Icons.content_cut_rounded;
+    } else if (activityName.contains('DEBATE')) {
+      tagIcon = Icons.record_voice_over_rounded;
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFBFBF9),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Back Button
               GestureDetector(
                 onTap: () => Navigator.pop(context),
-                child: const Icon(
-                  Icons.chevron_left_rounded,
-                  color: Color(0xFF0F172A),
-                  size: 32,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 4),
+                  child: Icon(
+                    Icons.chevron_left_rounded,
+                    color: Color(0xFF0F172A),
+                    size: 32,
+                  ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 14),
 
-              // Lightning bolt icon badge + THINK FAST
+              // Activity Tag Row matching media_1792409196037_95711460.png
               Row(
-                children: const [
+                children: [
                   Icon(
-                    Icons.bolt_rounded,
-                    color: Color(0xFF2563EB),
-                    size: 24,
+                    tagIcon,
+                    color: const Color(0xFF2563EB),
+                    size: 22,
                   ),
-                  SizedBox(width: 8),
+                  const SizedBox(width: 8),
                   Text(
-                    'THINK FAST',
-                    style: TextStyle(
+                    activityName,
+                    style: const TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
@@ -507,9 +530,9 @@ class _RecordingScreenState extends State<RecordingScreen>
                   ),
                 ],
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
 
-              // Question revealed word-by-word with karaoke style highlight
+              // Question revealed word-by-word with karaoke style highlight & scale transition
               Expanded(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
@@ -523,24 +546,30 @@ class _RecordingScreenState extends State<RecordingScreen>
 
                       Color wordColor;
                       if (!isRevealed) {
-                        wordColor = const Color(0xFFCBD5E1).withValues(alpha: 0.35);
+                        wordColor = const Color(0xFFCBD5E1).withValues(alpha: 0.45);
                       } else if (isCurrentWord) {
                         wordColor = const Color(0xFF2563EB); // Royal blue active
                       } else {
                         wordColor = const Color(0xFF0F172A); // Dark navy for past
                       }
 
-                      return AnimatedDefaultTextStyle(
-                        duration: const Duration(milliseconds: 200),
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 34,
-                          fontWeight: FontWeight.w800,
-                          color: wordColor,
-                          letterSpacing: -0.6,
-                          height: 1.25,
+                      return AnimatedScale(
+                        scale: isCurrentWord ? 1.04 : 1.0,
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeOutCubic,
+                        child: AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 280),
+                          curve: Curves.easeOutCubic,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 32,
+                            fontWeight: FontWeight.w900,
+                            color: wordColor,
+                            letterSpacing: -0.6,
+                            height: 1.25,
+                          ),
+                          child: Text(word),
                         ),
-                        child: Text(word),
                       );
                     }),
                   ),
@@ -561,7 +590,7 @@ class _RecordingScreenState extends State<RecordingScreen>
       backgroundColor: const Color(0xFFFBFBF9),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -677,7 +706,7 @@ class _RecordingScreenState extends State<RecordingScreen>
       backgroundColor: const Color(0xFF0B101D),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

@@ -58,7 +58,7 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
       body: SafeArea(
         bottom: !isIOS,
         child: Padding(
-          padding: EdgeInsets.fromLTRB(24, 14, 24, bottomGap),
+          padding: EdgeInsets.fromLTRB(14, 10, 14, bottomGap),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -126,34 +126,43 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                       ),
                       const SizedBox(height: 6),
 
-                      // Subtitle
+                      // Subtitle: Built around Goal & Challenge
                       Text(
-                        'Built around: ${state.roadblockLabel}',
+                        state.primaryGoalLabel.isNotEmpty && state.primaryGoalLabel != 'Not set'
+                            ? 'Built around: ${state.primaryGoalLabel} & ${state.roadblockLabel}'
+                            : 'Built around: ${state.roadblockLabel}',
                         style: const TextStyle(
                           color: AppColors.textSecondary,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
+                          height: 1.35,
                         ),
                       ),
                       const SizedBox(height: 20),
 
-                      // Dual Focus Cards (Side by side)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildFocusCard(
+                      // Three Focus Cards
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        clipBehavior: Clip.none,
+                        child: Row(
+                          children: [
+                            _buildFocusCard(
                               tag: 'FOCUS 1',
                               title: primaryTitle,
                             ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildFocusCard(
+                            const SizedBox(width: 12),
+                            _buildFocusCard(
                               tag: 'FOCUS 2',
-                              title: otherSlugs.isNotEmpty ? (_drillNames[otherSlugs[0]] ?? 'Practice') : 'Speaking Clarity',
+                              title: otherSlugs.isNotEmpty ? (_drillNames[otherSlugs[0]] ?? 'Practice') : 'Cut it in Half',
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 12),
+                            _buildFocusCard(
+                              tag: 'FOCUS 3',
+                              title: otherSlugs.length > 1 ? (_drillNames[otherSlugs[1]] ?? 'Debate Me') : 'Debate Me',
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 20),
 
@@ -268,7 +277,8 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
 
   Widget _buildFocusCard({required String tag, required String title}) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      width: 155,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -283,6 +293,7 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             tag,
@@ -296,11 +307,13 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
           const SizedBox(height: 8),
           Text(
             title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: AppColors.textPrimary,
-              fontSize: 14,
+              fontSize: 14.5,
               fontWeight: FontWeight.w700,
-              height: 1.3,
+              height: 1.25,
             ),
           ),
         ],
