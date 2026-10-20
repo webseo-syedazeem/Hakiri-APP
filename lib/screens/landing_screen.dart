@@ -1,7 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../core/services/analytics_service.dart';
+import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
 import '../widgets/exercise_illustrations.dart';
@@ -52,6 +54,9 @@ class _LandingScreenState extends State<LandingScreen>
   int get _minPage => widget.postSignup ? 1 : 0;
 
   static const _sectionLabels = [
+    'Get started',
+    'See feedback',
+    'Explore exercises',
     'Is Hakkiri for me?',
     'Why Hakkiri?',
     'Explore your learning path',
@@ -61,9 +66,9 @@ class _LandingScreenState extends State<LandingScreen>
   @override
   void initState() {
     super.initState();
-    // Post-signup onboarding skips to assessment or next step
+    // Post-signup onboarding skips the welcome (Get started) page.
     final start = widget.postSignup
-        ? (widget.initialPage > 0 ? widget.initialPage : 0)
+        ? (widget.initialPage > 0 ? widget.initialPage : 1)
         : widget.initialPage;
     _currentPage = start;
     _pageController = PageController(initialPage: start);
@@ -133,14 +138,12 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   void _previousPage() {
-    if (_currentPage > 0) {
+    if (_currentPage > _minPage) {
       _pageController.animateToPage(
         _currentPage - 1,
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeInOutCubic,
       );
-    } else {
-      Navigator.maybePop(context);
     }
   }
 
@@ -241,6 +244,11 @@ class _LandingScreenState extends State<LandingScreen>
                   controller: _pageController,
                   physics: const BouncingScrollPhysics(),
                   onPageChanged: (idx) {
+                    // Don't swipe back to welcome after signup/Google.
+                    if (widget.postSignup && idx < 1) {
+                      _pageController.jumpToPage(1);
+                      return;
+                    }
                     setState(() => _currentPage = idx);
                     final label = (idx >= 0 && idx < _sectionLabels.length)
                         ? _sectionLabels[idx]
@@ -254,6 +262,9 @@ class _LandingScreenState extends State<LandingScreen>
                     );
                   },
                   children: [
+                    _buildWelcomePage(),
+                    _buildSeeHowItWorksPage(),
+                    _buildSeeFeedbackPage(),
                     _buildTrainCarouselPage(),
                     _buildWhoItsForPage(),
                     _buildTrustedByProfessionalsPage(),
@@ -266,27 +277,24 @@ class _LandingScreenState extends State<LandingScreen>
                 child: Column(
                   children: [
                     // Screen-specific pagination indicators above button
-                    if (_currentPage == 1) ...[
-                      // Who it's for: step 1 of 3
-                      _buildDotsIndicator(
-                        activeIndex: 0,
-                        totalDots: 3,
-                        activeColor: const Color(0xFF2563EB),
-                      ),
-                      const SizedBox(height: 12),
-                    ] else if (_currentPage == 2) ...[
-                      // Why Hakkiri: step 2 of 3
+                    if (_currentPage == 4) ...[
                       _buildDotsIndicator(
                         activeIndex: 1,
-                        totalDots: 3,
+                        totalDots: 5,
                         activeColor: const Color(0xFF2563EB),
                       ),
                       const SizedBox(height: 12),
-                    ] else if (_currentPage == 3) ...[
-                      // Learning path: step 3 of 3
+                    ] else if (_currentPage == 5) ...[
                       _buildDotsIndicator(
                         activeIndex: 2,
-                        totalDots: 3,
+                        totalDots: 5,
+                        activeColor: const Color(0xFF2563EB),
+                      ),
+                      const SizedBox(height: 12),
+                    ] else if (_currentPage == 6) ...[
+                      _buildDotsIndicator(
+                        activeIndex: 3,
+                        totalDots: 5,
                         activeColor: const Color(0xFF2563EB),
                         alignment: MainAxisAlignment.center,
                       ),
@@ -326,6 +334,12 @@ class _LandingScreenState extends State<LandingScreen>
                           ),
                         ),
                       ),
+                      const SizedBox(height: 12),
+                      _buildDotsIndicator(
+                        activeIndex: 0,
+                        totalDots: 3,
+                        activeColor: const Color(0xFF0F172A),
+                      ),
                     ],
                   ],
                 ),
@@ -342,9 +356,8 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   // ==========================================
-  // PAGE 0: WELCOME (media_1791376750433.png)
+  // PAGE 0: WELCOME / Get started
   // ==========================================
-  // ignore: unused_element
   Widget _buildWelcomePage() {
     return Stack(
       children: [
@@ -735,7 +748,12 @@ class _LandingScreenState extends State<LandingScreen>
                   ),
                     child: GestureDetector(
                       onTap: () {
-                        if (ex['type'] == 'debate') {
+                        final type = (ex['type'] ?? 'think_fast').toString();
+                        final slug =
+                            AppStateProvider.normalizeActivitySlug(type);
+                        // Keep provider in sync so Begin → Recording uses this drill.
+                        context.read<AppStateProvider>().selectActivity(slug);
+                        if (slug == 'debate_me') {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -746,7 +764,8 @@ class _LandingScreenState extends State<LandingScreen>
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => ActivityDetailScreen(activitySlug: ex['type']),
+                              builder: (_) =>
+                                  ActivityDetailScreen(activitySlug: slug),
                             ),
                           );
                         }

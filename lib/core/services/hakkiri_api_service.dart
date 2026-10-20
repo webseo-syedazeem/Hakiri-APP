@@ -365,6 +365,15 @@ class HakkiriApiService {
         timeout: const Duration(seconds: 90),
       );
 
+  /// Guided Debate Me: opening audio/text → one AI pushback line.
+  Future<Map<String, dynamic>> debatePushback(Map<String, dynamic> body) =>
+      _post(
+        '/ai/debate-pushback',
+        auth: true,
+        body: body,
+        timeout: const Duration(seconds: 90),
+      );
+
   /// Save FCM device token for daily practice reminders.
   Future<Map<String, dynamic>> registerDeviceToken({
     required String token,

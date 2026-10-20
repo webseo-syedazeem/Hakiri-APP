@@ -11,12 +11,8 @@ import 'home_screen.dart';
 import 'landing_screen.dart';
 import 'locked_profile_screen.dart';
 
-/// Native Interactive Splash Screen matching the Figma prototype:
-/// - Deep royal blue cosmic canvas with dynamic radiating light rays (360° warp-speed burst)
-/// - Glowing Hakkiri brand mark with breathing pulse
-/// - "Say what you mean. First time." tagline
-/// - "Touch the light" invitation
-/// - "Begin ->" action pill button
+/// Splash: cosmic canvas + logo, then auto-route.
+/// Logged-out users land on LandingScreen (Get started).
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -53,8 +49,8 @@ class _SplashScreenState extends State<SplashScreen>
     // Initialize deterministic high-density light rays (streaks radiating in 360°)
     _rays = _generateLightRays();
 
-    // Default safety timer: automatically advance after 4.5s if untouched
-    _timer = Timer(const Duration(milliseconds: 4500), _navigateToNext);
+    // Auto-advance — no Get Started / Touch the light on splash.
+    _timer = Timer(const Duration(milliseconds: 2800), _navigateToNext);
   }
 
   List<_LightRayData> _generateLightRays() {
@@ -167,9 +163,6 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final bottomInset = media.padding.bottom;
-
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -178,178 +171,90 @@ class _SplashScreenState extends State<SplashScreen>
         systemNavigationBarColor: Color(0xFF000512),
         systemNavigationBarIconBrightness: Brightness.light,
       ),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _navigateToNext,
-        child: Scaffold(
-          backgroundColor: const Color(0xFF000512),
-          body: Stack(
-            fit: StackFit.expand,
-            children: [
-              // 1. Deep royal blue cosmic background gradient
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment(0.0, -0.15),
-                    radius: 1.15,
-                    colors: [
-                      Color(0xFF0044D6), // vibrant electric royal blue center
-                      Color(0xFF00289E),
-                      Color(0xFF001460),
-                      Color(0xFF000826),
-                      Color(0xFF000414), // midnight edge
-                    ],
-                    stops: [0.0, 0.32, 0.60, 0.85, 1.0],
-                  ),
-                ),
-                child: SizedBox.expand(),
-              ),
-
-              // 2. Dynamic 360° radiating light ray streaks
-              AnimatedBuilder(
-                animation: _rayController,
-                builder: (context, _) {
-                  return CustomPaint(
-                    painter: _RadiatingLightRaysPainter(
-                      progress: _rayController.value,
-                      rays: _rays,
-                    ),
-                    child: const SizedBox.expand(),
-                  );
-                },
-              ),
-
-              // 3. Foreground Content: Logo, Taglines, "Touch the light", "Begin ->"
-              SafeArea(
-                child: Column(
-                  children: [
-                    const Spacer(flex: 3),
-
-                    // Central Glowing Emblem + "Hakkiri" + "Say what you mean. First time."
-                    AnimatedBuilder(
-                      animation: _pulseController,
-                      builder: (context, child) {
-                        final breathe = 1.0 + 0.025 * _pulseController.value;
-                        final glowAlpha = 0.85 + 0.15 * _pulseController.value;
-                        return Transform.scale(
-                          scale: breathe,
-                          child: Opacity(
-                            opacity: glowAlpha,
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Glowing emblem (Circle + Sound Waves + Hakkiri text with luminous aura)
-                          Image.asset(
-                            'assets/images/splash_glowing_logo_hi.png',
-                            width: 215,
-                            fit: BoxFit.contain,
-                            filterQuality: FilterQuality.high,
-                          ),
-                          const SizedBox(height: 12),
-                          // Subtitle matching Figma video prototype
-                          Text(
-                            'Say what you mean. First time.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 15.5,
-                              fontWeight: FontWeight.w400,
-                              color: Colors.white.withValues(alpha: 0.95),
-                              letterSpacing: -0.2,
-                              shadows: const [
-                                Shadow(
-                                  color: Color(0x800044D6),
-                                  blurRadius: 16,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const Spacer(flex: 4),
-
-                    // "Touch the light" prompt
-                    AnimatedBuilder(
-                      animation: _pulseController,
-                      builder: (context, child) {
-                        final alpha = 0.55 + 0.35 * _pulseController.value;
-                        return Opacity(
-                          opacity: alpha,
-                          child: child,
-                        );
-                      },
-                      child: Text(
-                        'Touch the light',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w400,
-                          color: Colors.white.withValues(alpha: 0.80),
-                          letterSpacing: 0.1,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 22),
-
-                    // "Begin ->" Rounded Pill Button matching video
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: SizedBox(
-                        width: double.infinity,
-                        height: 56,
-                        child: Material(
-                          color: const Color(0xFFF1EFEA), // warm off-white pill
-                          borderRadius: BorderRadius.circular(28),
-                          elevation: 6,
-                          shadowColor: const Color(0x66000000),
-                          child: InkWell(
-                            borderRadius: BorderRadius.circular(28),
-                            onTap: _navigateToNext,
-                            splashColor: const Color(0x220038B8),
-                            child: const Center(
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Begin',
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 16.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF1E293B),
-                                      letterSpacing: -0.2,
-                                    ),
-                                  ),
-                                  SizedBox(width: 8),
-                                  Icon(
-                                    Icons.arrow_forward_rounded,
-                                    size: 19,
-                                    color: Color(0xFF1E293B),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    SizedBox(height: bottomInset > 0 ? 12 : 24),
+      child: Scaffold(
+        backgroundColor: const Color(0xFF000512),
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment(0.0, -0.15),
+                  radius: 1.15,
+                  colors: [
+                    Color(0xFF0044D6),
+                    Color(0xFF00289E),
+                    Color(0xFF001460),
+                    Color(0xFF000826),
+                    Color(0xFF000414),
                   ],
+                  stops: [0.0, 0.32, 0.60, 0.85, 1.0],
                 ),
               ),
-            ],
-          ),
+              child: SizedBox.expand(),
+            ),
+            AnimatedBuilder(
+              animation: _rayController,
+              builder: (context, _) {
+                return CustomPaint(
+                  painter: _RadiatingLightRaysPainter(
+                    progress: _rayController.value,
+                    rays: _rays,
+                  ),
+                  child: const SizedBox.expand(),
+                );
+              },
+            ),
+            SafeArea(
+              child: Column(
+                children: [
+                  const Spacer(flex: 3),
+                  AnimatedBuilder(
+                    animation: _pulseController,
+                    builder: (context, child) {
+                      final breathe = 1.0 + 0.025 * _pulseController.value;
+                      final glowAlpha = 0.85 + 0.15 * _pulseController.value;
+                      return Transform.scale(
+                        scale: breathe,
+                        child: Opacity(opacity: glowAlpha, child: child),
+                      );
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Image.asset(
+                          'assets/images/splash_glowing_logo_hi.png',
+                          width: 215,
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.high,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Say what you mean. First time.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.white.withValues(alpha: 0.95),
+                            letterSpacing: -0.2,
+                            shadows: const [
+                              Shadow(
+                                color: Color(0x800044D6),
+                                blurRadius: 16,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Spacer(flex: 4),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

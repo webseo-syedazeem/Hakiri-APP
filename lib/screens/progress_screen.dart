@@ -640,11 +640,12 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                     scoreFractionValue: score / 5,
                     ringColor: score >= 4
                         ? const Color(0xFF10B981)
-                        : const Color(0xFF6366F1),
+                        : score >= 3
+                            ? const Color(0xFF3B82F6)
+                            : const Color(0xFFF59E0B),
                     title: session.activityName,
                     dateDuration:
                         '${_formatSessionDay(session.timestamp)} · 🕒 $minutes min$modeTag',
-                    scoreBadge: score.toStringAsFixed(1),
                     onTap: () {
                       Navigator.push(
                         context,
@@ -1105,7 +1106,6 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
     required Color ringColor,
     required String title,
     required String dateDuration,
-    required String scoreBadge,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -1177,17 +1177,33 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
               ),
             ),
             Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  scoreBadge,
-                  style: const TextStyle(
-                    color: Color(0xFF10B981),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Text(
+                    'Feedback',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      color: Color(0xFF2563EB),
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 4),
-                const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textMuted),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: AppColors.textMuted,
+                ),
               ],
             ),
           ],

@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../core/services/hakkiri_api_service.dart';
 import '../core/services/push_notification_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/shimmer_loading.dart';
 import 'activity_detail_screen.dart';
-import 'live_conversation_screen.dart';
 import 'main_tab_scaffold.dart';
+import 'targeted_retry_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -22,6 +23,76 @@ class HomeScreen extends StatelessWidget {
 class HomeScreenContent extends StatelessWidget {
   const HomeScreenContent({super.key});
 
+  Future<void> _onFreezeTap(BuildContext context) async {
+    final state = context.read<AppStateProvider>();
+    if (!state.isLoggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign in to use a streak freeze.')),
+      );
+      return;
+    }
+    if (state.streakFreezeCount < 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No streak freezes left.')),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Use streak freeze?'),
+        content: Text(
+          state.streakFreezeCount == 1
+              ? 'This uses your last freeze to protect your streak after a missed day. Skill scores stay the same.'
+              : 'This uses 1 of ${state.streakFreezeCount} freezes to protect your streak after a missed day. Skill scores stay the same.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Apply freeze'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
+
+    try {
+      await HakkiriLoadingOverlay.run(
+        context,
+        message: 'Applying freeze…',
+        detail: 'Protecting your streak.',
+        action: () => state.freezeStreakFromApi(),
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            state.streakFreezeCount > 0
+                ? 'Freeze applied. ${state.streakFreezeCount} freeze${state.streakFreezeCount == 1 ? '' : 's'} left.'
+                : 'Freeze applied. No freezes left.',
+          ),
+        ),
+      );
+    } on HakkiriApiException catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not apply freeze. Check your connection.'),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -34,25 +105,39 @@ class HomeScreenContent extends StatelessWidget {
       return const HomeLoadingShimmer();
     }
 
-    final completedCount = state.completedTodayDrills();
-    final bool hasStarted = completedCount > 0 || state.completedSessions > 0;
+    final coreDone = state.completedTodayDrills().clamp(0, 3);
+    final planTotal = state.totalTodayActivitiesCount();
+    final planDone = state.completedTotalActivitiesToday().clamp(0, planTotal);
+    final remaining = (planTotal - planDone).clamp(0, planTotal);
+    final bool hasStarted = planDone > 0 || state.completedSessions > 0;
     final weekDays = state.practiceDaysThisWeek;
-    final drills = state.todayDrillSlugs;
+    final drills = state.todayDrillSlugs.take(3).toList();
+    final minutes = state.dailyAnchorMinutes;
+    final offerExtras = state.shouldOfferPlanExtras;
+    final weakest = state.getWeakestExerciseToday();
     final primarySlug = drills.isNotEmpty ? drills.first : 'think_fast';
     final primaryActivity = state.activities.firstWhere(
       (a) => a.slug == primarySlug,
       orElse: () => state.activities.first,
     );
-    final nextSlug = drills.length > 1
-        ? drills[completedCount.clamp(0, drills.length - 1)]
-        : primarySlug;
+    String nextSlug;
+    String nextLabel;
+    if (offerExtras) {
+      nextSlug = (weakest['slug'] as String?) ?? primarySlug;
+      nextLabel = minutes >= 15
+          ? 'Choose retry or stretch'
+          : 'Targeted retry';
+    } else if (coreDone >= drills.length) {
+      nextSlug = primarySlug;
+      nextLabel = 'Plan complete';
+    } else {
+      nextSlug = drills[coreDone.clamp(0, drills.length - 1)];
+      nextLabel = hasStarted ? 'UP NEXT · ~2 MIN' : 'START HERE · ~2 MIN';
+    }
     final nextActivity = state.activities.firstWhere(
       (a) => a.slug == nextSlug,
       orElse: () => primaryActivity,
     );
-    final planTotal = drills.isEmpty ? 3 : drills.length;
-    final planDone = completedCount.clamp(0, planTotal);
-    final remaining = (planTotal - planDone).clamp(0, planTotal);
     final latest = state.sessionHistory.isNotEmpty ? state.sessionHistory.first : null;
     final progressTitle = hasStarted ? "THIS WEEK'S PROGRESS" : 'YOUR STARTING POINT';
     final String progressHeadline;
@@ -155,17 +240,27 @@ class HomeScreenContent extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: hasStarted
-                        ? (remaining == 0 ? 'Nice work.\n' : 'Nice start.\n')
-                        : 'Your plan is ready.\n',
+                        ? (remaining == 0
+                            ? (minutes >= 15
+                                ? 'Excellent work —\n'
+                                : 'Nice work —\n')
+                            : 'Nice start.\n')
+                        : 'Your $minutes-minute plan is ready.\n',
                   ),
                   TextSpan(
                     text: hasStarted
                         ? (remaining == 0
-                            ? 'Plan complete today.'
-                            : remaining == 1
-                                ? 'One to go today.'
-                                : '$remaining to go today.')
-                        : "Let's get started.",
+                            ? 'your $minutes-minute plan is complete.'
+                            : offerExtras
+                                ? (minutes >= 15
+                                    ? 'Ready for a bigger stretch?'
+                                    : 'One more to lock it in.')
+                                : remaining == 1
+                                    ? 'One to go today.'
+                                    : '$remaining to go today.')
+                        : minutes >= 15
+                            ? 'More time, deeper practice.'
+                            : "Let's get started.",
                     style: const TextStyle(color: AppColors.royalBlue),
                   ),
                 ],
@@ -207,22 +302,45 @@ class HomeScreenContent extends StatelessWidget {
                           ],
                         ),
                       ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.ac_unit_rounded, size: 14, color: AppColors.royalBlue),
-                          const SizedBox(width: 4),
-                          Text(
-                            state.streakFreezeCount > 0
-                                ? '${state.streakFreezeCount} freeze ready'
-                                : 'No freeze left',
-                            style: const TextStyle(
-                              color: AppColors.royalBlue,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: state.streakFreezeCount > 0
+                              ? () => _onFreezeTap(context)
+                              : null,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 2,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.ac_unit_rounded,
+                                  size: 14,
+                                  color: state.streakFreezeCount > 0
+                                      ? AppColors.royalBlue
+                                      : AppColors.textSecondary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  state.streakFreezeCount > 0
+                                      ? '${state.streakFreezeCount} freeze ready'
+                                      : 'No freeze left',
+                                  style: TextStyle(
+                                    color: state.streakFreezeCount > 0
+                                        ? AppColors.royalBlue
+                                        : AppColors.textSecondary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
@@ -310,135 +428,155 @@ class HomeScreenContent extends StatelessWidget {
             const SizedBox(height: 18),
 
             // Hero Dark Card (Navy Gradient Card with Circular Progress and Play button)
-            GestureDetector(
-              onTap: () {
-                state.selectActivity(nextActivity.slug);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                );
-              },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(22),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF1E1B4B).withValues(alpha: 0.25),
-                      blurRadius: 18,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    // Circular Progress 1/3
-                    SizedBox(
-                      width: 58,
-                      height: 58,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          CircularProgressIndicator(
-                            value: planTotal == 0 ? 0 : (planDone / planTotal).clamp(0.0, 1.0),
-                            strokeWidth: 4,
-                            backgroundColor: Colors.white.withValues(alpha: 0.15),
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              Color(0xFF10B981),
-                            ),
-                          ),
-                          Text(
-                            '$planDone/$planTotal',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-
-                    // Center Details
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            hasStarted ? 'UP NEXT · ~2 MIN' : 'START HERE · ~2 MIN',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.7),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.1,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            nextActivity.name,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            nextActivity.tagline,
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.65),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Large Blue Play Button with Concentric Rings
-                    Container(
-                      width: 54,
-                      height: 54,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+            if (remaining > 0)
+              GestureDetector(
+                onTap: () {
+                  if (offerExtras) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => TargetedRetryScreen(
+                          is15MinutePlan: minutes >= 15,
                         ),
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF2563EB).withValues(alpha: 0.45),
-                            blurRadius: 14,
-                            spreadRadius: 2,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
                       ),
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.play_arrow_rounded,
-                        color: Colors.white,
-                        size: 32,
-                      ),
+                    );
+                    return;
+                  }
+                  state.selectActivity(nextActivity.slug);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ActivityDetailScreen(),
                     ),
-                  ],
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF1E1B4B).withValues(alpha: 0.25),
+                        blurRadius: 18,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 58,
+                        height: 58,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              value: planTotal == 0
+                                  ? 0
+                                  : (planDone / planTotal).clamp(0.0, 1.0),
+                              strokeWidth: 4,
+                              backgroundColor:
+                                  Colors.white.withValues(alpha: 0.15),
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                Color(0xFF10B981),
+                              ),
+                            ),
+                            Text(
+                              '$planDone/$planTotal',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              nextLabel.toUpperCase(),
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.1,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              offerExtras
+                                  ? (weakest['name'] as String? ??
+                                      nextActivity.name)
+                                  : nextActivity.name,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              offerExtras
+                                  ? 'Based on today\'s scores'
+                                  : nextActivity.tagline,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.65),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF3B82F6), Color(0xFF2563EB)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF2563EB)
+                                  .withValues(alpha: 0.45),
+                              blurRadius: 14,
+                              spreadRadius: 2,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 32,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
+            if (remaining > 0) const SizedBox(height: 24),
 
             // Section Heading: TODAY'S PLAN
             Text(
-              hasStarted
-                  ? "TODAY'S PLAN · PERSONALISED FOR YOU"
-                  : "TODAY'S PLAN · $planTotal EXERCISES",
+              remaining == 0
+                  ? "TODAY'S PLAN · $planDone/$planTotal ACTIVITIES"
+                  : coreDone >= 3
+                      ? "TODAY'S PLAN · PERSONALISED FOR YOU"
+                      : "TODAY'S PLAN · 3 CORE EXERCISES",
               style: const TextStyle(
                 color: AppColors.textMuted,
                 fontSize: 11,
@@ -448,23 +586,26 @@ class HomeScreenContent extends StatelessWidget {
             ),
             const SizedBox(height: 12),
 
-            ...drills.take(3).toList().asMap().entries.map((entry) {
+            ...drills.asMap().entries.map((entry) {
               final index = entry.key;
               final slug = entry.value;
               final activity = state.activities.firstWhere(
                 (a) => a.slug == slug,
                 orElse: () => state.activities.first,
               );
-              final doneToday = state.sessionHistory.any((s) {
-                final now = DateTime.now();
-                return s.activitySlug == slug &&
-                    s.timestamp.year == now.year &&
-                    s.timestamp.month == now.month &&
-                    s.timestamp.day == now.day;
-              });
+              final doneToday = index < coreDone ||
+                  state.sessionHistory.any((s) {
+                    final now = DateTime.now();
+                    return s.activitySlug == slug &&
+                        !s.feedback.isCoachedRetry &&
+                        s.timestamp.year == now.year &&
+                        s.timestamp.month == now.month &&
+                        s.timestamp.day == now.day;
+                  });
               final visuals = _exerciseVisual(slug);
+              final locked = !doneToday && index > coreDone;
               return Padding(
-                padding: EdgeInsets.only(bottom: index < drills.take(3).length - 1 ? 10 : 0),
+                padding: EdgeInsets.only(bottom: index < drills.length - 1 ? 10 : 0),
                 child: _buildExerciseCard(
                   context: context,
                   icon: visuals.$1,
@@ -473,178 +614,179 @@ class HomeScreenContent extends StatelessWidget {
                   title: activity.name,
                   subtitle: activity.tagline,
                   isCompleted: doneToday,
-                  trailingText: doneToday ? null : '~2 min',
-                  onTap: () {
-                    state.selectActivity(slug);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                    );
-                  },
+                  trailingText: doneToday
+                      ? null
+                      : (locked ? 'Locked' : '~2 min'),
+                  onTap: locked
+                      ? null
+                      : () {
+                          state.selectActivity(slug);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ActivityDetailScreen(),
+                            ),
+                          );
+                        },
                 ),
               );
             }),
-            const SizedBox(height: 18),
 
-            GestureDetector(
-              onTap: () async {
-                final nav = Navigator.of(context);
-                final app = context.read<AppStateProvider>();
-                // Prefer today's plan activity so Live Coach stays in work context.
-                final drills = app.todayDrillSlugs;
-                final slug = drills.isNotEmpty
-                    ? drills.first
-                    : (app.selectedActivity?.slug ?? 'think_fast');
-                app.selectActivity(slug);
-                await HakkiriLoadingOverlay.run(
-                  context,
-                  message: 'Picking a workplace question…',
-                  detail:
-                      'Matching the live coach to your work track and practice plan.',
-                  action: () =>
-                      app.fetchNextPromptFromApi(excludeCurrent: true),
-                );
-                if (!context.mounted) return;
-                nav.push(
-                  MaterialPageRoute(
-                    builder: (_) => const LiveConversationScreen(),
-                  ),
-                );
-              },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEFF6FF),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: const Color(0xFFBFDBFE), width: 1.0),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFDBEAFE),
-                        shape: BoxShape.circle,
-                      ),
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.graphic_eq_rounded,
-                        color: Color(0xFF2563EB),
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'LIVE COACH',
-                            style: TextStyle(
-                              color: Color(0xFF2563EB),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.0,
+            // 10/15 bonus rows
+            if (minutes >= 10) ...[
+              const SizedBox(height: 10),
+              _buildExerciseCard(
+                context: context,
+                icon: Icons.refresh_rounded,
+                iconColor: const Color(0xFF2563EB),
+                iconBgColor: const Color(0xFFDBEAFE),
+                title: 'Targeted retry',
+                subtitle: state.isTargetedRetryCompletedToday
+                    ? '${weakest['name']} again'
+                    : (coreDone >= 3
+                        ? '${weakest['name']} · weakest area'
+                        : 'Unlocks after 3 core exercises'),
+                isCompleted: state.isTargetedRetryCompletedToday,
+                trailingText: state.isTargetedRetryCompletedToday
+                    ? null
+                    : (coreDone >= 3 ? 'Ready' : 'Locked'),
+                onTap: coreDone >= 3 && !state.isTargetedRetryCompletedToday
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => TargetedRetryScreen(
+                              is15MinutePlan: minutes >= 15,
                             ),
                           ),
-                          SizedBox(height: 3),
-                          Text(
-                            'Back-and-forth voice practice',
-                            style: TextStyle(
-                              color: AppColors.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Text(
-                            'Native mic + Gemini live conversation',
-                            style: TextStyle(
-                              color: Color(0xFF1D4ED8),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: Color(0xFF2563EB),
-                      size: 22,
-                    ),
-                  ],
-                ),
+                        );
+                      }
+                    : null,
               ),
-            ),
+            ],
+            if (minutes >= 15) ...[
+              const SizedBox(height: 10),
+              _buildExerciseCard(
+                context: context,
+                icon: Icons.bolt_rounded,
+                iconColor: const Color(0xFFDC2626),
+                iconBgColor: const Color(0xFFFEE2E2),
+                title: 'Tougher challenge',
+                subtitle: state.isTougherChallengeCompletedToday
+                    ? '${weakest['stretchName']} stretch'
+                    : (coreDone >= 3
+                        ? '${weakest['stretchName']} · stretch round'
+                        : 'Unlocks after 3 core exercises'),
+                isCompleted: state.isTougherChallengeCompletedToday,
+                trailingText: state.isTougherChallengeCompletedToday
+                    ? null
+                    : (coreDone >= 3 ? 'Ready' : 'Locked'),
+                onTap: coreDone >= 3 && !state.isTougherChallengeCompletedToday
+                    ? () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const TargetedRetryScreen(
+                              is15MinutePlan: true,
+                            ),
+                          ),
+                        );
+                      }
+                    : null,
+              ),
+            ],
             const SizedBox(height: 12),
 
-            // Bottom Highlight Mint Green Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE8F5E9),
+            // Bottom Highlight Mint Green Card → Progress tab
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => MainTabScaffold.switchTab(context, 1),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFC8E6C9), width: 1.0),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
+                child: Ink(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
                       color: const Color(0xFFC8E6C9),
-                      shape: BoxShape.circle,
-                    ),
-                    alignment: Alignment.center,
-                    child: Icon(
-                      hasStarted ? Icons.track_changes_rounded : Icons.bar_chart_rounded,
-                      color: const Color(0xFF2E7D32),
-                      size: 24,
+                      width: 1.0,
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          progressTitle,
-                          style: const TextStyle(
-                            color: Color(0xFF2E7D32),
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.0,
-                          ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFC8E6C9),
+                          shape: BoxShape.circle,
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          progressHeadline,
-                          style: const TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                          ),
+                        alignment: Alignment.center,
+                        child: Icon(
+                          remaining == 0
+                              ? Icons.emoji_events_rounded
+                              : coreDone >= 3
+                                  ? Icons.lock_open_rounded
+                                  : Icons.lock_outline_rounded,
+                          color: const Color(0xFF2E7D32),
+                          size: 24,
                         ),
-                        Text(
-                          progressSub,
-                          style: const TextStyle(
-                            color: Color(0xFF2E7D32),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                          ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              remaining == 0
+                                  ? 'PLAN COMPLETE'
+                                  : minutes == 5
+                                      ? progressTitle
+                                      : 'AFTER THESE 3',
+                              style: const TextStyle(
+                                color: Color(0xFF2E7D32),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              remaining == 0
+                                  ? 'You completed $planDone/$planTotal activities today.'
+                                  : minutes == 5
+                                      ? progressHeadline
+                                      : minutes == 10
+                                          ? 'Unlock 1 targeted retry. We\'ll pick the exercise that needs one more go.'
+                                          : 'Unlock 1 targeted retry + 1 tougher challenge. Finish your core 3, then keep going.',
+                              style: const TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            if (minutes == 5 && remaining > 0)
+                              Text(
+                                progressSub,
+                                style: const TextStyle(
+                                  color: Color(0xFF2E7D32),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: Color(0xFF2E7D32),
+                        size: 22,
+                      ),
+                    ],
                   ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: Color(0xFF2E7D32),
-                    size: 22,
-                  ),
-                ],
+                ),
               ),
             ),
             const SizedBox(height: 28),
@@ -678,7 +820,7 @@ class HomeScreenContent extends StatelessWidget {
     required String subtitle,
     required bool isCompleted,
     required String? trailingText,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
   }) {
     return InkWell(
       onTap: onTap,

@@ -422,27 +422,30 @@ class _AllSessionsScreenState extends State<AllSessionsScreen> {
                 ),
               ),
 
-              // Right Score Badge & Chevron
+              // Feedback pill + chevron (row tap opens feedback)
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: ringColor.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 7,
                     ),
-                    child: Text(
-                      score.toStringAsFixed(1),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Text(
+                      'Feedback',
                       style: TextStyle(
                         fontFamily: 'Inter',
-                        color: ringColor,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF2563EB),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   const Icon(
                     Icons.chevron_right_rounded,
                     size: 20,

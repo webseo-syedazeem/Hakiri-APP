@@ -466,6 +466,16 @@
       ]
     },
     {
+      "name": "in_app_purchase_android",
+      "version": "0.5.0",
+      "dependencies": [
+        "collection",
+        "flutter",
+        "in_app_purchase_platform_interface",
+        "meta"
+      ]
+    },
+    {
       "name": "url_launcher_windows",
       "version": "3.1.6",
       "dependencies": [
@@ -1505,16 +1515,6 @@
       "version": "3.1.2",
       "dependencies": [
         "typed_data"
-      ]
-    },
-    {
-      "name": "in_app_purchase_android",
-      "version": "0.5.0",
-      "dependencies": [
-        "collection",
-        "flutter",
-        "in_app_purchase_platform_interface",
-        "meta"
       ]
     }
   ],

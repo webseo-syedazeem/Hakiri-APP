@@ -75,6 +75,9 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
   bool get _paceCoachTextToAudio =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
+  /// True when launched from Debate Me (Begin exercise → live pushback).
+  bool _debateMode = false;
+
   String _norm(String s) =>
       s.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
 
@@ -507,32 +510,61 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
         ? prompt!.objective.trim()
         : state.focusLine;
 
-    final instruction =
-        'You are Hakkiri Live Coach for $name — a spoken workplace communication coach. '
-        'Stay inside THEIR real work environment only. '
-        'Work track: $career. Career stage: $stage. '
-        'Typical situations: $workSetting. '
-        'Their practice goal: $goal. Main roadblock: $roadblock. '
-        'Activity: $activity. '
-        'Core practice prompt (ask this, do not replace with a random topic): "$focus". '
-        'Skill objective: $objective. '
-        'Hard rules: '
-        '1) Speak first. One short greeting, then ask the practice prompt above in a natural spoken way. '
-        '2) Every question and follow-up must fit a $career workplace — meetings, stakeholders, clients, teammates, managers. '
-        '3) Do NOT ask about holidays, hobbies, dating, sports, or generic life chat unless the practice prompt itself requires it. '
-        '4) After they answer: brief coaching on clarity/structure/confidence, then ONE work-context follow-up. '
-        '5) One short spoken turn at a time. Do not score mid-call. Do not invent a different industry. '
-        '6) Let them finish their full thought — short pauses are normal. Do not interrupt or answer while they are still speaking. '
-        '7) ENGLISH ONLY training. You must speak only in English. If they speak Urdu, Hindi, Arabic, or any other language '
-        '(or mix heavily), do NOT continue that language. Kindly say something like: '
-        '"I am your English coach, so I will only train you in English. Please try that answer again in English." '
-        'Then re-ask the practice question in English and wait. Accents are fine — other languages are not for practice.';
+    final isDebate = activity.toLowerCase().contains('debate') ||
+        (state.selectedActivity?.slug == 'debate_me' ||
+            state.selectedActivity?.slug == 'debate');
+    _debateMode = isDebate;
 
-    final kickoff =
-        'Start now. Greet me briefly as Hakkiri Live Coach. '
-        'My work setting is $career ($workSetting). '
-        'Ask me this exact workplace practice question next, then wait for my spoken answer: "$focus". '
-        'Keep the whole conversation in that work environment, and only in English.';
+    final String instruction;
+    final String kickoff;
+    if (isDebate) {
+      instruction =
+          'You are Hakkiri Debate Coach for $name — a live workplace debate partner. '
+          'Work track: $career. Career stage: $stage. Situations: $workSetting. '
+          'Goal: $goal. Roadblock: $roadblock. '
+          'Assigned debate topic (must use this): "$focus". '
+          'Skill objective: $objective. '
+          'Flow: '
+          '1) Speak first. Briefly state the debate topic as a clear yes/no or take-a-side prompt. '
+          '2) Ask them to take a position and give ONE clear reason (their opening). Then wait. '
+          '3) After their opening: push back once — challenge a weak assumption, like a sharp colleague. Keep pushback to 2–3 spoken sentences. '
+          '4) Ask them to respond to THAT challenge (rebuttal). Then wait. '
+          '5) After rebuttal: one short coaching note on argument strength / clarity / composure, then optionally one tighter follow-up challenge. '
+          '6) One short spoken turn at a time. Do not score mid-call. Stay in $career workplace context. '
+          '7) Let them finish — do not interrupt while they speak. '
+          '8) ENGLISH ONLY. If they use another language, ask them to retry in English.';
+      kickoff =
+          'Start now as Hakkiri Debate Coach. '
+          'My work setting is $career ($workSetting). '
+          'Introduce this exact debate topic, ask me to take a side and give one reason, then wait: "$focus". '
+          'English only.';
+    } else {
+      instruction =
+          'You are Hakkiri Live Coach for $name — a spoken workplace communication coach. '
+          'Stay inside THEIR real work environment only. '
+          'Work track: $career. Career stage: $stage. '
+          'Typical situations: $workSetting. '
+          'Their practice goal: $goal. Main roadblock: $roadblock. '
+          'Activity: $activity. '
+          'Core practice prompt (ask this, do not replace with a random topic): "$focus". '
+          'Skill objective: $objective. '
+          'Hard rules: '
+          '1) Speak first. One short greeting, then ask the practice prompt above in a natural spoken way. '
+          '2) Every question and follow-up must fit a $career workplace — meetings, stakeholders, clients, teammates, managers. '
+          '3) Do NOT ask about holidays, hobbies, dating, sports, or generic life chat unless the practice prompt itself requires it. '
+          '4) After they answer: brief coaching on clarity/structure/confidence, then ONE work-context follow-up. '
+          '5) One short spoken turn at a time. Do not score mid-call. Do not invent a different industry. '
+          '6) Let them finish their full thought — short pauses are normal. Do not interrupt or answer while they are still speaking. '
+          '7) ENGLISH ONLY training. You must speak only in English. If they speak Urdu, Hindi, Arabic, or any other language '
+          '(or mix heavily), do NOT continue that language. Kindly say something like: '
+          '"I am your English coach, so I will only train you in English. Please try that answer again in English." '
+          'Then re-ask the practice question in English and wait. Accents are fine — other languages are not for practice.';
+      kickoff =
+          'Start now. Greet me briefly as Hakkiri Live Coach. '
+          'My work setting is $career ($workSetting). '
+          'Ask me this exact workplace practice question next, then wait for my spoken answer: "$focus". '
+          'Keep the whole conversation in that work environment, and only in English.';
+    }
 
     await _sub?.cancel();
     _sub = _voice.events.listen((event) {
@@ -880,6 +912,17 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
 
   @override
   Widget build(BuildContext context) {
+    final slug =
+        context.watch<AppStateProvider>().selectedActivity?.slug ?? '';
+    final debateMode =
+        _debateMode || slug == 'debate_me' || slug == 'debate';
+    final userTurns = _turns.where((t) => t.role == 'user').length;
+    final tipText = !debateMode
+        ? null
+        : (userTurns == 0
+            ? 'Take a position, then give one clear reason.'
+            : 'Address the challenge, then defend your position.');
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) async {
@@ -887,228 +930,327 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
         await _requestEnd();
       },
       child: Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  GestureDetector(
-                    onTap: _ending ? null : _requestEnd,
-                    child: const Icon(Icons.close_rounded, color: Colors.white, size: 26),
-                  ),
-                  const Spacer(),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      _connecting
-                          ? 'CONNECTING'
-                          : (_ending
-                              ? 'SCORING'
-                              : (_listening ? 'LIVE' : 'IDLE')),
-                      style: TextStyle(
-                        color: _listening
-                            ? const Color(0xFF34D399)
-                            : const Color(0xFF93C5FD),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.1,
+        backgroundColor: const Color(0xFF0F172A),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: _ending ? null : _requestEnd,
+                      child: const Icon(
+                        Icons.close_rounded,
+                        color: Colors.white,
+                        size: 26,
                       ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_listening && !_connecting && !_ending) ...[
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFEF4444),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Text(
+                            _connecting
+                                ? 'CONNECTING'
+                                : (_ending
+                                    ? 'SCORING'
+                                    : (_listening
+                                        ? (debateMode ? 'REC' : 'LIVE')
+                                        : 'IDLE')),
+                            style: TextStyle(
+                              color: _listening
+                                  ? const Color(0xFF34D399)
+                                  : const Color(0xFF93C5FD),
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  debateMode ? 'DEBATE ME' : 'LIVE COACH',
+                  style: const TextStyle(
+                    color: Color(0xFF94A3B8),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  debateMode
+                      ? (userTurns == 0
+                          ? 'Opening argument'
+                          : 'Give your rebuttal')
+                      : 'Back-and-forth\nvoice practice',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.w900,
+                    height: 1.15,
+                    letterSpacing: -0.8,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _error ?? _status,
+                  style: TextStyle(
+                    color: _error != null
+                        ? const Color(0xFFF87171)
+                        : const Color(0xFFCBD5E1),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Center(
+                  child: SizedBox(
+                    height: 56,
+                    child: LiveWaveformBars(
+                      isAnimated: _listening && _error == null && !_ending,
+                      color: AppColors.royalBlue,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: _turns.isEmpty && !_showSpeakingDots
+                        ? Center(
+                            child: Text(
+                              debateMode
+                                  ? 'Hakkiri will give you the topic,\nthen challenge your point live.'
+                                  : 'Coach will greet you first,\nthen ask your practice question.',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                height: 1.4,
+                              ),
+                            ),
+                          )
+                        : ListView.builder(
+                            controller: _chatScroll,
+                            itemCount:
+                                _turns.length + (_showSpeakingDots ? 1 : 0),
+                            itemBuilder: (_, index) {
+                              if (_showSpeakingDots &&
+                                  index == _turns.length) {
+                                return _buildSpeakingDotsBubble();
+                              }
+                              final turn = _turns[index];
+                              final isUser = turn.role == 'user';
+                              return Align(
+                                alignment: isUser
+                                    ? Alignment.centerRight
+                                    : Alignment.centerLeft,
+                                child: Container(
+                                  margin: const EdgeInsets.only(bottom: 10),
+                                  constraints: BoxConstraints(
+                                    maxWidth:
+                                        MediaQuery.sizeOf(context).width *
+                                            0.72,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isUser
+                                        ? AppColors.royalBlue
+                                        : Colors.white.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.only(
+                                      topLeft: const Radius.circular(14),
+                                      topRight: const Radius.circular(14),
+                                      bottomLeft:
+                                          Radius.circular(isUser ? 14 : 4),
+                                      bottomRight:
+                                          Radius.circular(isUser ? 4 : 14),
+                                    ),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        isUser
+                                            ? 'You'
+                                            : (debateMode
+                                                ? 'Hakkiri'
+                                                : 'Coach'),
+                                        style: TextStyle(
+                                          color: isUser
+                                              ? Colors.white
+                                                  .withValues(alpha: 0.7)
+                                              : const Color(0xFF93C5FD),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 3),
+                                      AnimatedSize(
+                                        duration: const Duration(
+                                          milliseconds: 120,
+                                        ),
+                                        curve: Curves.easeOutCubic,
+                                        alignment: Alignment.topLeft,
+                                        child: Text(
+                                          turn.text,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            height: 1.4,
+                                            letterSpacing: 0.1,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                ),
+                if (tipText != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E3A5F).withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.lightbulb_outline_rounded,
+                          color: Color(0xFF93C5FD),
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            tipText,
+                            style: const TextStyle(
+                              color: Color(0xFFE2E8F0),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'LIVE COACH',
-                style: TextStyle(
-                  color: Color(0xFF94A3B8),
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Back-and-forth\nvoice practice',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  height: 1.15,
-                  letterSpacing: -0.8,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                _error ?? _status,
-                style: TextStyle(
-                  color: _error != null ? const Color(0xFFF87171) : const Color(0xFFCBD5E1),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 18),
-              Center(
-                child: SizedBox(
-                  height: 56,
-                  child: LiveWaveformBars(
-                    isAnimated: _listening && _error == null && !_ending,
-                    color: AppColors.royalBlue,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.04),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                  ),
-                  child: _turns.isEmpty && !_showSpeakingDots
-                      ? const Center(
-                          child: Text(
-                            'Coach will greet you first,\nthen ask your practice question.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Color(0xFF94A3B8),
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              height: 1.4,
-                            ),
-                          ),
-                        )
-                      : ListView.builder(
-                          controller: _chatScroll,
-                          itemCount:
-                              _turns.length + (_showSpeakingDots ? 1 : 0),
-                          itemBuilder: (_, index) {
-                            if (_showSpeakingDots && index == _turns.length) {
-                              return _buildSpeakingDotsBubble();
-                            }
-                            final turn = _turns[index];
-                            final isUser = turn.role == 'user';
-                            return Align(
-                              alignment: isUser
-                                  ? Alignment.centerRight
-                                  : Alignment.centerLeft,
-                              child: Container(
-                                margin: const EdgeInsets.only(bottom: 10),
-                                constraints: BoxConstraints(
-                                  maxWidth:
-                                      MediaQuery.sizeOf(context).width * 0.72,
-                                ),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: isUser
-                                      ? AppColors.royalBlue
-                                      : Colors.white.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.only(
-                                    topLeft: const Radius.circular(14),
-                                    topRight: const Radius.circular(14),
-                                    bottomLeft:
-                                        Radius.circular(isUser ? 14 : 4),
-                                    bottomRight:
-                                        Radius.circular(isUser ? 4 : 14),
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      isUser ? 'You' : 'Coach',
-                                      style: TextStyle(
-                                        color: isUser
-                                            ? Colors.white.withValues(alpha: 0.7)
-                                            : const Color(0xFF93C5FD),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 3),
-                                    AnimatedSize(
-                                      duration: const Duration(milliseconds: 120),
-                                      curve: Curves.easeOutCubic,
-                                      alignment: Alignment.topLeft,
-                                      child: Text(
-                                        turn.text,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          height: 1.4,
-                                          letterSpacing: 0.1,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
+                const SizedBox(height: 14),
+                if (_micDenied) ...[
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: (_booting || _ending) ? null : _boot,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.royalBlue,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28),
                         ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              if (_micDenied) ...[
+                      ),
+                      child: Text(
+                        _booting
+                            ? 'Checking mic…'
+                            : 'Try again with microphone',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: (_booting || _ending) ? null : _boot,
+                    onPressed: _ending ? null : _requestEnd,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.royalBlue,
-                      foregroundColor: Colors.white,
+                      backgroundColor: debateMode
+                          ? AppColors.royalBlue
+                          : Colors.white,
+                      foregroundColor: debateMode
+                          ? Colors.white
+                          : const Color(0xFF0F172A),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28),
                       ),
                     ),
                     child: Text(
-                      _booting ? 'Checking mic…' : 'Try again with microphone',
-                      style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+                      _ending
+                          ? 'Scoring your answers…'
+                          : (debateMode
+                              ? 'Finish debate'
+                              : 'End conversation'),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
               ],
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: _ending ? null : _requestEnd,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF0F172A),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(28),
-                    ),
-                  ),
-                  child: Text(
-                    _ending ? 'Scoring your answers…' : 'End conversation',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
-    ),
     );
   }
 }

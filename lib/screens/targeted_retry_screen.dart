@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../providers/app_state_provider.dart';
 import 'activity_detail_screen.dart';
-import 'debate_me_screen.dart';
 
 /// Screen matching doc_img_2.png (10-minute plan: "One more to lock it in")
 /// and doc_img_3.png (15-minute plan: "Ready for a bigger stretch?")
@@ -249,7 +248,12 @@ class TargetedRetryScreen extends StatelessWidget {
                         // Left: Targeted retry outline button
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => _launchExercise(context, state, slug, isRetry: true),
+                            onTap: () => _launchExercise(
+                              context,
+                              state,
+                              slug,
+                              planExtra: 'targeted_retry',
+                            ),
                             child: Container(
                               height: 54,
                               decoration: BoxDecoration(
@@ -277,7 +281,12 @@ class TargetedRetryScreen extends StatelessWidget {
                         // Right: Tougher challenge button
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => _launchExercise(context, state, stretchSlug, isRetry: false),
+                            onTap: () => _launchExercise(
+                              context,
+                              state,
+                              stretchSlug,
+                              planExtra: 'tougher_challenge',
+                            ),
                             child: Container(
                               height: 54,
                               decoration: BoxDecoration(
@@ -326,7 +335,12 @@ class TargetedRetryScreen extends StatelessWidget {
                       ],
                     )
                   : GestureDetector(
-                      onTap: () => _launchExercise(context, state, slug, isRetry: true),
+                      onTap: () => _launchExercise(
+                        context,
+                        state,
+                        slug,
+                        planExtra: 'targeted_retry',
+                      ),
                       child: Container(
                         height: 56,
                         width: double.infinity,
@@ -448,24 +462,30 @@ class TargetedRetryScreen extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 12),
+          // Design: 8px below label, then 18px before feedback body.
+          const SizedBox(height: 8),
 
           // Exercise row
           Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFEDE8),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.content_cut_rounded,
-                  color: Color(0xFFF95B3D),
-                  size: 24,
-                ),
+              Builder(
+                builder: (_) {
+                  final visual = _activityVisual(slug);
+                  return Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: visual.$3,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      visual.$1,
+                      color: visual.$2,
+                      size: 24,
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -490,23 +510,26 @@ class TargetedRetryScreen extends StatelessWidget {
                           color: Color(0xFF64748B),
                         ),
                         const SizedBox(width: 4),
-                        RichText(
-                          text: TextSpan(
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12,
-                              color: Color(0xFF64748B),
-                            ),
-                            children: [
-                              const TextSpan(text: 'Weakest area: '),
-                              TextSpan(
-                                text: weakestArea,
-                                style: const TextStyle(
-                                  color: Color(0xFF2563EB),
-                                  fontWeight: FontWeight.w700,
-                                ),
+                        Flexible(
+                          child: RichText(
+                            overflow: TextOverflow.ellipsis,
+                            text: TextSpan(
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                                color: Color(0xFF64748B),
                               ),
-                            ],
+                              children: [
+                                const TextSpan(text: 'Weakest area: '),
+                                TextSpan(
+                                  text: weakestArea,
+                                  style: const TextStyle(
+                                    color: Color(0xFF2563EB),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -535,9 +558,7 @@ class TargetedRetryScreen extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
 
           Text(
             feedback,
@@ -552,6 +573,50 @@ class TargetedRetryScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Icon + colors for an activity slug (scissors only for Cut It in Half).
+  static (IconData, Color, Color) _activityVisual(String slug) {
+    switch (slug) {
+      case 'cut_it_in_half':
+        return (
+          Icons.content_cut_rounded,
+          const Color(0xFFF95B3D),
+          const Color(0xFFFFEDE8),
+        );
+      case 'debate_me':
+      case 'debate':
+        return (
+          Icons.chat_bubble_outline_rounded,
+          const Color(0xFFF59E0B),
+          const Color(0xFFFFFBEB),
+        );
+      case 'storytelling_gym':
+        return (
+          Icons.auto_stories_outlined,
+          const Color(0xFF8B5CF6),
+          const Color(0xFFF5F3FF),
+        );
+      case 'explain_it_simply':
+        return (
+          Icons.lightbulb_outline_rounded,
+          const Color(0xFF10B981),
+          const Color(0xFFECFDF5),
+        );
+      case 'connect_the_dots':
+        return (
+          Icons.hub_rounded,
+          const Color(0xFF6366F1),
+          const Color(0xFFEEF2FF),
+        );
+      case 'think_fast':
+      default:
+        return (
+          Icons.bolt_rounded,
+          const Color(0xFF2563EB),
+          const Color(0xFFEFF6FF),
+        );
+    }
   }
 
   Widget _buildTougherChallengeCard({
@@ -616,23 +681,28 @@ class TargetedRetryScreen extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
           Row(
             children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEF3C7),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.menu_book_rounded,
-                  color: Color(0xFFD97706),
-                  size: 24,
-                ),
+              Builder(
+                builder: (_) {
+                  final visual = _activityVisual(slug);
+                  return Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: visual.$3,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    alignment: Alignment.center,
+                    child: Icon(
+                      visual.$1,
+                      color: visual.$2,
+                      size: 24,
+                    ),
+                  );
+                },
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -657,12 +727,15 @@ class TargetedRetryScreen extends StatelessWidget {
                           color: Color(0xFF64748B),
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          'Weakest area: $weakestArea',
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 12,
-                            color: Color(0xFF64748B),
+                        Flexible(
+                          child: Text(
+                            'Weakest area: $weakestArea',
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
@@ -673,9 +746,7 @@ class TargetedRetryScreen extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
 
           Text(
             feedback,
@@ -830,22 +901,16 @@ class TargetedRetryScreen extends StatelessWidget {
     BuildContext context,
     AppStateProvider state,
     String slug, {
-    required bool isRetry,
+    required String planExtra,
   }) {
     state.selectActivity(slug);
-    state.isTargetedRetryCompletedToday = true;
-    if (slug == 'debate_me' || slug == 'debate') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const DebateMeScreen()),
-      );
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const ActivityDetailScreen(),
-        ),
-      );
-    }
+    state.setPendingPlanExtra(planExtra);
+    // All drills go through activity detail; Debate Me Begin opens guided flow.
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ActivityDetailScreen(activitySlug: slug),
+      ),
+    );
   }
 }
