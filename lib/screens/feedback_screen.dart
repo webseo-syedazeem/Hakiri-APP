@@ -8,9 +8,11 @@ import '../widgets/coach_play_button.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/session_recording_play_button.dart';
 import 'conversation_chat_screen.dart';
+import 'debate_me_screen.dart';
 import 'home_screen.dart';
 import 'live_conversation_screen.dart';
 import 'recording_screen.dart';
+import 'targeted_retry_screen.dart';
 
 /// Comprehensive, high-fidelity Activity Feedback Screen
 /// Exactly matching client design specification (doc_images/img_4.png).
@@ -146,15 +148,26 @@ class FeedbackScreen extends StatelessWidget {
                     _buildWhatWorkedWellCard(feedback),
                     const SizedBox(height: 16),
 
-                    // Back-and-forth only: open full coach ↔ user chat.
+                    // Live coach only — hide on Debate Me (guided opening/rebuttal).
                     if (activeSession != null &&
-                        activeSession.isBackAndForth &&
-                        activeSession.conversationTurns.isNotEmpty) ...[
-                      _buildShowConversationButton(
-                        context,
-                        activeSession.conversationTurns,
+                        activeSession.activitySlug != 'debate_me' &&
+                        activeSession.activitySlug != 'debate') ...[
+                      Builder(
+                        builder: (_) {
+                          final turns = _conversationTurnsForDisplay(
+                            activeSession,
+                          );
+                          if (turns.isEmpty) {
+                            return const SizedBox.shrink();
+                          }
+                          return Column(
+                            children: [
+                              _buildShowConversationButton(context, turns),
+                              const SizedBox(height: 16),
+                            ],
+                          );
+                        },
                       ),
-                      const SizedBox(height: 16),
                     ],
 
                     // SUGGESTED ANSWER Card (Dark Card with Audio Preview)
@@ -193,20 +206,37 @@ class FeedbackScreen extends StatelessWidget {
                         child: InkWell(
                           borderRadius: BorderRadius.circular(28),
                           onTap: () {
-                            final slug = activeSession?.activitySlug;
-                            if (slug != null && slug.isNotEmpty) {
+                            final slug = activeSession?.activitySlug ?? '';
+                            if (slug.isNotEmpty) {
                               state.selectActivity(slug);
                             }
+                            final isDebate =
+                                slug == 'debate_me' || slug == 'debate';
                             final liveAgain =
+                                !isDebate &&
                                 activeSession?.isBackAndForth == true;
+                            final topic =
+                                state.selectedPrompt?.promptText.trim();
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => liveAgain
-                                    ? const LiveConversationScreen()
-                                    : RecordingScreen(
-                                        promptAlreadyLoaded: !fromHistory,
-                                      ),
+                                builder: (_) {
+                                  if (isDebate) {
+                                    return DebateMeScreen(
+                                      topic: (topic != null &&
+                                              topic.isNotEmpty)
+                                          ? topic
+                                          : null,
+                                      startAtPrompt: true,
+                                    );
+                                  }
+                                  if (liveAgain) {
+                                    return const LiveConversationScreen();
+                                  }
+                                  return RecordingScreen(
+                                    promptAlreadyLoaded: !fromHistory,
+                                  );
+                                },
                               ),
                             );
                           },
@@ -240,6 +270,20 @@ class FeedbackScreen extends StatelessWidget {
                           onTap: () {
                             if (fromHistory) {
                               Navigator.pop(context);
+                              return;
+                            }
+                            // 10/15 min: after 3 core drills, offer retry / stretch.
+                            if (state.shouldOfferPlanExtras) {
+                              Navigator.pushAndRemoveUntil(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TargetedRetryScreen(
+                                    is15MinutePlan:
+                                        state.dailyAnchorMinutes >= 15,
+                                  ),
+                                ),
+                                (route) => false,
+                              );
                               return;
                             }
                             Navigator.pushAndRemoveUntil(
@@ -849,6 +893,56 @@ class FeedbackScreen extends StatelessWidget {
     );
   }
 
+  /// Prefer saved turns; for Debate Me, rebuild from scored transcript if needed.
+  List<ConversationTurn> _conversationTurnsForDisplay(
+    PracticeSessionRecord session,
+  ) {
+    if (session.conversationTurns.isNotEmpty) {
+      return session.conversationTurns;
+    }
+    final isDebate = session.activitySlug == 'debate_me' ||
+        session.activitySlug == 'debate' ||
+        session.isBackAndForth;
+    if (!isDebate) return const [];
+
+    final t = session.transcript.trim();
+    if (t.isEmpty) return const [];
+
+    String sliceAfter(RegExp marker) {
+      final m = marker.firstMatch(t);
+      if (m == null) return '';
+      final start = m.end;
+      final next = RegExp(
+        r'(opening argument:|hakkiri pushback:|coach pushback:|rebuttal:)',
+        caseSensitive: false,
+      ).allMatches(t).where((x) => x.start > start).toList();
+      final end = next.isEmpty ? t.length : next.first.start;
+      return t.substring(start, end).trim();
+    }
+
+    final opening = sliceAfter(
+      RegExp(r'opening argument\s*:', caseSensitive: false),
+    );
+    final pushback = sliceAfter(
+      RegExp(r'(hakkiri|coach)\s+pushback\s*:', caseSensitive: false),
+    );
+    final rebuttal = sliceAfter(
+      RegExp(r'rebuttal\s*:', caseSensitive: false),
+    );
+
+    final turns = <ConversationTurn>[];
+    if (opening.isNotEmpty) {
+      turns.add(ConversationTurn(role: 'user', text: opening));
+    }
+    if (pushback.isNotEmpty) {
+      turns.add(ConversationTurn(role: 'coach', text: pushback));
+    }
+    if (rebuttal.isNotEmpty) {
+      turns.add(ConversationTurn(role: 'user', text: rebuttal));
+    }
+    return turns;
+  }
+
   Widget _buildShowConversationButton(
     BuildContext context,
     List<ConversationTurn> turns,
@@ -993,8 +1087,15 @@ class FeedbackScreen extends StatelessWidget {
         ? feedback!.exemplarResponse
         : 'Your coached exemplar appears here after a scored session.';
     final phrase = feedback?.highlightedPhrase.phrase.trim() ?? '';
+    final isDebate = session != null &&
+        (session.activitySlug == 'debate_me' ||
+            session.activitySlug == 'debate' ||
+            session.isBackAndForth);
+    final List<ConversationTurn> debateTurns = session != null
+        ? _conversationTurnsForDisplay(session)
+        : const <ConversationTurn>[];
     final transcript = session?.transcript.trim() ?? '';
-    final youSaid = transcript.isNotEmpty
+    final youSaid = (!isDebate && transcript.isNotEmpty)
         ? transcript
         : (phrase.isNotEmpty ? phrase : '');
     final critique = feedback?.highlightedPhrase.critique.trim() ?? '';
@@ -1036,7 +1137,9 @@ class FeedbackScreen extends StatelessWidget {
               height: 1.35,
             ),
           ),
-          if (youSaid.isNotEmpty || session != null) ...[
+          if (youSaid.isNotEmpty ||
+              debateTurns.isNotEmpty ||
+              session != null) ...[
             const SizedBox(height: 12),
             const Text(
               'YOU SAID',
@@ -1049,7 +1152,10 @@ class FeedbackScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            if (youSaid.isNotEmpty) _buildPeachHighlightPill(youSaid),
+            if (isDebate && debateTurns.isNotEmpty)
+              _buildDebateYouSaidPill(debateTurns)
+            else if (youSaid.isNotEmpty)
+              _buildPeachHighlightPill(youSaid),
             // User's own recording under the text they said.
             if (session != null) ...[
               const SizedBox(height: 10),
@@ -1126,6 +1232,68 @@ class FeedbackScreen extends StatelessWidget {
           color: Color(0xFFC2410C),
           height: 1.35,
         ),
+      ),
+    );
+  }
+
+  /// Debate Me: label opening / pushback / rebuttal clearly in YOU SAID.
+  Widget _buildDebateYouSaidPill(List<ConversationTurn> turns) {
+    final labels = <String>['Opening argument', 'Hakkiri pushback', 'Rebuttal'];
+    final children = <Widget>[];
+    for (var i = 0; i < turns.length; i++) {
+      final turn = turns[i];
+      final text = turn.text.trim();
+      if (text.isEmpty) continue;
+      final isCoach = turn.role == 'coach';
+      final label = i < labels.length
+          ? labels[i]
+          : (isCoach ? 'Hakkiri' : 'You');
+      if (children.isNotEmpty) children.add(const SizedBox(height: 10));
+      children.add(
+        Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: '$label: ',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: isCoach
+                      ? const Color(0xFFC2410C)
+                      : const Color(0xFF9A3412),
+                  height: 1.35,
+                ),
+              ),
+              TextSpan(
+                text: text,
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w600,
+                  color: isCoach
+                      ? const Color(0xFFEA580C)
+                      : const Color(0xFFC2410C),
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (children.isEmpty) return const SizedBox.shrink();
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFEDD5),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
       ),
     );
   }

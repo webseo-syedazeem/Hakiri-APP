@@ -76,7 +76,16 @@ const createSession = async (req, res) => {
     if (problems.length) return error(res, problems[0]);
   }
 
-  const isCoachedRetry = Boolean(body.is_coached_retry || feedback.is_coached_retry);
+  const planExtraRaw = String(body.plan_extra || body.planExtra || "")
+    .trim()
+    .toLowerCase();
+  const planExtra =
+    planExtraRaw === "targeted_retry" || planExtraRaw === "tougher_challenge"
+      ? planExtraRaw
+      : null;
+  const isCoachedRetry = Boolean(
+    body.is_coached_retry || feedback.is_coached_retry || planExtra === "targeted_retry"
+  );
   const modeRaw = String(body.conversation_mode || body.mode || "single")
     .trim()
     .toLowerCase();
@@ -93,6 +102,12 @@ const createSession = async (req, res) => {
     }))
     .filter((t) => t.text);
 
+  // Tougher challenge: bump difficulty when requested.
+  let difficulty = body.difficulty || prompt?.difficulty || "beginner";
+  if (planExtra === "tougher_challenge") {
+    difficulty = "professional";
+  }
+
   const session = await PracticeSession.create({
     user: req.user._id,
     activitySlug: activity.slug,
@@ -100,7 +115,7 @@ const createSession = async (req, res) => {
     promptCode: prompt?.code || null,
     promptTitle: body.prompt_title || prompt?.title || prompt?.promptText?.slice(0, 80) || activity.name,
     promptText: String(body.prompt_text || prompt?.promptText || "").slice(0, 8000),
-    difficulty: body.difficulty || prompt?.difficulty || "beginner",
+    difficulty,
     transcript: String(body.transcript || "").slice(0, 20000),
     durationSeconds: Number(body.duration_seconds || 0),
     isCoachedRetry,
@@ -111,8 +126,14 @@ const createSession = async (req, res) => {
       ...feedback,
       is_coached_retry: isCoachedRetry,
       withhold_judgement: withhold,
+      plan_extra: planExtra,
     },
   });
+
+  if (planExtra) {
+    const { markPlanExtra } = require("../services/dailyPlan");
+    await markPlanExtra(req.user._id, planExtra);
+  }
 
   const streak = await Streak.findOne({ user: req.user._id });
   applyPractice(streak, { isCoachedRetry });

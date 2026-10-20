@@ -67,16 +67,22 @@ function buildDashboard(fresh, recent, streak) {
 }
 
 async function buildDailyAnchorLite(userId, profile, settings, streak) {
-  const drills = profile?.plan?.initialDrills?.length
-    ? profile.plan.initialDrills
-    : ["think_fast", "cut_it_in_half", "debate_me"];
-  const day = Math.floor(Date.now() / 86400000);
-  const primarySlug = drills[day % drills.length];
-  const queueSlugs = drills.filter((slug) => slug !== primarySlug).slice(0, 2);
+  const {
+    buildPlanBlock,
+    coreDrillsFromProfile,
+    headlineForMinutes,
+    subheadlineForMinutes,
+  } = require("../services/dailyPlan");
+
+  const drills = coreDrillsFromProfile(profile);
+  const primarySlug = drills[0];
+  const queueSlugs = drills.slice(1, 3);
   const career = profile?.careerType || "general";
+  const minutes = settings?.dailyAnchorMinutes || 5;
   const needed = [primarySlug, ...queueSlugs];
   const activities = await Activity.find({ slug: { $in: needed } }).lean();
   const bySlug = new Map(activities.map((row) => [row.slug, row]));
+  const plan = await buildPlanBlock({ userId, profile, settings });
 
   const card = (slug, order) => {
     const activity = bySlug.get(slug);
@@ -98,15 +104,16 @@ async function buildDailyAnchorLite(userId, profile, settings, streak) {
     .filter(Boolean);
 
   return {
-    date: new Date().toISOString().slice(0, 10),
-    minutes: settings?.dailyAnchorMinutes || 5,
-    headline: "Five minutes.",
-    subheadline: "Then go speak.",
+    date: plan.date,
+    minutes,
+    headline: headlineForMinutes(minutes),
+    subheadline: subheadlineForMinutes(minutes),
     focus_line: profile?.plan?.focusLine || "Go blank less, land the point sooner.",
     streak_day: streak?.currentStreak || 0,
     streak_freeze_count: streak?.streakFreezeCount || 0,
     primary,
     queue,
+    plan,
   };
 }
 

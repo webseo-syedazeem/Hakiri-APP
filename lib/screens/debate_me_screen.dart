@@ -1,63 +1,343 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:record/record.dart';
+
 import '../core/services/analytics_service.dart';
+import '../core/services/coach_tts_service.dart';
+import '../core/services/hakkiri_api_service.dart';
+import '../core/services/session_audio_store.dart';
+import '../models/session_model.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
-import '../widgets/live_waveform_bars.dart';
+import '../widgets/hakkiri_loading_overlay.dart';
+import '../widgets/mic_reactive_waveform.dart';
+import 'feedback_screen.dart';
 
-/// Full 6-step guided "Debate Me" activity implementing the interactive AI Live Coach:
-/// 1. Overview (Rules, Timeline & Response Strategy)
-/// 2. Prompt + 10s Think Time
-/// 3. Opening argument recording (60s speech drill)
-/// 4. Hakkiri Challenges Your Point (AI Coach Pushback + 10s prep time)
-/// 5. Rebuttal recording (60s counter-argument drill against the coach)
-/// 6. Dual-part Feedback & Assessment scoring
+/// Guided Debate Me (client 6-step flow):
+/// 1. Overview → 2. Prompt + think → 3. Opening record →
+/// 4. AI pushback + prep → 5. Rebuttal record → 6. FeedbackScreen
 class DebateMeScreen extends StatefulWidget {
   final String? topic;
 
-  const DebateMeScreen({super.key, this.topic});
+  /// When true (from Activity Detail Begin), skip in-screen overview.
+  final bool startAtPrompt;
+
+  const DebateMeScreen({
+    super.key,
+    this.topic,
+    this.startAtPrompt = false,
+  });
 
   @override
   State<DebateMeScreen> createState() => _DebateMeScreenState();
 }
 
 class _DebateMeScreenState extends State<DebateMeScreen> {
-  // Step 1 to 6
   int _currentStep = 1;
 
-  // Timers
   Timer? _countdownTimer;
+  Timer? _topicRevealFallbackTimer;
   int _thinkSecondsRemaining = 10;
   int _openingSecondsRemaining = 60;
   int _prepSecondsRemaining = 10;
   int _rebuttalSecondsRemaining = 60;
+  static const _openingTotal = 60;
+  static const _rebuttalTotal = 60;
+
+  /// Karaoke word reveal for assigned topic (Think Fast style).
+  List<String> _topicWords = const [];
+  int _topicRevealedCount = 0;
+  bool _topicSpeaking = false;
+  bool _topicMuted = false;
+  bool _thinkTimerStarted = false;
+  bool _gotTtsProgress = false;
 
   bool _isAssessingPart1 = true;
+  bool _busy = false;
 
-  // Assigned topic
   late String _topic;
-
-  // AI Pushback quote
-  final String _pushbackQuote =
+  String _pushbackQuote =
       "But you're assuming flexibility won't weaken collaboration. "
       "If everyone chooses when to come in, what stops teams becoming "
       "fragmented and junior staff missing opportunities to learn from colleagues?";
 
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  final ValueNotifier<double> _micLevel = ValueNotifier<double>(0.12);
+  StreamSubscription<Amplitude>? _ampSub;
+  String? _audioTempPath;
+  bool _recorderLive = false;
+  String _openingTranscript = '';
+  String? _openingAudioBase64;
+  int _openingSpokenSeconds = 0;
+  int _rebuttalSpokenSeconds = 0;
+
   @override
   void initState() {
     super.initState();
-    _topic = widget.topic ??
-        "Should companies require employees to work in the office three days a week?";
+    _topic = widget.topic?.trim().isNotEmpty == true
+        ? widget.topic!.trim()
+        : "Should companies require employees to work in the office three days a week?";
     AnalyticsService.instance.logScreenView(screenName: 'DebateMe_Overview');
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = context.read<AppStateProvider>();
+      final fromPrompt = state.selectedPrompt?.promptText.trim();
+      if ((widget.topic == null || widget.topic!.trim().isEmpty) &&
+          fromPrompt != null &&
+          fromPrompt.isNotEmpty) {
+        setState(() => _topic = fromPrompt);
+      }
+      if (widget.startAtPrompt) {
+        _goToStep(2);
+      }
+    });
   }
 
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _topicRevealFallbackTimer?.cancel();
+    unawaited(CoachTtsService.instance.stop());
+    unawaited(_ampSub?.cancel());
+    unawaited(_audioRecorder.dispose());
+    _micLevel.dispose();
     super.dispose();
+  }
+
+  void _startTopicSpeakAndReveal() {
+    _topicRevealFallbackTimer?.cancel();
+    unawaited(CoachTtsService.instance.stop());
+
+    _topicWords =
+        _topic.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    _topicRevealedCount = 0;
+    _topicSpeaking = true;
+    _topicMuted = false;
+    _gotTtsProgress = false;
+    _thinkTimerStarted = false;
+    if (mounted) setState(() {});
+
+    final state = context.read<AppStateProvider>();
+    final voice = CoachTtsService.normalizeCoachId(
+      state.answers.voiceProfile ?? CoachTtsService.instance.activeCoachId,
+    );
+
+    // Slow fallback ONLY if the platform never sends TTS word progress.
+    // Starts after 1.2s and advances slower than speech so text never races ahead.
+    _topicRevealFallbackTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (!mounted || _currentStep != 2 || !_topicSpeaking || _gotTtsProgress) {
+        return;
+      }
+      _topicRevealFallbackTimer =
+          Timer.periodic(const Duration(milliseconds: 520), (t) {
+        if (!mounted ||
+            _currentStep != 2 ||
+            !_topicSpeaking ||
+            _gotTtsProgress ||
+            _topicMuted) {
+          t.cancel();
+          return;
+        }
+        if (_topicRevealedCount >= _topicWords.length) {
+          t.cancel();
+          return;
+        }
+        setState(() => _topicRevealedCount++);
+      });
+    });
+
+    unawaited(
+      CoachTtsService.instance.speakWithProgress(
+        _topic,
+        voiceProfile: voice,
+        // Slightly slower so karaoke can stay locked to audio.
+        speechRate: 0.40,
+        onWord: (count, _) {
+          if (!mounted || _currentStep != 2 || _topicMuted) return;
+          _gotTtsProgress = true;
+          _topicRevealFallbackTimer?.cancel();
+          setState(() {
+            // Monotonic — never pull highlight backward.
+            if (count > _topicRevealedCount) {
+              _topicRevealedCount = count.clamp(0, _topicWords.length);
+            }
+          });
+        },
+        onDone: () {
+          if (!mounted || _currentStep != 2) return;
+          // Muted mid-speak: word timer owns the rest — don't jump to end.
+          if (_topicMuted) return;
+          _topicRevealFallbackTimer?.cancel();
+          setState(() {
+            _topicSpeaking = false;
+            _topicRevealedCount = _topicWords.length;
+          });
+          _beginThinkCountdown();
+        },
+      ),
+    );
+  }
+
+  void _muteTopicSpeech() {
+    if (_topicMuted) return;
+    // Sound off only — keep word-by-word reveal stepping.
+    unawaited(CoachTtsService.instance.stop());
+    _gotTtsProgress = true; // don't let TTS fallback fight the mute timer
+    setState(() {
+      _topicMuted = true;
+      _topicSpeaking = false;
+    });
+    _continueMutedWordReveal();
+  }
+
+  /// After mute: finish karaoke at a steady pace without voice.
+  void _continueMutedWordReveal() {
+    _topicRevealFallbackTimer?.cancel();
+    if (_topicRevealedCount >= _topicWords.length) {
+      _beginThinkCountdown();
+      return;
+    }
+    _topicRevealFallbackTimer =
+        Timer.periodic(const Duration(milliseconds: 340), (t) {
+      if (!mounted || _currentStep != 2) {
+        t.cancel();
+        return;
+      }
+      if (_topicRevealedCount >= _topicWords.length) {
+        t.cancel();
+        setState(() {});
+        _beginThinkCountdown();
+        return;
+      }
+      setState(() => _topicRevealedCount++);
+    });
+  }
+
+  void _beginThinkCountdown() {
+    if (_thinkTimerStarted || _currentStep != 2) return;
+    _thinkTimerStarted = true;
+    _thinkSecondsRemaining = 10;
+    _countdownTimer?.cancel();
+    if (mounted) setState(() {});
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      if (_thinkSecondsRemaining > 1) {
+        setState(() => _thinkSecondsRemaining--);
+      } else {
+        _countdownTimer?.cancel();
+        _goToStep(3);
+      }
+    });
+  }
+
+  Future<bool> _startRecorder({int attempt = 0}) async {
+    _recorderLive = false;
+    try {
+      // hasPermission() also requests on iOS/Android.
+      final granted = await _audioRecorder.hasPermission();
+      if (!granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Microphone permission is needed to record your debate.'),
+            ),
+          );
+        }
+        return false;
+      }
+
+      // Stop any leftover session before starting a new file.
+      try {
+        if (await _audioRecorder.isRecording()) {
+          await _audioRecorder.stop();
+        }
+      } catch (_) {}
+
+      _audioTempPath = await SessionAudioStore.instance.startTempPath();
+      await _audioRecorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.aacLc,
+          bitRate: 64000,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+        path: _audioTempPath!,
+      );
+
+      final live = await _audioRecorder.isRecording();
+      if (!live) {
+        throw StateError('Recorder started but is not live');
+      }
+
+      await _ampSub?.cancel();
+      _ampSub = _audioRecorder
+          .onAmplitudeChanged(const Duration(milliseconds: 55))
+          .listen((amp) {
+        final raw = ((amp.current + 50) / 50).clamp(0.0, 1.0);
+        _micLevel.value =
+            math.pow(raw, 0.72).toDouble().clamp(0.08, 1.0);
+      });
+      _recorderLive = true;
+      if (mounted) setState(() {});
+      return true;
+    } catch (_) {
+      _audioTempPath = null;
+      _recorderLive = false;
+      // TTS / audio-session race: retry once after a short pause.
+      if (attempt < 1) {
+        await Future<void>.delayed(const Duration(milliseconds: 450));
+        return _startRecorder(attempt: attempt + 1);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not start the mic. Tap Finish and try again.'),
+          ),
+        );
+      }
+      return false;
+    }
+  }
+
+  Future<String?> _stopRecorder() async {
+    await _ampSub?.cancel();
+    _ampSub = null;
+    _recorderLive = false;
+    try {
+      if (await _audioRecorder.isRecording()) {
+        final path = await _audioRecorder.stop();
+        return path ?? _audioTempPath;
+      }
+    } catch (_) {}
+    return _audioTempPath;
+  }
+
+  Future<String?> _readAudioBase64(String? path) async {
+    if (path == null || path.isEmpty) return null;
+    try {
+      final bytes = await File(path).readAsBytes();
+      // ~90s AAC @ 64kbps is well under 1MB; allow headroom for longer takes.
+      if (bytes.isEmpty || bytes.length > 3 * 1024 * 1024) return null;
+      return base64Encode(bytes);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String _topicAwareFallbackPushback() {
+    final short = _topic.trim();
+    final clipped = short.length > 120 ? '${short.substring(0, 117)}…' : short;
+    return "But that still leaves a weak spot on \"$clipped\". "
+        "If a senior stakeholder pushed back hard, what evidence would you use — "
+        "and what is your backup if the first argument fails?";
   }
 
   void _goToStep(int step) {
@@ -69,31 +349,11 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
     );
 
     if (step == 2) {
-      // Step 2: 10s think time
       _thinkSecondsRemaining = 10;
-      _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-        if (!mounted) return;
-        if (_thinkSecondsRemaining > 1) {
-          setState(() => _thinkSecondsRemaining--);
-        } else {
-          _countdownTimer?.cancel();
-          _goToStep(3); // Auto-advance to opening recording
-        }
-      });
+      _startTopicSpeakAndReveal();
     } else if (step == 3) {
-      // Step 3: 60s opening argument recording
-      _openingSecondsRemaining = 60;
-      _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-        if (!mounted) return;
-        if (_openingSecondsRemaining > 1) {
-          setState(() => _openingSecondsRemaining--);
-        } else {
-          _countdownTimer?.cancel();
-          _goToStep(4);
-        }
-      });
+      unawaited(_enterOpeningRecord());
     } else if (step == 4) {
-      // Step 4: 10s prep time for coach challenge
       _prepSecondsRemaining = 10;
       _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
         if (!mounted) return;
@@ -101,41 +361,446 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
           setState(() => _prepSecondsRemaining--);
         } else {
           _countdownTimer?.cancel();
-          _goToStep(5); // Auto-advance to rebuttal recording
+          _goToStep(5);
         }
       });
     } else if (step == 5) {
-      // Step 5: 60s rebuttal recording
-      _rebuttalSecondsRemaining = 60;
-      _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-        if (!mounted) return;
-        if (_rebuttalSecondsRemaining > 1) {
-          setState(() => _rebuttalSecondsRemaining--);
-        } else {
-          _countdownTimer?.cancel();
-          _goToStep(6);
-        }
-      });
-    } else if (step == 6) {
-      // Record completed drill in app state
-      final app = context.read<AppStateProvider>();
-      app.finishDrillAndIncrementStreak();
+      unawaited(_enterRebuttalRecord());
     }
   }
 
-  void _onBack() {
-    if (_currentStep > 1) {
-      _goToStep(_currentStep - 1);
-    } else {
-      Navigator.maybePop(context);
+  Future<void> _enterOpeningRecord() async {
+    await CoachTtsService.instance.stop();
+    _topicRevealFallbackTimer?.cancel();
+    // Speaker → mic handoff (especially iOS).
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (!mounted || _currentStep != 3) return;
+
+    _openingSecondsRemaining = _openingTotal;
+    await _startRecorder();
+    if (!mounted || _currentStep != 3) return;
+
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      if (_openingSecondsRemaining > 1) {
+        setState(() => _openingSecondsRemaining--);
+      } else {
+        _countdownTimer?.cancel();
+        unawaited(_finishOpening());
+      }
+    });
+  }
+
+  Future<void> _enterRebuttalRecord() async {
+    await CoachTtsService.instance.stop();
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    if (!mounted || _currentStep != 5) return;
+
+    _rebuttalSecondsRemaining = _rebuttalTotal;
+    await _startRecorder();
+    if (!mounted || _currentStep != 5) return;
+
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      if (_rebuttalSecondsRemaining > 1) {
+        setState(() => _rebuttalSecondsRemaining--);
+      } else {
+        _countdownTimer?.cancel();
+        unawaited(_finishRebuttal());
+      }
+    });
+  }
+
+  Future<void> _finishOpening() async {
+    if (_busy) return;
+    _busy = true;
+    _countdownTimer?.cancel();
+    _openingSpokenSeconds =
+        (_openingTotal - _openingSecondsRemaining).clamp(1, _openingTotal);
+
+    final path = await _stopRecorder();
+    // Keep opening clip so we can recover the transcript if pushback STT fails.
+    final audioBase64 = await _readAudioBase64(path);
+    _openingAudioBase64 = audioBase64;
+    if (!mounted) {
+      _busy = false;
+      return;
     }
+
+    final hasClip = audioBase64 != null && audioBase64.isNotEmpty;
+    if (!hasClip && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No opening audio was captured. Check mic permission and try again.',
+          ),
+        ),
+      );
+    }
+
+    final state = context.read<AppStateProvider>();
+    final api = HakkiriApiService.instance;
+    var gotPushback = false;
+
+    Future<void> requestPushback({required bool includeAudio}) async {
+      final data = await api.debatePushback({
+        'topic': _topic,
+        'prompt_text': _topic,
+        'career_context': state.careerTypeLabel,
+        if (_openingTranscript.isNotEmpty)
+          'opening_transcript': _openingTranscript,
+        if (includeAudio && hasClip) ...{
+          'audio_base64': audioBase64,
+          'audio_mime_type': 'audio/mp4',
+        },
+      });
+      final transcript = (data['transcript'] ?? '').toString().trim();
+      if (transcript.isNotEmpty) _openingTranscript = transcript;
+      final push = (data['pushback'] ?? '').toString().trim();
+      if (push.isNotEmpty) {
+        _pushbackQuote = push;
+        gotPushback = true;
+      }
+    }
+
+    try {
+      if (state.isLoggedIn && api.isLoggedIn) {
+        await HakkiriLoadingOverlay.run(
+          context,
+          message: 'Hakkiri is crafting a challenge…',
+          detail: hasClip
+              ? 'Listening to your opening, then pushing back.'
+              : 'Building a challenge from your topic…',
+          action: () async {
+            // Prefer audio so pushback is grounded in what the user said.
+            try {
+              await requestPushback(includeAudio: hasClip);
+            } catch (_) {
+              // Audio STT can fail; still try topic-only so the drill continues.
+              if (hasClip) {
+                await requestPushback(includeAudio: false);
+              } else {
+                rethrow;
+              }
+            }
+            // Empty transcript after audio pass → one more topic+transcript retry.
+            if (_openingTranscript.isEmpty && hasClip && !gotPushback) {
+              await requestPushback(includeAudio: false);
+            }
+          },
+        );
+      }
+    } catch (_) {
+      // Fall through to topic-aware local challenge below.
+    }
+
+    if (!gotPushback) {
+      _pushbackQuote = _topicAwareFallbackPushback();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not hear your opening clearly. Pushback is based on the topic — try speaking closer to the mic next time.',
+            ),
+          ),
+        );
+      }
+    }
+
+    if (!mounted) {
+      _busy = false;
+      return;
+    }
+    _busy = false;
+    _goToStep(4);
+  }
+
+  Future<void> _finishRebuttal() async {
+    if (_busy) return;
+    _busy = true;
+    _countdownTimer?.cancel();
+    _rebuttalSpokenSeconds =
+        (_rebuttalTotal - _rebuttalSecondsRemaining).clamp(1, _rebuttalTotal);
+
+    final path = await _stopRecorder();
+    final audioBase64 = await _readAudioBase64(path);
+    if (!mounted) {
+      _busy = false;
+      return;
+    }
+
+    final state = context.read<AppStateProvider>();
+    final api = HakkiriApiService.instance;
+
+    PracticeSessionRecord? scoredSession;
+    try {
+      await HakkiriLoadingOverlay.run(
+        context,
+        message: 'Scoring your debate…',
+        detail: 'Opening, pushback response, and delivery.',
+        action: () async {
+          // Recover opening words if pushback step never returned a transcript.
+          if (_openingTranscript.isEmpty &&
+              (_openingAudioBase64 ?? '').isNotEmpty &&
+              state.isLoggedIn &&
+              api.isLoggedIn) {
+            try {
+              final data = await api.debatePushback({
+                'topic': _topic,
+                'prompt_text': _topic,
+                'career_context': state.careerTypeLabel,
+                'audio_base64': _openingAudioBase64,
+                'audio_mime_type': 'audio/mp4',
+              });
+              final recovered =
+                  (data['transcript'] ?? '').toString().trim();
+              if (recovered.isNotEmpty) {
+                _openingTranscript = recovered;
+              }
+              final push = (data['pushback'] ?? '').toString().trim();
+              if (push.isNotEmpty) _pushbackQuote = push;
+            } catch (_) {}
+          }
+
+          final openingText = _openingTranscript.isNotEmpty
+              ? _openingTranscript
+              : ((_openingAudioBase64 ?? '').isNotEmpty
+                  ? '(Opening was recorded — transcript unavailable.)'
+                  : '(No opening captured.)');
+
+          final combinedTranscript = [
+            'Opening argument:',
+            openingText,
+            '',
+            'Hakkiri pushback:',
+            _pushbackQuote,
+            '',
+            'Rebuttal:',
+          ].join('\n');
+
+          final turns = <ConversationTurn>[
+            ConversationTurn(role: 'user', text: openingText),
+            ConversationTurn(role: 'coach', text: _pushbackQuote),
+            const ConversationTurn(
+              role: 'user',
+              text: '(rebuttal recorded)',
+            ),
+          ];
+
+          final totalSpoken =
+              (_openingSpokenSeconds + _rebuttalSpokenSeconds).clamp(5, 600);
+
+          await state.evaluateCurrentSession(
+            transcript: combinedTranscript,
+            durationSeconds: totalSpoken,
+            conversationMode: 'back_and_forth',
+            conversationTurns: turns,
+            localAudioTempPath: path,
+            audioBase64: audioBase64,
+            audioMimeType: 'audio/mp4',
+          );
+          // Fill rebuttal + opening turns from scored transcript when STT returns them.
+          final latest = state.latestSession;
+          if (latest != null) {
+            final rebuttalText = _extractRebuttal(latest.transcript);
+            final openingFromScore =
+                _extractOpening(latest.transcript);
+            final filledTurns = [
+              ConversationTurn(
+                role: 'user',
+                text: openingFromScore.isNotEmpty &&
+                        !openingFromScore.startsWith('(')
+                    ? openingFromScore
+                    : turns[0].text,
+              ),
+              turns[1],
+              ConversationTurn(
+                role: 'user',
+                text: rebuttalText.isNotEmpty
+                    ? rebuttalText
+                    : turns[2].text,
+              ),
+            ];
+            final displayTranscript = [
+              'Opening argument:',
+              filledTurns[0].text,
+              '',
+              'Hakkiri pushback:',
+              filledTurns[1].text,
+              '',
+              'Rebuttal:',
+              filledTurns[2].text,
+            ].join('\n');
+            final patched = latest.copyWith(
+              transcript: displayTranscript,
+              conversationMode: 'back_and_forth',
+              conversationTurns: filledTurns,
+            );
+            state.latestSession = patched;
+            final idx =
+                state.sessionHistory.indexWhere((s) => s.id == patched.id);
+            if (idx >= 0) state.sessionHistory[idx] = patched;
+            scoredSession = patched;
+          }
+        },
+      );
+    } catch (_) {
+      _busy = false;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not score this debate. Please try again.'),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) {
+      _busy = false;
+      return;
+    }
+    _busy = false;
+    final sessionForUi = scoredSession ?? state.latestSession;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FeedbackScreen(session: sessionForUi),
+      ),
+    );
+  }
+
+  String _extractOpening(String transcript) {
+    final t = transcript.trim();
+    if (t.isEmpty) return '';
+    final marker = RegExp(r'opening argument\s*:', caseSensitive: false);
+    final match = marker.firstMatch(t);
+    if (match == null) return '';
+    final start = match.end;
+    final next = RegExp(
+      r'(hakkiri|coach)\s+pushback\s*:|rebuttal\s*:',
+      caseSensitive: false,
+    ).allMatches(t).where((x) => x.start > start).toList();
+    final end = next.isEmpty ? t.length : next.first.start;
+    return t.substring(start, end).trim();
+  }
+
+  String _extractRebuttal(String transcript) {
+    final t = transcript.trim();
+    if (t.isEmpty) return '';
+    final marker = RegExp(r'rebuttal\s*:', caseSensitive: false);
+    final match = marker.firstMatch(t);
+    if (match == null) return '';
+    return t.substring(match.end).trim();
+  }
+
+  /// While the guided debate is running, confirm before leaving.
+  /// Confirm → Activity Detail (Begin exercise) screen.
+  Future<void> _onBack() async {
+    if (_busy) return;
+
+    // In-screen overview (step 1) can leave without a dialog.
+    if (_currentStep <= 1 && !widget.startAtPrompt) {
+      Navigator.maybePop(context);
+      return;
+    }
+
+    final leave = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        final dark = _currentStep == 3 || _currentStep == 5;
+        return AlertDialog(
+          backgroundColor:
+              dark ? const Color(0xFF1E293B) : Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Text(
+            'Cancel debate?',
+            style: TextStyle(
+              color: dark ? Colors.white : const Color(0xFF0F172A),
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
+            ),
+          ),
+          content: Text(
+            'Do you want to go back? Your current debate will end and you’ll return to Begin exercise.',
+            style: TextStyle(
+              color: dark
+                  ? const Color(0xFFCBD5E1)
+                  : const Color(0xFF475569),
+              fontWeight: FontWeight.w600,
+              height: 1.4,
+              fontSize: 14.5,
+            ),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(
+                'Stay',
+                style: TextStyle(
+                  color: dark
+                      ? const Color(0xFF93C5FD)
+                      : const Color(0xFF2563EB),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: dark
+                    ? Colors.white
+                    : const Color(0xFF0F172A),
+                foregroundColor: dark
+                    ? const Color(0xFF0F172A)
+                    : Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(22),
+                ),
+              ),
+              child: const Text(
+                'Go back',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (leave != true || !mounted) return;
+    await _exitDebateToBeginScreen();
+  }
+
+  Future<void> _exitDebateToBeginScreen() async {
+    _countdownTimer?.cancel();
+    _topicRevealFallbackTimer?.cancel();
+    unawaited(CoachTtsService.instance.stop());
+    if (_currentStep == 3 || _currentStep == 5) {
+      await _stopRecorder();
+    }
+    if (!mounted) return;
+    // Pop back to Activity Detail (Begin exercise).
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final isDarkStep = _currentStep == 3 || _currentStep == 5;
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop || _busy) return;
+        await _onBack();
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: isDarkStep ? Brightness.light : Brightness.dark,
@@ -203,6 +868,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -517,62 +1183,149 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                         ],
                       ),
                       const SizedBox(height: 10),
-                      Text(
-                        _topic,
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 16.5,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
-                          height: 1.35,
+                      // Think Fast–style karaoke: spoken word highlights blue.
+                      if (_topicWords.isEmpty)
+                        Text(
+                          _topic,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF0F172A),
+                            height: 1.35,
+                          ),
+                        )
+                      else
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: List.generate(_topicWords.length, (index) {
+                            final word = _topicWords[index];
+                            final isRevealed = index < _topicRevealedCount;
+                            // Keep blue “current word” while speaking OR muted step-through.
+                            final revealing = _topicSpeaking ||
+                                (_topicMuted &&
+                                    _topicRevealedCount > 0 &&
+                                    _topicRevealedCount < _topicWords.length);
+                            final isCurrent = index == _topicRevealedCount - 1 &&
+                                revealing;
+                            Color wordColor;
+                            if (!isRevealed) {
+                              wordColor = const Color(0xFFCBD5E1)
+                                  .withValues(alpha: 0.5);
+                            } else if (isCurrent) {
+                              wordColor = const Color(0xFF2563EB);
+                            } else {
+                              wordColor = const Color(0xFF0F172A);
+                            }
+                            return AnimatedScale(
+                              scale: isCurrent ? 1.06 : 1.0,
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOutCubic,
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 220),
+                                curve: Curves.easeOutCubic,
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 16.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: wordColor,
+                                  height: 1.35,
+                                ),
+                                child: Text(word),
+                              ),
+                            );
+                          }),
                         ),
-                      ),
+                      if (_topicSpeaking ||
+                          _topicMuted ||
+                          (_topicRevealedCount > 0 &&
+                              _topicRevealedCount < _topicWords.length)) ...[
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Material(
+                            color: const Color(0xFFEFF6FF),
+                            shape: const CircleBorder(),
+                            child: InkWell(
+                              customBorder: const CircleBorder(),
+                              onTap: (!_topicMuted &&
+                                      (_topicSpeaking ||
+                                          _topicRevealedCount <
+                                              _topicWords.length))
+                                  ? _muteTopicSpeech
+                                  : null,
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Icon(
+                                  _topicMuted
+                                      ? Icons.volume_off_rounded
+                                      : Icons.volume_up_rounded,
+                                  size: 20,
+                                  color: const Color(0xFF2563EB),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
                 const Spacer(flex: 2),
 
-                // Circular Countdown Timer (10s)
+                // Circular Countdown Timer (10s) — starts after topic is spoken.
                 Center(
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: 140,
-                        height: 140,
-                        child: CircularProgressIndicator(
-                          value: _thinkSecondsRemaining / 10.0,
-                          strokeWidth: 8,
-                          backgroundColor: const Color(0xFFEFF6FF),
-                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
-                          strokeCap: StrokeCap.round,
+                  child: Opacity(
+                    opacity: _thinkTimerStarted ? 1 : 0.45,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: 140,
+                          height: 140,
+                          child: CircularProgressIndicator(
+                            value: _thinkTimerStarted
+                                ? _thinkSecondsRemaining / 10.0
+                                : 1.0,
+                            strokeWidth: 8,
+                            backgroundColor: const Color(0xFFEFF6FF),
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              Color(0xFF2563EB),
+                            ),
+                            strokeCap: StrokeCap.round,
+                          ),
                         ),
-                      ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '$_thinkSecondsRemaining',
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 44,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF0F172A),
-                              letterSpacing: -1.0,
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              _thinkTimerStarted
+                                  ? '$_thinkSecondsRemaining'
+                                  : '—',
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 44,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF0F172A),
+                                letterSpacing: -1.0,
+                              ),
                             ),
-                          ),
-                          const Text(
-                            'seconds to think',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF64748B),
+                            Text(
+                              _thinkTimerStarted
+                                  ? 'seconds to think'
+                                  : 'topic first…',
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF64748B),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const Spacer(flex: 3),
@@ -606,8 +1359,12 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
           child: ActionPillButton(
-            label: 'Start opening',
-            onTap: () => _goToStep(3),
+            label: _topicSpeaking ? 'Skip to opening' : 'Start opening',
+            onTap: () {
+              unawaited(CoachTtsService.instance.stop());
+              _topicRevealFallbackTimer?.cancel();
+              _goToStep(3);
+            },
           ),
         ),
       ],
@@ -634,8 +1391,9 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
               children: [
                 const SizedBox(height: 8),
 
-                // Topic Pill
+                // Topic card — full question, no truncation
                 Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1E293B).withValues(alpha: 0.8),
@@ -643,8 +1401,10 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                     border: Border.all(color: const Color(0xFF334155)),
                   ),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Container(
+                        margin: const EdgeInsets.only(top: 2),
                         padding: const EdgeInsets.all(6),
                         decoration: const BoxDecoration(
                           color: Color(0xFF2563EB),
@@ -656,13 +1416,12 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                       Expanded(
                         child: Text(
                           _topic,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
+                            height: 1.4,
                           ),
                         ),
                       ),
@@ -690,7 +1449,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                       width: 160,
                       height: 160,
                       child: CircularProgressIndicator(
-                        value: _openingSecondsRemaining / 60.0,
+                        value: _openingSecondsRemaining / _openingTotal,
                         strokeWidth: 8,
                         backgroundColor: const Color(0xFF1E293B),
                         valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF38BDF8)),
@@ -725,39 +1484,49 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                 ),
                 const SizedBox(height: 18),
 
-                // Recording badge
+                // Recording badge — reflects real mic state
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
                       width: 8,
                       height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFEF4444),
+                      decoration: BoxDecoration(
+                        color: _recorderLive
+                            ? const Color(0xFFEF4444)
+                            : const Color(0xFF94A3B8),
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Text(
-                      'Recording',
+                    Text(
+                      _recorderLive ? 'Recording' : 'Mic starting…',
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFFEF4444),
+                        color: _recorderLive
+                            ? const Color(0xFFEF4444)
+                            : const Color(0xFF94A3B8),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
 
-                // Animated Soundwaves
-                const SizedBox(
+                // Live mic waveform
+                SizedBox(
                   width: double.infinity,
-                  child: LiveWaveformBars(
-                    barCount: 28,
-                    maxHeight: 52,
-                    color: Color(0xFF38BDF8),
+                  height: 56,
+                  child: Center(
+                    child: MicReactiveWaveform(
+                      active: _recorderLive,
+                      barCount: 28,
+                      width: 280,
+                      height: 52,
+                      color: const Color(0xFF38BDF8),
+                      externalLevel: _micLevel,
+                    ),
                   ),
                 ),
                 const Spacer(flex: 3),
@@ -798,7 +1567,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
           child: ActionPillButton(
             label: 'Finish opening',
-            onTap: () => _goToStep(4),
+            onTap: _busy ? null : () => unawaited(_finishOpening()),
           ),
         ),
       ],
@@ -1079,8 +1848,6 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                       const SizedBox(height: 6),
                       Text(
                         _pushbackQuote,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 12.5,
@@ -1102,7 +1869,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                       width: 160,
                       height: 160,
                       child: CircularProgressIndicator(
-                        value: _rebuttalSecondsRemaining / 60.0,
+                        value: _rebuttalSecondsRemaining / _rebuttalTotal,
                         strokeWidth: 8,
                         backgroundColor: const Color(0xFF1E293B),
                         valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF38BDF8)),
@@ -1137,39 +1904,48 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                // REC indicator
+                // REC indicator — real mic state
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
                       width: 8,
                       height: 8,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFEF4444),
+                      decoration: BoxDecoration(
+                        color: _recorderLive
+                            ? const Color(0xFFEF4444)
+                            : const Color(0xFF94A3B8),
                         shape: BoxShape.circle,
                       ),
                     ),
                     const SizedBox(width: 6),
-                    const Text(
-                      'REC',
+                    Text(
+                      _recorderLive ? 'REC' : 'Mic starting…',
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFFEF4444),
+                        color: _recorderLive
+                            ? const Color(0xFFEF4444)
+                            : const Color(0xFF94A3B8),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
 
-                // Soundwaves
-                const SizedBox(
+                SizedBox(
                   width: double.infinity,
-                  child: LiveWaveformBars(
-                    barCount: 28,
-                    maxHeight: 52,
-                    color: Color(0xFF38BDF8),
+                  height: 56,
+                  child: Center(
+                    child: MicReactiveWaveform(
+                      active: _recorderLive,
+                      barCount: 28,
+                      width: 280,
+                      height: 52,
+                      color: const Color(0xFF38BDF8),
+                      externalLevel: _micLevel,
+                    ),
                   ),
                 ),
                 const Spacer(flex: 3),
@@ -1220,7 +1996,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
               shadowColor: Colors.black.withValues(alpha: 0.3),
               child: InkWell(
                 borderRadius: BorderRadius.circular(30),
-                onTap: () => _goToStep(6),
+                onTap: _busy ? null : () => unawaited(_finishRebuttal()),
                 child: const Center(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,

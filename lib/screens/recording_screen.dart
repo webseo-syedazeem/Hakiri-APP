@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../core/services/analytics_service.dart';
+import '../core/services/coach_tts_service.dart';
 import '../core/services/session_audio_store.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
@@ -42,7 +43,11 @@ class _RecordingScreenState extends State<RecordingScreen>
   List<String> _words = const ['Loading', 'your', 'question…'];
   int _revealedWordCount = 0;
   Timer? _wordRevealTimer;
+  Timer? _promptRevealFallbackTimer;
   bool _promptReady = false;
+  bool _promptSpeaking = false;
+  bool _promptMuted = false;
+  bool _gotPromptTtsProgress = false;
 
   // Prep countdown (per activity / prompt)
   int _prepTotalSeconds = 5;
@@ -153,32 +158,128 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // -------------------------------------------------------------
-  // PHASE 1: WORD-BY-WORD REVEAL (doc_images/img_0.png)
+  // PHASE 1: WORD-BY-WORD REVEAL + coach TTS (doc_images/img_0.png)
   // -------------------------------------------------------------
   void _startWordByWordReveal() {
     _wordRevealTimer?.cancel();
+    _promptRevealFallbackTimer?.cancel();
+    unawaited(CoachTtsService.instance.stop());
+
     _revealedWordCount = 0;
+    _promptSpeaking = true;
+    _promptMuted = false;
+    _gotPromptTtsProgress = false;
     setState(() {});
 
-    // Calm, readable word-by-word reveal (340ms per word as requested)
-    _wordRevealTimer = Timer.periodic(const Duration(milliseconds: 340), (timer) {
-      if (!mounted) {
+    final state = Provider.of<AppStateProvider>(context, listen: false);
+    final voice = CoachTtsService.normalizeCoachId(
+      state.answers.voiceProfile ?? CoachTtsService.instance.activeCoachId,
+    );
+
+    // Slow fallback only if TTS word progress never arrives.
+    _promptRevealFallbackTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (!mounted ||
+          _stage != ExerciseStage.wordByWordReveal ||
+          !_promptSpeaking ||
+          _gotPromptTtsProgress) {
+        return;
+      }
+      _wordRevealTimer =
+          Timer.periodic(const Duration(milliseconds: 520), (timer) {
+        if (!mounted ||
+            _stage != ExerciseStage.wordByWordReveal ||
+            !_promptSpeaking ||
+            _gotPromptTtsProgress ||
+            _promptMuted) {
+          timer.cancel();
+          return;
+        }
+        if (_revealedWordCount >= _words.length) {
+          timer.cancel();
+          return;
+        }
+        setState(() => _revealedWordCount++);
+      });
+    });
+
+    unawaited(
+      CoachTtsService.instance.speakWithProgress(
+        _promptHeadline,
+        voiceProfile: voice,
+        speechRate: 0.40,
+        onWord: (count, _) {
+          if (!mounted ||
+              _stage != ExerciseStage.wordByWordReveal ||
+              _promptMuted) {
+            return;
+          }
+          _gotPromptTtsProgress = true;
+          _promptRevealFallbackTimer?.cancel();
+          _wordRevealTimer?.cancel();
+          setState(() {
+            if (count > _revealedWordCount) {
+              _revealedWordCount = count.clamp(0, _words.length);
+            }
+          });
+        },
+        onDone: () {
+          if (!mounted || _stage != ExerciseStage.wordByWordReveal) return;
+          if (_promptMuted) return;
+          _promptRevealFallbackTimer?.cancel();
+          _wordRevealTimer?.cancel();
+          setState(() {
+            _promptSpeaking = false;
+            _revealedWordCount = _words.length;
+          });
+          Future.delayed(const Duration(milliseconds: 900), () {
+            if (mounted && _stage == ExerciseStage.wordByWordReveal) {
+              _start5sCountdown();
+            }
+          });
+        },
+      ),
+    );
+  }
+
+  void _mutePromptSpeech() {
+    if (_promptMuted) return;
+    unawaited(CoachTtsService.instance.stop());
+    _gotPromptTtsProgress = true;
+    _promptRevealFallbackTimer?.cancel();
+    setState(() {
+      _promptMuted = true;
+      _promptSpeaking = false;
+    });
+    _continueMutedWordReveal();
+  }
+
+  void _continueMutedWordReveal() {
+    _wordRevealTimer?.cancel();
+    if (_revealedWordCount >= _words.length) {
+      Future.delayed(const Duration(milliseconds: 600), () {
+        if (mounted && _stage == ExerciseStage.wordByWordReveal) {
+          _start5sCountdown();
+        }
+      });
+      return;
+    }
+    _wordRevealTimer =
+        Timer.periodic(const Duration(milliseconds: 340), (timer) {
+      if (!mounted || _stage != ExerciseStage.wordByWordReveal) {
         timer.cancel();
         return;
       }
-      if (_revealedWordCount < _words.length) {
-        setState(() {
-          _revealedWordCount++;
-        });
-      } else {
+      if (_revealedWordCount >= _words.length) {
         timer.cancel();
-        // Generous reading pause after full sentence is visible before prep countdown
-        Future.delayed(const Duration(milliseconds: 2200), () {
+        setState(() {});
+        Future.delayed(const Duration(milliseconds: 600), () {
           if (mounted && _stage == ExerciseStage.wordByWordReveal) {
             _start5sCountdown();
           }
         });
+        return;
       }
+      setState(() => _revealedWordCount++);
     });
   }
 
@@ -186,9 +287,13 @@ class _RecordingScreenState extends State<RecordingScreen>
   // PHASE 2: PREPARATION COUNTDOWN (activity prep seconds)
   // -------------------------------------------------------------
   void _start5sCountdown() {
+    _wordRevealTimer?.cancel();
+    _promptRevealFallbackTimer?.cancel();
+    unawaited(CoachTtsService.instance.stop());
     setState(() {
       _stage = ExerciseStage.countdown5s;
       _prepSecondsRemaining = _prepTotalSeconds;
+      _promptSpeaking = false;
     });
 
     _prepArcController.duration = Duration(seconds: _prepTotalSeconds);
@@ -440,11 +545,13 @@ class _RecordingScreenState extends State<RecordingScreen>
   @override
   void dispose() {
     _wordRevealTimer?.cancel();
+    _promptRevealFallbackTimer?.cancel();
     _prepCountdownTimer?.cancel();
     _speakingTimer?.cancel();
     _speechSoftWatchdog?.cancel();
     _idleWaveTimer?.cancel();
     _prepArcController.dispose();
+    unawaited(CoachTtsService.instance.stop());
     unawaited(_ampSub?.cancel());
     unawaited(_speech.stop());
     unawaited(_speech.cancel());
@@ -476,17 +583,57 @@ class _RecordingScreenState extends State<RecordingScreen>
   // =============================================================
   // SCREEN 1: WORD-BY-WORD REVEAL (doc_images/img_0.png)
   // =============================================================
-  Widget _buildWordByWordRevealScreen() {
+  (IconData, String) _activityTagParts() {
     final state = Provider.of<AppStateProvider>(context, listen: false);
     final activity = state.selectedActivity;
-    final activityName = activity?.name.toUpperCase() ?? 'THINK FAST';
-    IconData tagIcon = Icons.bolt_rounded;
-    if (activityName.contains('CUT')) {
-      tagIcon = Icons.content_cut_rounded;
-    } else if (activityName.contains('DEBATE')) {
-      tagIcon = Icons.record_voice_over_rounded;
-    }
+    final slug = activity?.slug ?? 'think_fast';
+    final name = (activity?.name ?? 'Think Fast').toUpperCase();
+    final icon = switch (slug) {
+      'cut_it_in_half' => Icons.content_cut_rounded,
+      'debate_me' || 'debate' => Icons.forum_outlined,
+      'one_minute_expert' => Icons.school_outlined,
+      'explain_it_simply' => Icons.lightbulb_outline_rounded,
+      'storytelling_gym' => Icons.auto_stories_outlined,
+      'connect_the_dots' => Icons.hub_rounded,
+      _ => Icons.bolt_rounded,
+    };
+    return (icon, name);
+  }
 
+  Widget _buildActivityTagBadge({bool boxed = false}) {
+    final (tagIcon, activityName) = _activityTagParts();
+    final icon = Icon(tagIcon, color: const Color(0xFF2563EB), size: 22);
+    return Row(
+      children: [
+        if (boxed)
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFDBEAFE), width: 1),
+            ),
+            child: icon,
+          )
+        else
+          icon,
+        SizedBox(width: boxed ? 10 : 8),
+        Text(
+          activityName,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.5,
+            color: Color(0xFF64748B),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWordByWordRevealScreen() {
     return Scaffold(
       backgroundColor: const Color(0xFFFBFBF9),
       body: SafeArea(
@@ -509,69 +656,88 @@ class _RecordingScreenState extends State<RecordingScreen>
               ),
               const SizedBox(height: 14),
 
-              // Activity Tag Row matching media_1792409196037_95711460.png
-              Row(
-                children: [
-                  Icon(
-                    tagIcon,
-                    color: const Color(0xFF2563EB),
-                    size: 22,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    activityName,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.5,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                ],
-              ),
+              _buildActivityTagBadge(),
               const SizedBox(height: 20),
 
               // Question revealed word-by-word with karaoke style highlight & scale transition
               Expanded(
                 child: SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 10,
-                    children: List.generate(_words.length, (index) {
-                      final word = _words[index];
-                      final isRevealed = index < _revealedWordCount;
-                      final isCurrentWord = index == _revealedWordCount - 1;
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 10,
+                        children: List.generate(_words.length, (index) {
+                          final word = _words[index];
+                          final isRevealed = index < _revealedWordCount;
+                          final revealing = _promptSpeaking ||
+                              (_promptMuted &&
+                                  _revealedWordCount > 0 &&
+                                  _revealedWordCount < _words.length);
+                          final isCurrentWord =
+                              index == _revealedWordCount - 1 && revealing;
 
-                      Color wordColor;
-                      if (!isRevealed) {
-                        wordColor = const Color(0xFFCBD5E1).withValues(alpha: 0.45);
-                      } else if (isCurrentWord) {
-                        wordColor = const Color(0xFF2563EB); // Royal blue active
-                      } else {
-                        wordColor = const Color(0xFF0F172A); // Dark navy for past
-                      }
+                          Color wordColor;
+                          if (!isRevealed) {
+                            wordColor = const Color(0xFFCBD5E1)
+                                .withValues(alpha: 0.45);
+                          } else if (isCurrentWord) {
+                            wordColor = const Color(0xFF2563EB);
+                          } else {
+                            wordColor = const Color(0xFF0F172A);
+                          }
 
-                      return AnimatedScale(
-                        scale: isCurrentWord ? 1.04 : 1.0,
-                        duration: const Duration(milliseconds: 280),
-                        curve: Curves.easeOutCubic,
-                        child: AnimatedDefaultTextStyle(
-                          duration: const Duration(milliseconds: 280),
-                          curve: Curves.easeOutCubic,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 32,
-                            fontWeight: FontWeight.w900,
-                            color: wordColor,
-                            letterSpacing: -0.6,
-                            height: 1.25,
+                          return AnimatedScale(
+                            scale: isCurrentWord ? 1.04 : 1.0,
+                            duration: const Duration(milliseconds: 280),
+                            curve: Curves.easeOutCubic,
+                            child: AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 280),
+                              curve: Curves.easeOutCubic,
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 32,
+                                fontWeight: FontWeight.w900,
+                                color: wordColor,
+                                letterSpacing: -0.6,
+                                height: 1.25,
+                              ),
+                              child: Text(word),
+                            ),
+                          );
+                        }),
+                      ),
+                      if (_promptSpeaking ||
+                          _promptMuted ||
+                          (_revealedWordCount > 0 &&
+                              _revealedWordCount < _words.length)) ...[
+                        const SizedBox(height: 16),
+                        Material(
+                          color: const Color(0xFFEFF6FF),
+                          shape: const CircleBorder(),
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: (!_promptMuted &&
+                                    (_promptSpeaking ||
+                                        _revealedWordCount < _words.length))
+                                ? _mutePromptSpeech
+                                : null,
+                            child: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Icon(
+                                _promptMuted
+                                    ? Icons.volume_off_rounded
+                                    : Icons.volume_up_rounded,
+                                size: 22,
+                                color: const Color(0xFF2563EB),
+                              ),
+                            ),
                           ),
-                          child: Text(word),
                         ),
-                      );
-                    }),
+                      ],
+                    ],
                   ),
                 ),
               ),
@@ -605,36 +771,7 @@ class _RecordingScreenState extends State<RecordingScreen>
               ),
               const SizedBox(height: 24),
 
-              // Lightning bolt icon badge + THINK FAST
-              Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFDBEAFE), width: 1),
-                    ),
-                    child: const Icon(
-                      Icons.bolt_rounded,
-                      color: Color(0xFF2563EB),
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'THINK FAST',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.5,
-                      color: Color(0xFF64748B),
-                    ),
-                  ),
-                ],
-              ),
+              _buildActivityTagBadge(boxed: true),
               const SizedBox(height: 20),
 
               // Live prompt from API/local — highlight the closing phrase

@@ -6,6 +6,7 @@ const {
   createLiveSessionToken,
   isGeminiConfigured,
   analyzeSpeechWithGemini,
+  generateDebatePushback,
 } = require("../config/ai");
 
 const status = async (_req, res) => {
@@ -67,16 +68,15 @@ const analyzeSpeech = async (req, res) => {
     const activitySlug = String(body.activity_slug || "").trim();
     const isRetry = Boolean(body.is_coached_retry || body.is_retry);
 
-    let activity = null;
+    const [activity, prompt] = await Promise.all([
+      activitySlug ? Activity.findOne({ slug: activitySlug }) : Promise.resolve(null),
+      body.prompt_id
+        ? Prompt.findOne({ code: String(body.prompt_id) })
+        : Promise.resolve(null),
+    ]);
     if (activitySlug) {
-      activity = await Activity.findOne({ slug: activitySlug });
       if (!activity) return error(res, "Unknown activity.");
       if (!activity.isMvp) return error(res, "This activity is not open yet.");
-    }
-
-    let prompt = null;
-    if (body.prompt_id) {
-      prompt = await Prompt.findOne({ code: String(body.prompt_id) });
     }
 
     const promptText =
@@ -118,4 +118,57 @@ const analyzeSpeech = async (req, res) => {
   }
 };
 
-module.exports = { status, liveToken, analyzeSpeech };
+/**
+ * POST /ai/debate-pushback
+ * Body: topic, opening_transcript?, audio_base64?, audio_mime_type?, career_context?
+ * Returns Flash pushback + opening transcript for guided Debate Me.
+ */
+const debatePushback = async (req, res) => {
+  try {
+    if (!isGeminiConfigured()) {
+      return error(
+        res,
+        "Debate coach is not configured. Set GEMINI_API_KEY on the server.",
+        503
+      );
+    }
+
+    const body = req.body || {};
+    let audioBase64 = String(body.audio_base64 || body.audio || "").trim();
+    if (audioBase64.includes(",")) {
+      audioBase64 = audioBase64.split(",").pop() || "";
+    }
+    audioBase64 = audioBase64.replace(/\s/g, "");
+    if (audioBase64.length > 3_500_000) {
+      return error(res, "Audio clip is too large. Keep answers under ~90 seconds.");
+    }
+    const audioMimeType =
+      String(body.audio_mime_type || body.mime_type || "audio/mp4").trim() ||
+      "audio/mp4";
+
+    const topic = String(body.topic || body.prompt_text || "").trim();
+    if (!topic) {
+      return error(res, "Debate topic is required.");
+    }
+
+    const result = await generateDebatePushback({
+      topic,
+      openingTranscript: String(body.opening_transcript || body.transcript || ""),
+      audioBase64: audioBase64 || undefined,
+      audioMimeType,
+      careerContext: String(body.career_context || body.career || ""),
+    });
+
+    return success(res, "Debate pushback ready.", {
+      model: result.model,
+      transcript: result.transcript,
+      pushback: result.pushback,
+      topic,
+    });
+  } catch (err) {
+    console.error("debatePushback failed:", err.message);
+    return error(res, err.message || "Could not craft pushback.", err.statusCode || 502);
+  }
+};
+
+module.exports = { status, liveToken, analyzeSpeech, debatePushback };

@@ -211,6 +211,10 @@ class AppStateProvider extends ChangeNotifier {
 
   bool isTargetedRetryCompletedToday = false;
   bool isTougherChallengeCompletedToday = false;
+  /// Server daily_anchor.plan (phase, weakest, totals).
+  Map<String, dynamic> todayPlan = {};
+  /// Set before launching a 10/15 bonus exercise: targeted_retry | tougher_challenge.
+  String? pendingPlanExtra;
 
   void setDailyMinutesLocal(int minutes) {
     if ([5, 10, 15].contains(minutes)) {
@@ -219,23 +223,68 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 
+  void setPendingPlanExtra(String? extra) {
+    pendingPlanExtra = extra;
+    notifyListeners();
+  }
+
+  void _applyDailyPlan(Map<String, dynamic>? plan) {
+    todayPlan = plan == null ? {} : Map<String, dynamic>.from(plan);
+    if (todayPlan.isEmpty) return;
+    final minutes = (todayPlan['minutes'] as num?)?.round();
+    if (minutes != null && [5, 10, 15].contains(minutes)) {
+      dailyAnchorMinutes = minutes;
+    }
+    final extras = (todayPlan['extras_completed'] as Map?) ?? {};
+    isTargetedRetryCompletedToday = extras['targeted_retry'] == true;
+    isTougherChallengeCompletedToday = extras['tougher_challenge'] == true;
+  }
+
+  String get todayPlanPhase =>
+      (todayPlan['phase'] ?? 'core').toString();
+
+  bool get isCorePlanComplete {
+    final fromApi = (todayPlan['core_completed'] as num?)?.round();
+    if (fromApi != null) return fromApi >= 3;
+    return completedTodayDrills() >= 3;
+  }
+
+  bool get isFullPlanComplete {
+    if (todayPlanPhase == 'complete') return true;
+    return completedTotalActivitiesToday() >= totalTodayActivitiesCount();
+  }
+
+  bool get shouldOfferPlanExtras =>
+      isCorePlanComplete &&
+      dailyAnchorMinutes >= 10 &&
+      !isFullPlanComplete;
+
   int completedTodayDrills() {
+    final fromApi = (todayPlan['core_completed'] as num?)?.round();
+    if (fromApi != null) return fromApi.clamp(0, 3);
     final today = DateTime.now();
-    final key = '${today.year}-${today.month}-${today.day}';
+    final core = todayDrillSlugs.take(3).toSet();
     final done = sessionHistory.where((s) {
-      final stamp = '${s.timestamp.year}-${s.timestamp.month}-${s.timestamp.day}';
-      return stamp == key && todayDrillSlugs.contains(s.activitySlug);
+      return s.timestamp.year == today.year &&
+          s.timestamp.month == today.month &&
+          s.timestamp.day == today.day &&
+          core.contains(s.activitySlug) &&
+          !s.feedback.isCoachedRetry;
     }).map((s) => s.activitySlug).toSet();
     return done.length;
   }
 
   int totalTodayActivitiesCount() {
+    final fromApi = (todayPlan['total_count'] as num?)?.round();
+    if (fromApi != null) return fromApi;
     if (dailyAnchorMinutes == 10) return 4;
     if (dailyAnchorMinutes == 15) return 5;
     return 3;
   }
 
   int completedTotalActivitiesToday() {
+    final fromApi = (todayPlan['completed_total'] as num?)?.round();
+    if (fromApi != null) return fromApi;
     final coreDone = completedTodayDrills().clamp(0, 3);
     if (dailyAnchorMinutes == 5) return coreDone;
     if (dailyAnchorMinutes == 10) {
@@ -250,29 +299,68 @@ class AppStateProvider extends ChangeNotifier {
   }
 
   Map<String, dynamic> getWeakestExerciseToday() {
+    final weakest = todayPlan['weakest_core'];
+    final tougher = todayPlan['tougher_challenge'];
+    if (weakest is Map && weakest['slug'] != null) {
+      final slug = weakest['slug'].toString();
+      final activity = activities.firstWhere(
+        (a) => a.slug == slug,
+        orElse: () => activities.first,
+      );
+      final stretchSlug = tougher is Map && tougher['slug'] != null
+          ? tougher['slug'].toString()
+          : (slug == 'debate_me' ? 'think_fast' : 'debate_me');
+      final stretchActivity = activities.firstWhere(
+        (a) => a.slug == stretchSlug,
+        orElse: () => activities.first,
+      );
+      return {
+        'slug': slug,
+        'name': activity.name,
+        'weakestArea': (weakest['weakest_area'] ?? 'Clarity').toString(),
+        'score': (weakest['score'] as num?)?.toDouble() ?? 3.0,
+        'feedback': (weakest['feedback_snippet'] ?? '').toString(),
+        'stretchSlug': stretchSlug,
+        'stretchName': stretchActivity.name,
+        'stretchArea': tougher is Map
+            ? (tougher['weakest_area'] ?? 'Pushback').toString()
+            : 'Response to pushback',
+        'stretchFeedback': tougher is Map
+            ? (tougher['feedback_snippet'] ?? 'A tougher stretch round.')
+                .toString()
+            : 'A tougher round with stronger pushback.',
+      };
+    }
+
     final today = DateTime.now();
+    final core = todayDrillSlugs.take(3).toSet();
     final todaySessions = sessionHistory.where((s) {
       return s.timestamp.year == today.year &&
           s.timestamp.month == today.month &&
-          s.timestamp.day == today.day;
+          s.timestamp.day == today.day &&
+          core.contains(s.activitySlug) &&
+          !s.feedback.isCoachedRetry;
     }).toList();
 
-    // Default fallback matching doc_img_2.png
     if (todaySessions.isEmpty) {
       return {
         'slug': 'cut_it_in_half',
         'name': 'Cut It in Half',
         'weakestArea': 'Conciseness',
         'score': 3.1,
-        'feedback': 'Your answers were clear, but you took too long to land the point.',
+        'feedback':
+            'Your answers were clear, but you took too long to land the point.',
         'stretchSlug': 'debate_me',
         'stretchName': 'Debate Me',
         'stretchArea': 'Response to pushback',
-        'stretchFeedback': 'You held your position well, but your rebuttal could be sharper under pressure.',
+        'stretchFeedback':
+            'You held your position well, but your rebuttal could be sharper under pressure.',
       };
     }
 
-    todaySessions.sort((a, b) => a.feedback.overallScore.compareTo(b.feedback.overallScore));
+    todaySessions.sort(
+      (a, b) => a.feedback.overallScore.compareTo(b.feedback.overallScore),
+    );
     final lowest = todaySessions.first;
     final slug = lowest.activitySlug;
     final activity = activities.firstWhere(
@@ -281,26 +369,32 @@ class AppStateProvider extends ChangeNotifier {
     );
 
     String weakestArea = 'Conciseness';
-    String feedback = 'Your answers were clear, but you took too long to land the point.';
+    String feedback =
+        'Your answers were clear, but you took too long to land the point.';
     if (slug == 'think_fast') {
       weakestArea = 'Thinking on the spot';
-      feedback = 'Good thoughts, but you hesitated before landing your primary thesis.';
+      feedback =
+          'Good thoughts, but you hesitated before landing your primary thesis.';
     } else if (slug == 'debate_me' || slug == 'debate') {
       weakestArea = 'Response to pushback';
-      feedback = 'You held your position well, but your rebuttal could be sharper under pressure.';
+      feedback =
+          'You held your position well, but your rebuttal could be sharper under pressure.';
     }
 
     return {
       'slug': slug,
       'name': activity.name,
       'weakestArea': weakestArea,
-      'score': lowest.feedback.overallScore > 0 ? lowest.feedback.overallScore.toDouble() : 3.1,
+      'score': lowest.feedback.overallScore > 0
+          ? lowest.feedback.overallScore.toDouble()
+          : 3.1,
       'feedback': lowest.feedback.oneSpecificImprovement.isNotEmpty
           ? lowest.feedback.oneSpecificImprovement
           : feedback,
       'stretchSlug': slug == 'debate_me' ? 'think_fast' : 'debate_me',
       'stretchName': slug == 'debate_me' ? 'Think Fast' : 'Debate Me',
-      'stretchArea': slug == 'debate_me' ? 'Rapid thesis delivery' : 'Response to pushback',
+      'stretchArea':
+          slug == 'debate_me' ? 'Rapid thesis delivery' : 'Response to pushback',
       'stretchFeedback': 'A tougher round with stronger pushback.',
     };
   }
@@ -809,6 +903,11 @@ class AppStateProvider extends ChangeNotifier {
       dailyAnchorMinutes =
           (anchor['minutes'] as num?)?.round() ?? dailyAnchorMinutes;
       focusLine = (anchor['focus_line'] ?? focusLine).toString();
+      _applyDailyPlan(
+        anchor['plan'] is Map
+            ? Map<String, dynamic>.from(anchor['plan'] as Map)
+            : null,
+      );
 
       challenges = ((data['challenges'] as List?) ?? [])
           .whereType<Map>()
@@ -898,7 +997,7 @@ class AppStateProvider extends ChangeNotifier {
       ),
       const ActivityModel(
         slug: 'one_minute_expert',
-        name: '1 Minute Expert',
+        name: 'One Minute Expert',
         isMvp: true,
         tagline: 'Thematic chunking and spontaneous authority',
         description: 'Select a broad concept and speak authoritatively for exactly 60 seconds with an attention hook, 2 structured points, and a punchy wrap-up.',
@@ -1348,13 +1447,44 @@ class AppStateProvider extends ChangeNotifier {
     unawaited(activatePaidPlan(tier));
   }
 
+  /// Map landing/legacy aliases → catalog slugs.
+  static String normalizeActivitySlug(String raw) {
+    final slug = raw.trim();
+    switch (slug) {
+      case 'connect_dots':
+        return 'connect_the_dots';
+      case 'explain':
+        return 'explain_it_simply';
+      case 'stopwatch':
+      case 'one_monitor_expert':
+        return 'one_minute_expert';
+      case 'storytelling':
+        return 'storytelling_gym';
+      case 'debate':
+        return 'debate_me';
+      default:
+        return slug;
+    }
+  }
+
   void selectActivity(String slug) {
-    selectedActivity = activities.firstWhere((a) => a.slug == slug, orElse: () => activities.first);
+    final resolved = normalizeActivitySlug(slug);
+    selectedActivity = activities.firstWhere(
+      (a) => a.slug == resolved,
+      orElse: () => activities.first,
+    );
     _updateSelectedPrompt();
     notifyListeners();
     if (isLoggedIn) {
       unawaited(fetchNextPromptFromApi());
     }
+  }
+
+  /// Keep [selectedActivity] aligned with the drill UI the user is viewing.
+  void ensureActivitySelected(String slug) {
+    final resolved = normalizeActivitySlug(slug);
+    if (selectedActivity?.slug == resolved) return;
+    selectActivity(resolved);
   }
 
   void setDifficulty(String diff) {
@@ -1463,6 +1593,7 @@ class AppStateProvider extends ChangeNotifier {
     required String transcript,
     required int durationSeconds,
     bool isRetry = false,
+    String? planExtra,
     String conversationMode = 'single',
     List<ConversationTurn> conversationTurns = const [],
     String? localAudioTempPath,
@@ -1472,6 +1603,19 @@ class AppStateProvider extends ChangeNotifier {
     final prompt = selectedPrompt ?? promptBank.first;
     final mode =
         conversationMode == 'back_and_forth' ? 'back_and_forth' : 'single';
+    final resolvedPlanExtra = planExtra ?? pendingPlanExtra;
+    final resolvedIsRetry =
+        isRetry || resolvedPlanExtra == 'targeted_retry';
+
+    // Persist local audio in parallel with Gemini so the overlay feels faster.
+    final localId = _uuid.v4();
+    final persistFuture =
+        (localAudioTempPath != null && localAudioTempPath.isNotEmpty)
+            ? SessionAudioStore.instance.persist(
+                sessionId: localId,
+                tempPath: localAudioTempPath,
+              )
+            : Future<String?>.value(null);
 
     // Prefer Gemini Flash analysis via API (doc requirement).
     // Fall back to on-device heuristic only if the AI call fails / offline.
@@ -1482,7 +1626,7 @@ class AppStateProvider extends ChangeNotifier {
         prompt: prompt,
         transcript: resolvedTranscript,
         durationSeconds: durationSeconds,
-        isRetry: isRetry,
+        isRetry: resolvedIsRetry,
         audioBase64: audioBase64,
         audioMimeType: audioMimeType,
       );
@@ -1521,7 +1665,7 @@ class AppStateProvider extends ChangeNotifier {
           retryInstruction:
               'Tap Try again. Keep the answer under ~60 seconds.',
           exemplarResponse: prompt.exemplarResponse,
-          isCoachedRetry: isRetry,
+          isCoachedRetry: resolvedIsRetry,
           withholdJudgement: true,
         );
       } else {
@@ -1529,21 +1673,13 @@ class AppStateProvider extends ChangeNotifier {
           prompt: prompt,
           transcript: resolvedTranscript,
           durationSeconds: durationSeconds,
-          isRetry: isRetry,
+          isRetry: resolvedIsRetry,
         );
       }
     }
 
     latestFeedback = feedback;
-
-    final localId = _uuid.v4();
-    String? audioPath;
-    if (localAudioTempPath != null && localAudioTempPath.isNotEmpty) {
-      audioPath = await SessionAudioStore.instance.persist(
-        sessionId: localId,
-        tempPath: localAudioTempPath,
-      );
-    }
+    final audioPath = await persistFuture;
 
     // Create and save local session history record immediately
     final record = PracticeSessionRecord(
@@ -1584,27 +1720,36 @@ class AppStateProvider extends ChangeNotifier {
       clarityScore: feedback.pillars.clarityScore,
       impactScore: feedback.pillars.impactScore,
       engagementScore: feedback.pillars.engagementScore,
-      isRetry: isRetry,
+      isRetry: resolvedIsRetry,
     ));
-    if (isRetry) {
+    if (resolvedIsRetry) {
       unawaited(AnalyticsService.instance.logPracticeRetry(
         activitySlug: prompt.activitySlug,
       ));
     }
 
     if (isLoggedIn) {
-      await _persistSessionToApi(
+      // Don't block the "Transcribing…" overlay on session sync.
+      pendingPlanExtra = null;
+      unawaited(_persistSessionToApi(
         prompt: prompt,
         transcript: resolvedTranscript,
         durationSeconds: durationSeconds,
         feedback: feedback,
-        isRetry: isRetry,
+        isRetry: resolvedIsRetry,
+        planExtra: resolvedPlanExtra,
         localRecordId: record.id,
         conversationMode: mode,
         conversationTurns: conversationTurns,
         localAudioPath: audioPath,
-      );
+      ).then((_) => refreshFromApi()));
     } else {
+      if (resolvedPlanExtra == 'targeted_retry') {
+        isTargetedRetryCompletedToday = true;
+      } else if (resolvedPlanExtra == 'tougher_challenge') {
+        isTougherChallengeCompletedToday = true;
+      }
+      pendingPlanExtra = null;
       finishDrillAndIncrementStreak();
     }
 
@@ -1693,6 +1838,7 @@ class AppStateProvider extends ChangeNotifier {
     required EvaluationFeedback feedback,
     required bool isRetry,
     required String localRecordId,
+    String? planExtra,
     String conversationMode = 'single',
     List<ConversationTurn> conversationTurns = const [],
     String? localAudioPath,
@@ -1703,18 +1849,21 @@ class AppStateProvider extends ChangeNotifier {
         if (_looksLikeCatalogPromptId(prompt.id)) 'prompt_id': prompt.id,
         'prompt_title': prompt.title ?? prompt.promptText,
         'prompt_text': prompt.promptText,
-        'difficulty': selectedDifficulty == 'pro'
+        'difficulty': planExtra == 'tougher_challenge'
             ? 'professional'
-            : selectedDifficulty == 'i_dont_know'
-                ? 'intermediary'
-                : (selectedDifficulty == 'beginner' ||
-                        selectedDifficulty == 'intermediary' ||
-                        selectedDifficulty == 'professional')
-                    ? selectedDifficulty
-                    : 'intermediary',
+            : selectedDifficulty == 'pro'
+                ? 'professional'
+                : selectedDifficulty == 'i_dont_know'
+                    ? 'intermediary'
+                    : (selectedDifficulty == 'beginner' ||
+                            selectedDifficulty == 'intermediary' ||
+                            selectedDifficulty == 'professional')
+                        ? selectedDifficulty
+                        : 'intermediary',
         'transcript': transcript,
         'duration_seconds': durationSeconds,
         'is_coached_retry': isRetry,
+        if (planExtra != null) 'plan_extra': planExtra,
         'conversation_mode': conversationMode,
         'conversation_turns':
             conversationTurns.map((t) => t.toJson()).toList(),
@@ -1742,6 +1891,15 @@ class AppStateProvider extends ChangeNotifier {
           transcript: apiRecord.transcript.isNotEmpty
               ? apiRecord.transcript
               : transcript,
+          // Keep guided Debate / live coach chat if API echo is empty.
+          conversationMode: apiRecord.isBackAndForth
+              ? apiRecord.conversationMode
+              : (conversationMode == 'back_and_forth'
+                  ? 'back_and_forth'
+                  : apiRecord.conversationMode),
+          conversationTurns: apiRecord.conversationTurns.isNotEmpty
+              ? apiRecord.conversationTurns
+              : conversationTurns,
         );
         final idx = sessionHistory.indexWhere((s) => s.id == localRecordId);
         if (idx >= 0) {
@@ -1752,6 +1910,30 @@ class AppStateProvider extends ChangeNotifier {
         }
       }
       await refreshFromApi();
+      // refresh replaces history; keep conversation on the open feedback session.
+      if (latestSession != null &&
+          latestSession!.conversationTurns.isNotEmpty &&
+          sessionHistory.isNotEmpty) {
+        final i = sessionHistory.indexWhere((s) => s.id == latestSession!.id);
+        if (i >= 0 && sessionHistory[i].conversationTurns.isEmpty) {
+          sessionHistory[i] = sessionHistory[i].copyWith(
+            conversationMode: latestSession!.conversationMode,
+            conversationTurns: latestSession!.conversationTurns,
+          );
+        } else if (i < 0) {
+          // Id swapped by server — prefer newest row, preserve turns if missing.
+          final top = sessionHistory.first;
+          if (top.conversationTurns.isEmpty) {
+            sessionHistory[0] = top.copyWith(
+              conversationMode: latestSession!.conversationMode,
+              conversationTurns: latestSession!.conversationTurns,
+            );
+          }
+          latestSession = sessionHistory.first;
+        }
+      } else if (latestSession == null && sessionHistory.isNotEmpty) {
+        latestSession = sessionHistory.first;
+      }
     } catch (_) {
       // Keep the local history row so Progress/Home still show this drill.
       finishDrillAndIncrementStreak();

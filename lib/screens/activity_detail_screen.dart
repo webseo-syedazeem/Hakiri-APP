@@ -19,18 +19,18 @@ class ActivityDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
-    var slug = activitySlug ?? state.selectedActivity?.slug ?? 'think_fast';
-    if (slug == 'connect_dots') slug = 'connect_the_dots';
-    if (slug == 'explain') slug = 'explain_it_simply';
-    if (slug == 'stopwatch') slug = 'one_minute_expert';
-    if (slug == 'storytelling') slug = 'storytelling_gym';
-    if (slug == 'debate') slug = 'debate_me';
+    final slug = AppStateProvider.normalizeActivitySlug(
+      activitySlug ?? state.selectedActivity?.slug ?? 'think_fast',
+    );
     final spec = _activitySpecs[slug] ?? _activitySpecs['think_fast']!;
+    final isDebateMe = slug == 'debate_me';
     final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     final bottomGap = isIOS ? (safeBottom > 0 ? 20.0 : 12.0) : 14.0;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Detail UI slug must match provider — otherwise Begin loads Think Fast prompts.
+      state.ensureActivitySelected(slug);
       AnalyticsService.instance.logScreenView(
         screenName: 'ActivityDetailScreen_$slug',
       );
@@ -197,7 +197,7 @@ class ActivityDetailScreen extends StatelessWidget {
                               spec.subtitle,
                               style: const TextStyle(
                                 fontFamily: 'Inter',
-                                fontSize: 13.5,
+                                fontSize: 16.5,
                                 fontWeight: FontWeight.w500,
                                 color: Color(0xFF475569),
                                 height: 1.35,
@@ -210,50 +210,65 @@ class ActivityDetailScreen extends StatelessWidget {
                             const SizedBox(height: 12),
                             // 4. Card: Strategy (USE YOUR 5 SECONDS / BUILD THE CONNECTION)
                             _buildStrategyCard(spec.strategyTitle, spec.strategy),
-                            const SizedBox(height: 16),
-
-                            // 5. Primary Action Button: flows naturally directly below cards
-                            ActionPillButton(
-                              label: 'Begin exercise',
-                              onTap: () async {
-                                final nav = Navigator.of(context);
-                                final app = context.read<AppStateProvider>();
-
-                                if (slug == 'debate' || slug == 'debate_me') {
-                                  nav.push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const DebateMeScreen(),
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                if (app.isLoggedIn) {
-                                  await HakkiriLoadingOverlay.run(
-                                    context,
-                                    message: 'Getting your question…',
-                                    detail:
-                                        'Picking a fresh prompt for this drill.',
-                                    action: () => app.fetchNextPromptFromApi(
-                                      excludeCurrent: true,
-                                    ),
-                                  );
-                                } else {
-                                  app.setDifficulty(app.selectedDifficulty);
-                                }
-                                if (!context.mounted) return;
-                                nav.push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const RecordingScreen(
-                                      promptAlreadyLoaded: true,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
                             const SizedBox(height: 18),
                           ],
                         ),
+                      ),
+                    ),
+
+                    // Pinned bottom CTA — Debate Me → guided 6-step drill.
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+                      child: ActionPillButton(
+                        label: 'Begin exercise',
+                        onTap: () async {
+                          final nav = Navigator.of(context);
+                          final app = context.read<AppStateProvider>();
+                          // Lock provider to this drill before fetching the prompt.
+                          app.ensureActivitySelected(slug);
+
+                          if (app.isLoggedIn) {
+                            await HakkiriLoadingOverlay.run(
+                              context,
+                              message: isDebateMe
+                                  ? 'Setting up your debate…'
+                                  : 'Getting your question…',
+                              detail: isDebateMe
+                                  ? 'Loading a workplace topic for opening + pushback.'
+                                  : 'Picking a fresh prompt for this drill.',
+                              action: () => app.fetchNextPromptFromApi(
+                                excludeCurrent: true,
+                              ),
+                            );
+                          } else if (!isDebateMe) {
+                            app.setDifficulty(app.selectedDifficulty);
+                          }
+                          if (!context.mounted) return;
+
+                          if (isDebateMe) {
+                            final topic =
+                                app.selectedPrompt?.promptText.trim();
+                            nav.push(
+                              MaterialPageRoute(
+                                builder: (_) => DebateMeScreen(
+                                  topic: (topic != null && topic.isNotEmpty)
+                                      ? topic
+                                      : null,
+                                  startAtPrompt: true,
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+
+                          nav.push(
+                            MaterialPageRoute(
+                              builder: (_) => const RecordingScreen(
+                                promptAlreadyLoaded: true,
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -654,7 +669,11 @@ final Map<String, _ActivitySpec> _activitySpecs = {
       _feedbackStep,
     ],
     strategyTitle: 'CUT THE CLUTTER',
-    strategy: const ["Main point\n(key message?)", 'Essential\ndetail', 'Action\n(what next?)'],
+    strategy: const [
+      "Main point\n(What's the key message?)",
+      'Essential\ndetail',
+      'Action\n(what next?)',
+    ],
   ),
 
   // Screen 5: Storytelling Gym.
@@ -688,20 +707,25 @@ final Map<String, _ActivitySpec> _activitySpecs = {
     strategy: ['Hook\n(get attention)', 'Two clear\npoints', 'Strong\nfinish'],
   ),
 
-  // Screen 7: Debate Me.
+  // Screen 7: Debate Me. — overview only; Begin starts live back-and-forth.
   'debate_me': const _ActivitySpec(
     icon: Icons.forum_outlined,
     label: '7. DEBATE ME',
     title: 'Debate Me.',
-    subtitle: 'See a different perspective and respond with a clear, confident counterpoint.',
+    subtitle:
+        'Practice. Respond. Improve. A guided debate to help you think clearly, respond with confidence, and get better.',
     steps: [
-      _Step(Icons.description_outlined, '1. Position', "You'll see a statement\nor opposing view."),
+      _Step(Icons.description_outlined, '1. Prompt', 'A debate\ntopic appears.'),
       _thinkStep,
-      _Step(Icons.mic_none_rounded, '3. Respond', 'Speak for\n60 seconds.'),
-      _feedbackStep,
+      _Step(Icons.mic_none_rounded, '3. Opening', 'State your\nposition live.'),
+      _Step(Icons.forum_outlined, '4. Pushback', 'Hakkiri\nchallenges you.'),
     ],
     strategyTitle: 'BUILD YOUR RESPONSE',
-    strategy: ['State your\nposition', 'Give your\nreason', 'Counter\nthe objection'],
+    strategy: [
+      'State your\nposition',
+      'Give your\nreason',
+      'Counter\nthe objection',
+    ],
   ),
 };
 

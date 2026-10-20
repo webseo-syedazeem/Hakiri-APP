@@ -205,17 +205,33 @@ function normalizeFeedback(parsed, {
  */
 async function geminiGenerateJson({ model, key, parts, temperature = 0.2 }) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts }],
-      generationConfig: {
-        temperature,
-        responseMimeType: "application/json",
-      },
-    }),
-  });
+  // Fail hung calls fast so Flash fallbacks can run within the 90s budget.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 22_000);
+  let response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        contents: [{ role: "user", parts }],
+        generationConfig: {
+          temperature,
+          responseMimeType: "application/json",
+        },
+      }),
+    });
+  } catch (err) {
+    const aborted = err?.name === "AbortError";
+    const next = new Error(
+      aborted ? `Gemini timed out (${model}).` : err.message || "Gemini request failed."
+    );
+    next.statusCode = aborted ? 504 : 502;
+    throw next;
+  } finally {
+    clearTimeout(timer);
+  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const err = new Error(data?.error?.message || "Gemini analysis failed.");
@@ -266,12 +282,10 @@ async function transcribeAudioWithGemini({
   audioBase64,
   audioMimeType,
 }) {
-  const mimes = [
-    String(audioMimeType || "audio/mp4").slice(0, 80),
-    "audio/mp4",
-    "audio/aac",
-    "audio/m4a",
-  ].filter((v, i, arr) => v && arr.indexOf(v) === i);
+  // App always uploads AAC-in-MP4 — try primary mime once, then mp4 once.
+  // Extra mime retries used to burn full Flash fallback chains.
+  const primary = String(audioMimeType || "audio/mp4").slice(0, 80) || "audio/mp4";
+  const mimes = primary === "audio/mp4" ? ["audio/mp4"] : [primary, "audio/mp4"];
 
   let lastErr;
   for (const mime of mimes) {
@@ -332,17 +346,34 @@ async function analyzeSpeechWithGemini({
   const measureKeys = Object.fromEntries(measureDefs.map((m) => [m.key, 3]));
 
   // Transcribe first (more reliable than one-shot audio+score).
-  if (hasAudio && spoken.length < 8) {
-    spoken = await transcribeAudioWithGemini({
-      key,
-      audioBase64,
-      audioMimeType,
-    });
+  // Debate Me guided flow may already include Opening + Pushback in `spoken`
+  // and only the rebuttal audio — append the rebuttal transcript instead of replacing.
+  const debatePrefix = /opening argument:|debate opening:|coach pushback:|hakkiri pushback:/i;
+  if (hasAudio) {
+    if (spoken.length < 8) {
+      spoken = await transcribeAudioWithGemini({
+        key,
+        audioBase64,
+        audioMimeType,
+      });
+    } else if (slug === "debate_me" && debatePrefix.test(spoken)) {
+      const rebuttal = await transcribeAudioWithGemini({
+        key,
+        audioBase64,
+        audioMimeType,
+      });
+      if (rebuttal) {
+        spoken = `${spoken.trim()}\n\nRebuttal:\n${rebuttal}`.slice(0, 20000);
+      }
+    }
   }
 
   const system = [
     "You are Hakkiri, an executive communication coach.",
     "Score ONLY from the user's spoken transcript against the practice prompt.",
+    slug === "debate_me"
+      ? "For Debate Me: weigh how well they answered the coach pushback (answers_objection), plus reasoning and delivery across opening + rebuttal."
+      : "",
     "Do NOT invent that they said things they did not say.",
     "Do NOT penalise accents. Focus on clarity, structure, relevance, conciseness, fillers, pace, and time-to-main-point.",
     "If the transcript is empty, filler-only (hello/test/um), off-topic, or under ~12 meaningful words, every activity measure must be 1.",
@@ -377,12 +408,18 @@ async function analyzeSpeechWithGemini({
     }),
   ].join("\n");
 
+  // Cap exemplar tokens — long catalog exemplars slow the scoring call.
+  const exemplarShort = String(exemplarResponse || "")
+    .trim()
+    .slice(0, 280);
+  const promptShort = String(promptText || "(missing)").trim().slice(0, 500);
+
   const user = [
     `Activity: ${activityName || slug} (${slug})`,
     `Difficulty: ${difficulty || "intermediary"}`,
-    `Prompt / question: ${promptText || "(missing)"}`,
-    `Objective: ${objective || "(none)"}`,
-    `Catalog exemplar (optional guidance): ${exemplarResponse || "(none)"}`,
+    `Prompt / question: ${promptShort}`,
+    `Objective: ${String(objective || "(none)").trim().slice(0, 180)}`,
+    `Catalog exemplar (optional): ${exemplarShort || "(none)"}`,
     `Duration spoken (seconds): ${Number(durationSeconds) || 0}`,
     `Coached retry: ${isRetry ? "yes" : "no"}`,
     `Score these activity measures (1-5 or null). Weights are applied server-side — you only rate:`,
@@ -559,6 +596,93 @@ async function issueLiveAuthToken({
   throw lastErr || new Error("Could not create a live voice token.");
 }
 
+/**
+ * Guided Debate Me: transcribe opening (optional audio) + craft one sharp pushback.
+ * Returns { transcript, pushback, model }.
+ */
+async function generateDebatePushback({
+  topic,
+  openingTranscript,
+  audioBase64,
+  audioMimeType,
+  careerContext,
+} = {}) {
+  const key = geminiApiKey();
+  if (!key) {
+    const err = new Error("GEMINI_API_KEY is not configured on the server.");
+    err.statusCode = 503;
+    throw err;
+  }
+
+  let opening = String(openingTranscript || "").trim();
+  const hasAudio = Boolean(audioBase64 && String(audioBase64).length > 64);
+  // Prefer a fresh STT from the opening clip whenever audio is present.
+  if (hasAudio) {
+    try {
+      const heard = await transcribeAudioWithGemini({
+        key,
+        audioBase64,
+        audioMimeType,
+      });
+      if (heard && heard.trim().length >= 3) {
+        opening = heard.trim();
+      }
+    } catch (err) {
+      // Keep any client-supplied transcript; pushback can still use topic.
+      if (!opening) {
+        const e = new Error(
+          err.message || "Could not transcribe the opening argument."
+        );
+        e.statusCode = err.statusCode || 502;
+        throw e;
+      }
+    }
+  }
+
+  const debateTopic = String(topic || "").trim().slice(0, 600) ||
+    "Take a clear side on a workplace issue.";
+  const career = String(careerContext || "workplace meetings").trim().slice(0, 200);
+  const hasRealOpening = opening.length >= 12;
+
+  const { parsed, model } = await geminiGenerateJsonWithFallback({
+    key,
+    temperature: 0.55,
+    parts: [
+      {
+        text: [
+          "You are Hakkiri Debate Coach. Craft ONE sharp workplace pushback.",
+          "The user just gave an opening argument on a debate topic.",
+          "Return ONLY JSON: {\"transcript\":\"exact cleanup of opening words\",\"pushback\":\"2-3 spoken sentences\"}.",
+          "Rules:",
+          "- transcript must echo the user's opening (light cleanup only). Never invent an opening.",
+          hasRealOpening
+            ? "- pushback MUST respond to a specific claim or assumption in THEIR opening (quote or paraphrase it). Do not use a generic WFH/flexibility challenge unless they actually argued that."
+            : "- Opening is empty/filler: invent a topic-fit challenge and set transcript to \"\".",
+          "- Challenge their reasoning; do not insult them.",
+          "- Stay in a professional workplace tone for: " + career + ".",
+          "- Do not score. Do not ask multiple questions. One challenge only.",
+          `Debate topic: """${debateTopic}"""`,
+          `Opening transcript:"""`,
+          opening || "(empty)",
+          `"""`,
+        ].join("\n"),
+      },
+    ],
+  });
+
+  // Prefer STT we already have over model "cleanup" that might drop content.
+  const transcriptOut = (opening || String(parsed.transcript || "").trim())
+    .slice(0, 20000);
+  let pushback = String(parsed.pushback || "").trim().slice(0, 1200);
+  if (!pushback) {
+    pushback = hasRealOpening
+      ? `But that still leaves a gap in what you just argued. If a senior stakeholder rejected that line of reasoning, what evidence would you use next — and what is your backup?`
+      : `But that still leaves a weak spot on "${debateTopic.slice(0, 100)}". If a senior stakeholder pushed back hard, what evidence would you use — and what is your backup if the first argument fails?`;
+  }
+
+  return { model, transcript: transcriptOut, pushback };
+}
+
 module.exports = {
   geminiApiKey,
   isGeminiConfigured,
@@ -566,6 +690,7 @@ module.exports = {
   liveModel,
   flashModel,
   analyzeSpeechWithGemini,
+  generateDebatePushback,
   createLiveSessionToken,
   DEFAULT_COACH_INSTRUCTION,
 };
