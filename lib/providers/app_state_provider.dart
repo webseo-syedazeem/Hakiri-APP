@@ -15,6 +15,22 @@ import '../core/services/session_audio_store.dart';
 import '../core/services/speech_evaluator_service.dart';
 import '../core/services/supabase_service.dart';
 
+class ReflectionNote {
+  final String id;
+  final DateTime date;
+  final String title;
+  final String learnings;
+  final String focusArea;
+
+  const ReflectionNote({
+    required this.id,
+    required this.date,
+    required this.title,
+    required this.learnings,
+    required this.focusArea,
+  });
+}
+
 class AppStateProvider extends ChangeNotifier {
   final SupabaseService _supabase = SupabaseService.instance;
   final HakkiriApiService _api = HakkiriApiService.instance;
@@ -207,6 +223,48 @@ class AppStateProvider extends ChangeNotifier {
           const ['think_fast', 'cut_it_in_half', 'debate_me'];
     }
     return slugs;
+  }
+
+  final List<ReflectionNote> _reflectionNotes = [
+    ReflectionNote(
+      id: 'ref-1',
+      date: DateTime(2026, 10, 18),
+      title: 'I was more confident',
+      learnings: 'I communicated my ideas more clearly today.',
+      focusArea: 'Build my confidence',
+    ),
+    ReflectionNote(
+      id: 'ref-2',
+      date: DateTime(2026, 10, 10),
+      title: 'Focus on structure',
+      learnings: 'Next time I want to slow down and organise my points.',
+      focusArea: 'Be more concise',
+    ),
+    ReflectionNote(
+      id: 'ref-3',
+      date: DateTime(2026, 10, 3),
+      title: 'More engaging',
+      learnings: 'I kept people with me and used better examples.',
+      focusArea: 'Tell better stories',
+    ),
+  ];
+
+  List<ReflectionNote> get reflectionNotes => List.unmodifiable(_reflectionNotes);
+
+  void addReflectionNote({
+    required String title,
+    required String learnings,
+    required String focusArea,
+  }) {
+    final note = ReflectionNote(
+      id: 'ref-${DateTime.now().millisecondsSinceEpoch}',
+      date: DateTime.now(),
+      title: title.trim().isEmpty ? 'Daily Reflection' : title.trim(),
+      learnings: learnings.trim(),
+      focusArea: focusArea.trim(),
+    );
+    _reflectionNotes.insert(0, note);
+    notifyListeners();
   }
 
   bool isTargetedRetryCompletedToday = false;

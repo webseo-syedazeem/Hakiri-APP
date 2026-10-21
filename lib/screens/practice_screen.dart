@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
-import '../widgets/hakkiri_logo.dart';
-import '../widgets/orbital_background_painter.dart';
+import '../widgets/connect_the_dots_icon.dart';
+import '../widgets/practice_orbital_accent.dart';
 import 'activity_detail_screen.dart';
+import 'debate_me_screen.dart';
 import 'main_tab_scaffold.dart';
+import 'reflect_and_grow_screen.dart';
 
 class PracticeScreen extends StatelessWidget {
   const PracticeScreen({super.key});
@@ -16,433 +17,453 @@ class PracticeScreen extends StatelessWidget {
   }
 }
 
-class PracticeScreenContent extends StatelessWidget {
+class PracticeScreenContent extends StatefulWidget {
   const PracticeScreenContent({super.key});
+
+  @override
+  State<PracticeScreenContent> createState() => _PracticeScreenContentState();
+}
+
+class _PracticeScreenContentState extends State<PracticeScreenContent> {
+  bool _showReflectAndGrow = false;
+
+  void _openActivity(AppStateProvider state, String slug) {
+    state.selectActivity(slug);
+    if (slug == 'debate_me') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const DebateMeScreen()),
+      );
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
 
-    return SafeArea(
-      bottom: false,
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Row with Orbital Accent in Background
-            Stack(
-              clipBehavior: Clip.none,
+    if (_showReflectAndGrow) {
+      return ReflectAndGrowContent(
+        onBack: () => setState(() => _showReflectAndGrow = false),
+      );
+    }
+
+    return Stack(
+      children: [
+        const PracticeOrbitalAccent(topOffset: 0, rightOffset: 0),
+        SafeArea(
+          bottom: false,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Positioned(
-                  right: -30,
-                  top: -20,
-                  width: 160,
-                  height: 120,
-                  child: const CustomPaint(painter: OrbitalBackgroundPainter()),
+                // Top Header Text
+                const Text(
+                  'PRACTICE',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: Color(0xFF64748B),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.4,
+                  ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const HakkiriLogo(
-                      variant: HakkiriLogoVariant.compactMark,
-                      size: 22,
+                const SizedBox(height: 4),
+                RichText(
+                  text: const TextSpan(
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      color: Color(0xFF0F172A),
+                      fontSize: 34,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.8,
+                      height: 1.15,
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'PRACTICE',
-                      style: TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2,
+                    children: [
+                      TextSpan(text: 'Choose\n'),
+                      TextSpan(
+                        text: 'what to work on',
+                        style: TextStyle(color: Color(0xFF2563EB)),
                       ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Hero Dark Card (Recommended for you)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [
+                        Color(0xFF071228),
+                        Color(0xFF0F2552),
+                        Color(0xFF1D4ED8),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    const SizedBox(height: 6),
-                    RichText(
-                      text: const TextSpan(
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          color: AppColors.textPrimary,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.8,
-                          height: 1.15,
-                        ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF1D4ED8).withValues(alpha: 0.22),
+                        blurRadius: 16,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          TextSpan(text: 'Choose\n'),
-                          TextSpan(
-                            text: 'what to work on',
-                            style: TextStyle(color: AppColors.royalBlue),
+                          const Text(
+                            'Recommended for you',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF2563EB),
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.bolt_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Based on your assessment and recent performance.',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          color: Colors.white.withValues(alpha: 0.72),
+                          fontSize: 12.5,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      // Horizontal Row of 3 White Sub-Cards
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildHeroSubCard(
+                              icon: Icons.bolt_rounded,
+                              iconColor: const Color(0xFF2563EB),
+                              iconBgColor: const Color(0xFFEFF6FF),
+                              title: 'Think Fast',
+                              description: 'Think clearly\nunder pressure',
+                              onTap: () => _openActivity(state, 'think_fast'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildHeroSubCard(
+                              icon: Icons.content_cut_rounded,
+                              iconColor: const Color(0xFFD97706),
+                              iconBgColor: const Color(0xFFF8FAFC),
+                              title: 'Cut it in Half',
+                              description: 'Get to the point\nfaster',
+                              onTap: () => _openActivity(state, 'cut_it_in_half'),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: _buildHeroSubCard(
+                              icon: Icons.menu_book_rounded,
+                              iconColor: const Color(0xFF9333EA),
+                              iconBgColor: const Color(0xFFF3E8FF),
+                              title: 'Storytelling Gym',
+                              description: 'Make your answers\nmore engaging',
+                              onTap: () => _openActivity(state, 'storytelling_gym'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // Category 1: Think on your feet
+                _buildCategoryHeader(
+                  title: 'Think on your feet',
+                  subtitle: 'Stay clear, calm and confident in the moment.',
+                  onTap: () {},
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildVerticalCard(
+                        iconWidget: const Icon(
+                          Icons.bolt_rounded,
+                          color: Color(0xFF2563EB),
+                          size: 18,
+                        ),
+                        iconBgColor: const Color(0xFFEFF6FF),
+                        title: 'Think Fast',
+                        description: 'Think clearly\nunder pressure',
+                        onTap: () => _openActivity(state, 'think_fast'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildVerticalCard(
+                        iconWidget: const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          color: Color(0xFF2563EB),
+                          size: 18,
+                        ),
+                        iconBgColor: const Color(0xFFEFF6FF),
+                        title: 'Debate Me',
+                        description: 'Build and defend\nyour ideas',
+                        onTap: () => _openActivity(state, 'debate_me'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildVerticalCard(
+                        iconWidget: const ConnectTheDotsIcon(
+                          color: Color(0xFF9333EA),
+                          size: 18,
+                        ),
+                        iconBgColor: const Color(0xFFF5F3FF),
+                        title: 'Connect the Dots',
+                        description: 'Find the big picture\nand make links',
+                        onTap: () => _openActivity(state, 'connect_the_dots'),
                       ),
                     ),
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
-            // Hero Dark Card (Recommended for you)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+                // Category 2: Be clear & concise
+                _buildCategoryHeader(
+                  title: 'Be clear & concise',
+                  subtitle: 'Get to the point and make your message land.',
+                  onTap: () {},
                 ),
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF1E1B4B).withValues(alpha: 0.25),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Recommended for you',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                        ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildHorizontalCard(
+                        icon: Icons.content_cut_rounded,
+                        iconColor: const Color(0xFFD97706),
+                        iconBgColor: const Color(0xFFF8FAFC),
+                        title: 'Cut it in Half',
+                        description: 'Get to the point faster',
+                        onTap: () => _openActivity(state, 'cut_it_in_half'),
                       ),
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF2563EB).withValues(alpha: 0.4),
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.bolt_rounded, color: Color(0xFF60A5FA), size: 18),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildHorizontalCard(
+                        icon: Icons.timer_outlined,
+                        iconColor: const Color(0xFFEA580C),
+                        iconBgColor: const Color(0xFFFEE2E2),
+                        title: 'One Minute Expert',
+                        description: 'Explain complex ideas simply',
+                        onTap: () => _openActivity(state, 'one_minute_expert'),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Based on your assessment and recent performance.',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.7),
-                      fontSize: 12,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Category 3: Engage people
+                _buildCategoryHeader(
+                  title: 'Engage people',
+                  subtitle: 'Make your ideas more engaging and memorable.',
+                  onTap: () {},
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildHorizontalCard(
+                        icon: Icons.menu_book_rounded,
+                        iconColor: const Color(0xFF9333EA),
+                        iconBgColor: const Color(0xFFF3E8FF),
+                        title: 'Storytelling Gym',
+                        description: 'Make your answers more engaging',
+                        onTap: () => _openActivity(state, 'storytelling_gym'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildHorizontalCard(
+                        icon: Icons.campaign_outlined,
+                        iconColor: const Color(0xFFF97316),
+                        iconBgColor: const Color(0xFFF8FAFC),
+                        title: 'Explain It Simply',
+                        description: 'Make complex ideas easy to understand',
+                        onTap: () => _openActivity(state, 'explain_it_simply'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Category 4: Reflect and grow
+                _buildCategoryHeader(
+                  title: 'Reflect and grow',
+                  subtitle: 'Look back, learn and build on your progress.',
+                  onTap: () => setState(() => _showReflectAndGrow = true),
+                ),
+                const SizedBox(height: 12),
+                InkWell(
+                  onTap: () => setState(() => _showReflectAndGrow = true),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFF1F5F9), width: 1.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF0F172A).withValues(alpha: 0.03),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDCFCE7),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.bar_chart_rounded,
+                            color: Color(0xFF10B981),
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Notes to Future Self',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  color: Color(0xFF0F172A),
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              SizedBox(height: 2),
+                              Text(
+                                'Capture what you’ve learned and set a focus for next time',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  color: Color(0xFF64748B),
+                                  fontSize: 12,
+                                  height: 1.25,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 20,
+                          color: Color(0xFF94A3B8),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  // Horizontal row of 3 cards
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildHeroSubCard(
-                          icon: Icons.bolt_rounded,
-                          iconColor: const Color(0xFF3B82F6),
-                          iconBgColor: const Color(0xFFEFF6FF),
-                          title: 'Think Fast',
-                          description: 'Think clearly under pressure',
-                          onTap: () {
-                            state.selectActivity('think_fast');
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _buildHeroSubCard(
-                          icon: Icons.content_cut_rounded,
-                          iconColor: const Color(0xFF10B981),
-                          iconBgColor: const Color(0xFFECFDF5),
-                          title: 'Cut it in Half',
-                          description: 'Get to the point faster',
-                          onTap: () {
-                            state.selectActivity('cut_it_in_half');
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _buildHeroSubCard(
-                          icon: Icons.menu_book_rounded,
-                          iconColor: const Color(0xFF8B5CF6),
-                          iconBgColor: const Color(0xFFF5F3FF),
-                          title: 'Storytelling Gym',
-                          description: 'Make your answers more engaging',
-                          onTap: () {
-                            state.selectActivity('storytelling_gym');
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Category 1: Think on your feet
-            _buildCategoryHeader('Think on your feet', () {}),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildVerticalCard(
-                    icon: Icons.bolt_rounded,
-                    iconColor: const Color(0xFF3B82F6),
-                    iconBgColor: const Color(0xFFEFF6FF),
-                    title: 'Think Fast',
-                    description: 'Think clearly under pressure',
-                    onTap: () {
-                      state.selectActivity('think_fast');
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                      );
-                    },
-                  ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildVerticalCard(
-                    icon: Icons.chat_bubble_outline_rounded,
-                    iconColor: const Color(0xFF3B82F6),
-                    iconBgColor: const Color(0xFFEFF6FF),
-                    title: 'Debate Me',
-                    description: 'Build and defend your ideas',
-                    onTap: () {
-                      state.selectActivity('debate_me');
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildVerticalCard(
-                    icon: Icons.hub_rounded,
-                    iconColor: const Color(0xFF8B5CF6),
-                    iconBgColor: const Color(0xFFF5F3FF),
-                    title: 'Connect the Dots',
-                    description: 'Find the big picture and make links',
-                    onTap: () {
-                      state.selectActivity('connect_the_dots');
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                      );
-                    },
-                  ),
-                ),
+                const SizedBox(height: 36),
               ],
             ),
-            const SizedBox(height: 24),
-
-            // Category 2: Be clear & concise
-            _buildCategoryHeader('Be clear & concise', () {}),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildHorizontalCard(
-                    icon: Icons.content_cut_rounded,
-                    iconColor: const Color(0xFF10B981),
-                    iconBgColor: const Color(0xFFECFDF5),
-                    title: 'Cut it in Half',
-                    description: 'Get to the point faster',
-                    onTap: () {
-                      state.selectActivity('cut_it_in_half');
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildHorizontalCard(
-                    icon: Icons.timer_outlined,
-                    iconColor: const Color(0xFFF97316),
-                    iconBgColor: const Color(0xFFFFF7ED),
-                    title: 'One Minute Expert',
-                    description: 'Explain complex ideas simply',
-                    onTap: () {
-                      state.selectActivity('one_minute_expert');
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-
-            // Category 3: Engage people
-            _buildCategoryHeader('Engage people', () {}),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildHorizontalCard(
-                    icon: Icons.menu_book_rounded,
-                    iconColor: const Color(0xFF8B5CF6),
-                    iconBgColor: const Color(0xFFF5F3FF),
-                    title: 'Storytelling Gym',
-                    description: 'Make your answers more engaging',
-                    onTap: () {
-                      state.selectActivity('storytelling_gym');
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildHorizontalCard(
-                    icon: Icons.campaign_outlined,
-                    iconColor: const Color(0xFFEF4444),
-                    iconBgColor: const Color(0xFFFEF2F2),
-                    title: 'Persuade',
-                    description: 'Build a compelling case',
-                    onTap: () {
-                      state.selectActivity('persuade');
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static Widget _buildCategoryHeader(String title, VoidCallback onTap) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceBorderLight,
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: const Icon(Icons.chevron_right_rounded, size: 18, color: AppColors.textSecondary),
           ),
         ),
       ],
     );
   }
 
-  static Widget _buildHeroSubCard({
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBgColor,
+  Widget _buildCategoryHeader({
     required String title,
-    required String description,
+    required String subtitle,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        height: 135,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: iconBgColor,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: Icon(icon, color: iconColor, size: 18),
-                ),
-                const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.textMuted),
-              ],
-            ),
-            const Spacer(),
             Text(
               title,
               style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 12.5,
+                fontFamily: 'Inter',
+                color: Color(0xFF0F172A),
+                fontSize: 16.5,
                 fontWeight: FontWeight.w800,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 2),
-            Text(
-              description,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 10.5,
-                height: 1.2,
+            InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(14),
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFEFF6FF),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: Color(0xFF2563EB),
+                ),
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
-      ),
+        const SizedBox(height: 3),
+        Text(
+          subtitle,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            color: Color(0xFF64748B),
+            fontSize: 12.5,
+          ),
+        ),
+      ],
     );
   }
 
-  static Widget _buildVerticalCard({
+  Widget _buildHeroSubCard({
     required IconData icon,
     required Color iconColor,
     required Color iconBgColor,
@@ -452,14 +473,13 @@ class PracticeScreenContent extends StatelessWidget {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
         height: 140,
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.surfaceWhite,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -468,36 +488,46 @@ class PracticeScreenContent extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  width: 32,
-                  height: 32,
+                  width: 30,
+                  height: 30,
                   decoration: BoxDecoration(
                     color: iconBgColor,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
                   ),
                   alignment: Alignment.center,
-                  child: Icon(icon, color: iconColor, size: 18),
+                  child: Icon(icon, color: iconColor, size: 17),
                 ),
-                const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.textMuted),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: Color(0xFF94A3B8),
+                ),
               ],
             ),
             const Spacer(),
-            Text(
-              title,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 12.5,
-                fontWeight: FontWeight.w800,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  color: Color(0xFF0F172A),
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                ),
+                maxLines: 1,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 3),
             Text(
               description,
               style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 10.5,
-                height: 1.2,
+                fontFamily: 'Inter',
+                color: Color(0xFF64748B),
+                fontSize: 10,
+                height: 1.15,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -508,7 +538,89 @@ class PracticeScreenContent extends StatelessWidget {
     );
   }
 
-  static Widget _buildHorizontalCard({
+  Widget _buildVerticalCard({
+    required Widget iconWidget,
+    required Color iconBgColor,
+    required String title,
+    required String description,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        height: 140,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFF1F5F9), width: 1.0),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: iconBgColor,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+                  ),
+                  alignment: Alignment.center,
+                  child: iconWidget,
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: Color(0xFF94A3B8),
+                ),
+              ],
+            ),
+            const Spacer(),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  color: Color(0xFF0F172A),
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                ),
+                maxLines: 1,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              description,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                color: Color(0xFF64748B),
+                fontSize: 10,
+                height: 1.15,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHorizontalCard({
     required IconData icon,
     required Color iconColor,
     required Color iconBgColor,
@@ -518,14 +630,21 @@ class PracticeScreenContent extends StatelessWidget {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        height: 80,
-        padding: const EdgeInsets.all(10),
+        height: 74,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.surfaceWhite,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFF1F5F9), width: 1.0),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF0F172A).withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -535,6 +654,7 @@ class PracticeScreenContent extends StatelessWidget {
               decoration: BoxDecoration(
                 color: iconBgColor,
                 borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
               ),
               alignment: Alignment.center,
               child: Icon(icon, color: iconColor, size: 20),
@@ -548,7 +668,8 @@ class PracticeScreenContent extends StatelessWidget {
                   Text(
                     title,
                     style: const TextStyle(
-                      color: AppColors.textPrimary,
+                      fontFamily: 'Inter',
+                      color: Color(0xFF0F172A),
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                     ),
@@ -559,7 +680,8 @@ class PracticeScreenContent extends StatelessWidget {
                   Text(
                     description,
                     style: const TextStyle(
-                      color: AppColors.textSecondary,
+                      fontFamily: 'Inter',
+                      color: Color(0xFF64748B),
                       fontSize: 10,
                       height: 1.15,
                     ),
@@ -569,7 +691,11 @@ class PracticeScreenContent extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.textMuted),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 16,
+              color: Color(0xFF94A3B8),
+            ),
           ],
         ),
       ),
