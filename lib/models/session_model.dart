@@ -265,8 +265,10 @@ class PracticeSessionRecord {
   final DateTime timestamp;
   final int durationSeconds;
   final EvaluationFeedback feedback;
-  /// On-device recording path (never uploaded).
+  /// On-device recording path (never uploaded). Rebuttal / main take.
   final String? localAudioPath;
+  /// Debate Me opening clip (separate from [localAudioPath] rebuttal).
+  final String? localOpeningAudioPath;
 
   const PracticeSessionRecord({
     required this.id,
@@ -281,6 +283,7 @@ class PracticeSessionRecord {
     required this.durationSeconds,
     required this.feedback,
     this.localAudioPath,
+    this.localOpeningAudioPath,
   });
 
   bool get isBackAndForth => conversationMode == 'back_and_forth';
@@ -288,6 +291,7 @@ class PracticeSessionRecord {
   PracticeSessionRecord copyWith({
     String? id,
     String? localAudioPath,
+    String? localOpeningAudioPath,
     String? transcript,
     String? promptText,
     String? conversationMode,
@@ -306,6 +310,8 @@ class PracticeSessionRecord {
       durationSeconds: durationSeconds,
       feedback: feedback,
       localAudioPath: localAudioPath ?? this.localAudioPath,
+      localOpeningAudioPath:
+          localOpeningAudioPath ?? this.localOpeningAudioPath,
     );
   }
 
@@ -322,6 +328,8 @@ class PracticeSessionRecord {
         'duration_seconds': durationSeconds,
         'feedback': feedback.toJson(),
         if (localAudioPath != null) 'local_audio_path': localAudioPath,
+        if (localOpeningAudioPath != null)
+          'local_opening_audio_path': localOpeningAudioPath,
       };
 
   factory PracticeSessionRecord.fromApi(Map<String, dynamic> json) {
@@ -352,6 +360,7 @@ class PracticeSessionRecord {
         feedbackMap is Map<String, dynamic> ? feedbackMap : null,
       ),
       localAudioPath: json['local_audio_path']?.toString(),
+      localOpeningAudioPath: json['local_opening_audio_path']?.toString(),
     );
   }
 }

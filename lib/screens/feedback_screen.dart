@@ -1156,8 +1156,9 @@ class FeedbackScreen extends StatelessWidget {
               _buildDebateYouSaidPill(debateTurns)
             else if (youSaid.isNotEmpty)
               _buildPeachHighlightPill(youSaid),
-            // User's own recording under the text they said.
-            if (session != null) ...[
+            // Other drills: play the user's recording under YOU SAID.
+            // Debate Me: opening/rebuttal players are hidden.
+            if (!isDebate && session != null) ...[
               const SizedBox(height: 10),
               SessionRecordingPlayButton(
                 sessionId: session.id,
@@ -1242,8 +1243,21 @@ class FeedbackScreen extends StatelessWidget {
     final children = <Widget>[];
     for (var i = 0; i < turns.length; i++) {
       final turn = turns[i];
-      final text = turn.text.trim();
+      var text = turn.text.trim();
       if (text.isEmpty) continue;
+      // Avoid "Rebuttal: Rebuttal: …" when body already starts with the label.
+      final labelPrefix = RegExp(
+        r'^(opening argument|rebuttal|hakkiri pushback|coach pushback)\s*:\s*',
+        caseSensitive: false,
+      );
+      for (var n = 0; n < 3; n++) {
+        final next = text.replaceFirst(labelPrefix, '').trim();
+        if (next == text) break;
+        text = next;
+      }
+      if (text.isEmpty) {
+        text = turn.text.trim();
+      }
       final isCoach = turn.role == 'coach';
       final label = i < labels.length
           ? labels[i]

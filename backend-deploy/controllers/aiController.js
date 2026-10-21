@@ -7,6 +7,7 @@ const {
   isGeminiConfigured,
   analyzeSpeechWithGemini,
   generateDebatePushback,
+  synthesizeCoachSpeech,
 } = require("../config/ai");
 
 const status = async (_req, res) => {
@@ -171,4 +172,57 @@ const debatePushback = async (req, res) => {
   }
 };
 
-module.exports = { status, liveToken, analyzeSpeech, debatePushback };
+/**
+ * POST /ai/coach-speak
+ * Body: { text, voice_profile?, rate? }
+ * Returns WAV audio + word timings so the app can karaoke in lockstep.
+ */
+const coachSpeak = async (req, res) => {
+  try {
+    if (!isGeminiConfigured()) {
+      return error(
+        res,
+        "Coach speech is not configured. Set GEMINI_API_KEY on the server.",
+        503
+      );
+    }
+
+    const body = req.body || {};
+    const text = String(body.text || body.prompt || "").trim();
+    if (!text) {
+      return error(res, "text is required.", 400);
+    }
+
+    const result = await synthesizeCoachSpeech({
+      text,
+      voiceProfile: body.voice_profile || body.voiceProfile || body.voice || "sarah",
+      rate: Number(body.rate || 1) || 1,
+    });
+
+    return success(res, "Coach speech ready.", {
+      model: result.model,
+      voice: result.voice,
+      mime_type: result.mime_type,
+      audio_base64: result.audio_base64,
+      duration_ms: result.duration_ms,
+      sample_rate: result.sample_rate,
+      text: result.text,
+      words: result.words,
+    });
+  } catch (err) {
+    console.error("coachSpeak failed:", err.message);
+    return error(
+      res,
+      err.message || "Could not synthesize coach speech.",
+      err.statusCode || 502
+    );
+  }
+};
+
+module.exports = {
+  status,
+  liveToken,
+  analyzeSpeech,
+  debatePushback,
+  coachSpeak,
+};

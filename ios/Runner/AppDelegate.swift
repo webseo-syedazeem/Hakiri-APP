@@ -4,6 +4,7 @@ import UIKit
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var liveVoicePlugin: LiveVoicePlugin?
+  private var karaokeTtsPlugin: KaraokeTtsPlugin?
 
   override func application(
     _ application: UIApplication,
@@ -37,6 +38,9 @@ import UIKit
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "LiveVoicePlugin") {
       liveVoicePlugin = LiveVoicePlugin(messenger: registrar.messenger())
+    }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "KaraokeTtsPlugin") {
+      karaokeTtsPlugin = KaraokeTtsPlugin(messenger: registrar.messenger())
     }
   }
 }

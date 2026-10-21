@@ -12,6 +12,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private var eventSink: EventChannel.EventSink? = null
     private var session: LiveVoiceSession? = null
+    private var karaokeTts: KaraokeTtsPlugin? = null
 
     private var pendingResult: MethodChannel.Result? = null
     private var pendingWsUrl: String? = null
@@ -22,6 +23,11 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        karaokeTts = KaraokeTtsPlugin(
+            context = this,
+            messenger = flutterEngine.dartExecutor.binaryMessenger,
+        )
 
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, EVENT_CHANNEL)
             .setStreamHandler(object : EventChannel.StreamHandler {

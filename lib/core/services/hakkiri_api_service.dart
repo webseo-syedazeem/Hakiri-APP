@@ -374,6 +374,23 @@ class HakkiriApiService {
         timeout: const Duration(seconds: 90),
       );
 
+  /// Gemini TTS: WAV + word timings for lockstep karaoke highlight.
+  Future<Map<String, dynamic>> coachSpeak({
+    required String text,
+    String voiceProfile = 'sarah',
+    double rate = 1.0,
+  }) =>
+      _post(
+        '/ai/coach-speak',
+        auth: true,
+        body: {
+          'text': text,
+          'voice_profile': voiceProfile,
+          'rate': rate,
+        },
+        timeout: const Duration(seconds: 60),
+      );
+
   /// Save FCM device token for daily practice reminders.
   Future<Map<String, dynamic>> registerDeviceToken({
     required String token,

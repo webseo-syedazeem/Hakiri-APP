@@ -7,7 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../core/services/analytics_service.dart';
-import '../core/services/coach_tts_service.dart';
 import '../core/services/session_audio_store.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
@@ -43,11 +42,8 @@ class _RecordingScreenState extends State<RecordingScreen>
   List<String> _words = const ['Loading', 'your', 'question…'];
   int _revealedWordCount = 0;
   Timer? _wordRevealTimer;
-  Timer? _promptRevealFallbackTimer;
   bool _promptReady = false;
   bool _promptSpeaking = false;
-  bool _promptMuted = false;
-  bool _gotPromptTtsProgress = false;
 
   // Prep countdown (per activity / prompt)
   int _prepTotalSeconds = 5;
@@ -158,120 +154,31 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   // -------------------------------------------------------------
-  // PHASE 1: WORD-BY-WORD REVEAL + coach TTS (doc_images/img_0.png)
+  // PHASE 1: WORD-BY-WORD REVEAL (no coach voice)
   // -------------------------------------------------------------
   void _startWordByWordReveal() {
     _wordRevealTimer?.cancel();
-    _promptRevealFallbackTimer?.cancel();
-    unawaited(CoachTtsService.instance.stop());
 
-    _revealedWordCount = 0;
+    _revealedWordCount = _words.isEmpty ? 0 : 1;
     _promptSpeaking = true;
-    _promptMuted = false;
-    _gotPromptTtsProgress = false;
     setState(() {});
-
-    final state = Provider.of<AppStateProvider>(context, listen: false);
-    final voice = CoachTtsService.normalizeCoachId(
-      state.answers.voiceProfile ?? CoachTtsService.instance.activeCoachId,
-    );
-
-    // Slow fallback only if TTS word progress never arrives.
-    _promptRevealFallbackTimer = Timer(const Duration(milliseconds: 1200), () {
-      if (!mounted ||
-          _stage != ExerciseStage.wordByWordReveal ||
-          !_promptSpeaking ||
-          _gotPromptTtsProgress) {
-        return;
-      }
-      _wordRevealTimer =
-          Timer.periodic(const Duration(milliseconds: 520), (timer) {
-        if (!mounted ||
-            _stage != ExerciseStage.wordByWordReveal ||
-            !_promptSpeaking ||
-            _gotPromptTtsProgress ||
-            _promptMuted) {
-          timer.cancel();
-          return;
-        }
-        if (_revealedWordCount >= _words.length) {
-          timer.cancel();
-          return;
-        }
-        setState(() => _revealedWordCount++);
-      });
-    });
-
-    unawaited(
-      CoachTtsService.instance.speakWithProgress(
-        _promptHeadline,
-        voiceProfile: voice,
-        speechRate: 0.40,
-        onWord: (count, _) {
-          if (!mounted ||
-              _stage != ExerciseStage.wordByWordReveal ||
-              _promptMuted) {
-            return;
-          }
-          _gotPromptTtsProgress = true;
-          _promptRevealFallbackTimer?.cancel();
-          _wordRevealTimer?.cancel();
-          setState(() {
-            if (count > _revealedWordCount) {
-              _revealedWordCount = count.clamp(0, _words.length);
-            }
-          });
-        },
-        onDone: () {
-          if (!mounted || _stage != ExerciseStage.wordByWordReveal) return;
-          if (_promptMuted) return;
-          _promptRevealFallbackTimer?.cancel();
-          _wordRevealTimer?.cancel();
-          setState(() {
-            _promptSpeaking = false;
-            _revealedWordCount = _words.length;
-          });
-          Future.delayed(const Duration(milliseconds: 900), () {
-            if (mounted && _stage == ExerciseStage.wordByWordReveal) {
-              _start5sCountdown();
-            }
-          });
-        },
-      ),
-    );
-  }
-
-  void _mutePromptSpeech() {
-    if (_promptMuted) return;
-    unawaited(CoachTtsService.instance.stop());
-    _gotPromptTtsProgress = true;
-    _promptRevealFallbackTimer?.cancel();
-    setState(() {
-      _promptMuted = true;
+    if (_words.isEmpty) {
       _promptSpeaking = false;
-    });
-    _continueMutedWordReveal();
-  }
-
-  void _continueMutedWordReveal() {
-    _wordRevealTimer?.cancel();
-    if (_revealedWordCount >= _words.length) {
-      Future.delayed(const Duration(milliseconds: 600), () {
-        if (mounted && _stage == ExerciseStage.wordByWordReveal) {
-          _start5sCountdown();
-        }
-      });
+      _start5sCountdown();
       return;
     }
+
     _wordRevealTimer =
-        Timer.periodic(const Duration(milliseconds: 340), (timer) {
-      if (!mounted || _stage != ExerciseStage.wordByWordReveal) {
+        Timer.periodic(const Duration(milliseconds: 400), (timer) {
+      if (!mounted ||
+          _stage != ExerciseStage.wordByWordReveal ||
+          !_promptSpeaking) {
         timer.cancel();
         return;
       }
       if (_revealedWordCount >= _words.length) {
         timer.cancel();
-        setState(() {});
+        setState(() => _promptSpeaking = false);
         Future.delayed(const Duration(milliseconds: 600), () {
           if (mounted && _stage == ExerciseStage.wordByWordReveal) {
             _start5sCountdown();
@@ -288,8 +195,6 @@ class _RecordingScreenState extends State<RecordingScreen>
   // -------------------------------------------------------------
   void _start5sCountdown() {
     _wordRevealTimer?.cancel();
-    _promptRevealFallbackTimer?.cancel();
-    unawaited(CoachTtsService.instance.stop());
     setState(() {
       _stage = ExerciseStage.countdown5s;
       _prepSecondsRemaining = _prepTotalSeconds;
@@ -545,13 +450,11 @@ class _RecordingScreenState extends State<RecordingScreen>
   @override
   void dispose() {
     _wordRevealTimer?.cancel();
-    _promptRevealFallbackTimer?.cancel();
     _prepCountdownTimer?.cancel();
     _speakingTimer?.cancel();
     _speechSoftWatchdog?.cancel();
     _idleWaveTimer?.cancel();
     _prepArcController.dispose();
-    unawaited(CoachTtsService.instance.stop());
     unawaited(_ampSub?.cancel());
     unawaited(_speech.stop());
     unawaited(_speech.cancel());
@@ -672,12 +575,8 @@ class _RecordingScreenState extends State<RecordingScreen>
                         children: List.generate(_words.length, (index) {
                           final word = _words[index];
                           final isRevealed = index < _revealedWordCount;
-                          final revealing = _promptSpeaking ||
-                              (_promptMuted &&
-                                  _revealedWordCount > 0 &&
-                                  _revealedWordCount < _words.length);
                           final isCurrentWord =
-                              index == _revealedWordCount - 1 && revealing;
+                              index == _revealedWordCount - 1 && _promptSpeaking;
 
                           Color wordColor;
                           if (!isRevealed) {
@@ -709,34 +608,6 @@ class _RecordingScreenState extends State<RecordingScreen>
                           );
                         }),
                       ),
-                      if (_promptSpeaking ||
-                          _promptMuted ||
-                          (_revealedWordCount > 0 &&
-                              _revealedWordCount < _words.length)) ...[
-                        const SizedBox(height: 16),
-                        Material(
-                          color: const Color(0xFFEFF6FF),
-                          shape: const CircleBorder(),
-                          child: InkWell(
-                            customBorder: const CircleBorder(),
-                            onTap: (!_promptMuted &&
-                                    (_promptSpeaking ||
-                                        _revealedWordCount < _words.length))
-                                ? _mutePromptSpeech
-                                : null,
-                            child: Padding(
-                              padding: const EdgeInsets.all(10),
-                              child: Icon(
-                                _promptMuted
-                                    ? Icons.volume_off_rounded
-                                    : Icons.volume_up_rounded,
-                                size: 22,
-                                color: const Color(0xFF2563EB),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),

@@ -9,7 +9,6 @@ import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 
 import '../core/services/analytics_service.dart';
-import '../core/services/coach_tts_service.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../core/services/session_audio_store.dart';
 import '../models/session_model.dart';
@@ -43,7 +42,9 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
   int _currentStep = 1;
 
   Timer? _countdownTimer;
-  Timer? _topicRevealFallbackTimer;
+  Timer? _topicRevealTimer;
+  Timer? _pushbackRevealTimer;
+  static const _karaokeMs = 400;
   int _thinkSecondsRemaining = 10;
   int _openingSecondsRemaining = 60;
   int _prepSecondsRemaining = 10;
@@ -51,22 +52,23 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
   static const _openingTotal = 60;
   static const _rebuttalTotal = 60;
 
-  /// Karaoke word reveal for assigned topic (Think Fast style).
+  /// Word-by-word highlight for assigned topic (no voice).
   List<String> _topicWords = const [];
   int _topicRevealedCount = 0;
   bool _topicSpeaking = false;
-  bool _topicMuted = false;
   bool _thinkTimerStarted = false;
-  bool _gotTtsProgress = false;
+
+  List<String> _pushbackWords = const [];
+  int _pushbackRevealedCount = 0;
+  bool _pushbackRevealing = false;
 
   bool _isAssessingPart1 = true;
   bool _busy = false;
 
   late String _topic;
   String _pushbackQuote =
-      "But you're assuming flexibility won't weaken collaboration. "
-      "If everyone chooses when to come in, what stops teams becoming "
-      "fragmented and junior staff missing opportunities to learn from colleagues?";
+      "That still leaves a gap in the claim you just made. "
+      "If a senior stakeholder rejected it, what evidence would you use next?";
 
   final AudioRecorder _audioRecorder = AudioRecorder();
   final ValueNotifier<double> _micLevel = ValueNotifier<double>(0.12);
@@ -75,6 +77,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
   bool _recorderLive = false;
   String _openingTranscript = '';
   String? _openingAudioBase64;
+  String? _openingAudioPath;
   int _openingSpokenSeconds = 0;
   int _rebuttalSpokenSeconds = 0;
 
@@ -104,8 +107,8 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
   @override
   void dispose() {
     _countdownTimer?.cancel();
-    _topicRevealFallbackTimer?.cancel();
-    unawaited(CoachTtsService.instance.stop());
+    _topicRevealTimer?.cancel();
+    _pushbackRevealTimer?.cancel();
     unawaited(_ampSub?.cancel());
     unawaited(_audioRecorder.dispose());
     _micLevel.dispose();
@@ -113,107 +116,28 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
   }
 
   void _startTopicSpeakAndReveal() {
-    _topicRevealFallbackTimer?.cancel();
-    unawaited(CoachTtsService.instance.stop());
+    _topicRevealTimer?.cancel();
 
     _topicWords =
         _topic.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
-    _topicRevealedCount = 0;
+    _topicRevealedCount = _topicWords.isEmpty ? 0 : 1;
     _topicSpeaking = true;
-    _topicMuted = false;
-    _gotTtsProgress = false;
     _thinkTimerStarted = false;
     if (mounted) setState(() {});
-
-    final state = context.read<AppStateProvider>();
-    final voice = CoachTtsService.normalizeCoachId(
-      state.answers.voiceProfile ?? CoachTtsService.instance.activeCoachId,
-    );
-
-    // Slow fallback ONLY if the platform never sends TTS word progress.
-    // Starts after 1.2s and advances slower than speech so text never races ahead.
-    _topicRevealFallbackTimer = Timer(const Duration(milliseconds: 1200), () {
-      if (!mounted || _currentStep != 2 || !_topicSpeaking || _gotTtsProgress) {
-        return;
-      }
-      _topicRevealFallbackTimer =
-          Timer.periodic(const Duration(milliseconds: 520), (t) {
-        if (!mounted ||
-            _currentStep != 2 ||
-            !_topicSpeaking ||
-            _gotTtsProgress ||
-            _topicMuted) {
-          t.cancel();
-          return;
-        }
-        if (_topicRevealedCount >= _topicWords.length) {
-          t.cancel();
-          return;
-        }
-        setState(() => _topicRevealedCount++);
-      });
-    });
-
-    unawaited(
-      CoachTtsService.instance.speakWithProgress(
-        _topic,
-        voiceProfile: voice,
-        // Slightly slower so karaoke can stay locked to audio.
-        speechRate: 0.40,
-        onWord: (count, _) {
-          if (!mounted || _currentStep != 2 || _topicMuted) return;
-          _gotTtsProgress = true;
-          _topicRevealFallbackTimer?.cancel();
-          setState(() {
-            // Monotonic — never pull highlight backward.
-            if (count > _topicRevealedCount) {
-              _topicRevealedCount = count.clamp(0, _topicWords.length);
-            }
-          });
-        },
-        onDone: () {
-          if (!mounted || _currentStep != 2) return;
-          // Muted mid-speak: word timer owns the rest — don't jump to end.
-          if (_topicMuted) return;
-          _topicRevealFallbackTimer?.cancel();
-          setState(() {
-            _topicSpeaking = false;
-            _topicRevealedCount = _topicWords.length;
-          });
-          _beginThinkCountdown();
-        },
-      ),
-    );
-  }
-
-  void _muteTopicSpeech() {
-    if (_topicMuted) return;
-    // Sound off only — keep word-by-word reveal stepping.
-    unawaited(CoachTtsService.instance.stop());
-    _gotTtsProgress = true; // don't let TTS fallback fight the mute timer
-    setState(() {
-      _topicMuted = true;
+    if (_topicWords.isEmpty) {
       _topicSpeaking = false;
-    });
-    _continueMutedWordReveal();
-  }
-
-  /// After mute: finish karaoke at a steady pace without voice.
-  void _continueMutedWordReveal() {
-    _topicRevealFallbackTimer?.cancel();
-    if (_topicRevealedCount >= _topicWords.length) {
       _beginThinkCountdown();
       return;
     }
-    _topicRevealFallbackTimer =
-        Timer.periodic(const Duration(milliseconds: 340), (t) {
-      if (!mounted || _currentStep != 2) {
+
+    _topicRevealTimer = Timer.periodic(const Duration(milliseconds: _karaokeMs), (t) {
+      if (!mounted || _currentStep != 2 || !_topicSpeaking) {
         t.cancel();
         return;
       }
       if (_topicRevealedCount >= _topicWords.length) {
         t.cancel();
-        setState(() {});
+        setState(() => _topicSpeaking = false);
         _beginThinkCountdown();
         return;
       }
@@ -291,7 +215,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
     } catch (_) {
       _audioTempPath = null;
       _recorderLive = false;
-      // TTS / audio-session race: retry once after a short pause.
+      // Mic start race: retry once after a short pause.
       if (attempt < 1) {
         await Future<void>.delayed(const Duration(milliseconds: 450));
         return _startRecorder(attempt: attempt + 1);
@@ -332,12 +256,21 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
     }
   }
 
+  String _clipPushback(String raw) {
+    var t = raw.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (t.isEmpty) return _topicAwareFallbackPushback();
+    final two = RegExp(r'^(.+?[.!?]\s+.+?[.!?])(?:\s|$)').firstMatch(t) ??
+        RegExp(r'^(.+?[.!?])(?:\s|$)').firstMatch(t);
+    if (two != null) t = two.group(1)!.trim();
+    final words = t.split(' ').where((w) => w.isNotEmpty).toList();
+    if (words.length > 40) t = words.take(40).join(' ');
+    if (t.length > 280) t = '${t.substring(0, 277)}…';
+    return t;
+  }
+
   String _topicAwareFallbackPushback() {
-    final short = _topic.trim();
-    final clipped = short.length > 120 ? '${short.substring(0, 117)}…' : short;
-    return "But that still leaves a weak spot on \"$clipped\". "
-        "If a senior stakeholder pushed back hard, what evidence would you use — "
-        "and what is your backup if the first argument fails?";
+    return "That still leaves a gap in the claim you just made. "
+        "If a senior stakeholder rejected it, what evidence would you use next?";
   }
 
   void _goToStep(int step) {
@@ -355,25 +288,65 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
       unawaited(_enterOpeningRecord());
     } else if (step == 4) {
       _prepSecondsRemaining = 10;
-      _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
-        if (!mounted) return;
-        if (_prepSecondsRemaining > 1) {
-          setState(() => _prepSecondsRemaining--);
-        } else {
-          _countdownTimer?.cancel();
-          _goToStep(5);
-        }
-      });
+      _startPushbackReveal();
     } else if (step == 5) {
+      _pushbackRevealTimer?.cancel();
       unawaited(_enterRebuttalRecord());
     }
   }
 
+  void _startPushbackReveal() {
+    _pushbackRevealTimer?.cancel();
+    _countdownTimer?.cancel();
+    _pushbackQuote = _clipPushback(_pushbackQuote);
+    _pushbackWords =
+        _pushbackQuote.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    _pushbackRevealedCount = _pushbackWords.isEmpty ? 0 : 1;
+    _pushbackRevealing = true;
+    _prepSecondsRemaining = 10;
+    if (mounted) setState(() {});
+    if (_pushbackWords.length <= 1) {
+      _pushbackRevealing = false;
+      _startPushbackPrep();
+      return;
+    }
+    _pushbackRevealTimer =
+        Timer.periodic(const Duration(milliseconds: _karaokeMs), (t) {
+      if (!mounted || _currentStep != 4 || !_pushbackRevealing) {
+        t.cancel();
+        return;
+      }
+      if (_pushbackRevealedCount >= _pushbackWords.length) {
+        t.cancel();
+        setState(() => _pushbackRevealing = false);
+        _startPushbackPrep();
+        return;
+      }
+      setState(() => _pushbackRevealedCount++);
+    });
+  }
+
+  Future<void> _startPushbackPrep() async {
+    if (!mounted || _currentStep != 4) return;
+    _prepSecondsRemaining = 10;
+    if (mounted) setState(() {});
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted || _currentStep != 4) {
+        t.cancel();
+        return;
+      }
+      if (_prepSecondsRemaining > 1) {
+        setState(() => _prepSecondsRemaining--);
+      } else {
+        t.cancel();
+        _goToStep(5);
+      }
+    });
+  }
+
   Future<void> _enterOpeningRecord() async {
-    await CoachTtsService.instance.stop();
-    _topicRevealFallbackTimer?.cancel();
-    // Speaker → mic handoff (especially iOS).
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+    _topicRevealTimer?.cancel();
     if (!mounted || _currentStep != 3) return;
 
     _openingSecondsRemaining = _openingTotal;
@@ -393,8 +366,6 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
   }
 
   Future<void> _enterRebuttalRecord() async {
-    await CoachTtsService.instance.stop();
-    await Future<void>.delayed(const Duration(milliseconds: 300));
     if (!mounted || _currentStep != 5) return;
 
     _rebuttalSecondsRemaining = _rebuttalTotal;
@@ -421,7 +392,8 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
         (_openingTotal - _openingSecondsRemaining).clamp(1, _openingTotal);
 
     final path = await _stopRecorder();
-    // Keep opening clip so we can recover the transcript if pushback STT fails.
+    // Keep opening clip for transcript recovery + feedback playback.
+    _openingAudioPath = path;
     final audioBase64 = await _readAudioBase64(path);
     _openingAudioBase64 = audioBase64;
     if (!mounted) {
@@ -460,7 +432,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
       if (transcript.isNotEmpty) _openingTranscript = transcript;
       final push = (data['pushback'] ?? '').toString().trim();
       if (push.isNotEmpty) {
-        _pushbackQuote = push;
+        _pushbackQuote = _clipPushback(push);
         gotPushback = true;
       }
     }
@@ -560,7 +532,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                 _openingTranscript = recovered;
               }
               final push = (data['pushback'] ?? '').toString().trim();
-              if (push.isNotEmpty) _pushbackQuote = push;
+              if (push.isNotEmpty) _pushbackQuote = _clipPushback(push);
             } catch (_) {}
           }
 
@@ -598,6 +570,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
             conversationMode: 'back_and_forth',
             conversationTurns: turns,
             localAudioTempPath: path,
+            localOpeningAudioTempPath: _openingAudioPath,
             audioBase64: audioBase64,
             audioMimeType: 'audio/mp4',
           );
@@ -684,16 +657,28 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
       caseSensitive: false,
     ).allMatches(t).where((x) => x.start > start).toList();
     final end = next.isEmpty ? t.length : next.first.start;
-    return t.substring(start, end).trim();
+    var body = t.substring(start, end).trim();
+    body = body.replaceFirst(
+      RegExp(r'^opening argument\s*:\s*', caseSensitive: false),
+      '',
+    );
+    return body.trim();
   }
 
   String _extractRebuttal(String transcript) {
     final t = transcript.trim();
     if (t.isEmpty) return '';
+    // Prefer the last "Rebuttal:" block (API may append another after ours).
     final marker = RegExp(r'rebuttal\s*:', caseSensitive: false);
-    final match = marker.firstMatch(t);
-    if (match == null) return '';
-    return t.substring(match.end).trim();
+    final matches = marker.allMatches(t).toList();
+    if (matches.isEmpty) return '';
+    var body = t.substring(matches.last.end).trim();
+    // Strip accidental duplicated label left in the body.
+    body = body.replaceFirst(
+      RegExp(r'^rebuttal\s*:\s*', caseSensitive: false),
+      '',
+    );
+    return body.trim();
   }
 
   /// While the guided debate is running, confirm before leaving.
@@ -780,8 +765,8 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
 
   Future<void> _exitDebateToBeginScreen() async {
     _countdownTimer?.cancel();
-    _topicRevealFallbackTimer?.cancel();
-    unawaited(CoachTtsService.instance.stop());
+    _topicRevealTimer?.cancel();
+    _pushbackRevealTimer?.cancel();
     if (_currentStep == 3 || _currentStep == 5) {
       await _stopRecorder();
     }
@@ -1183,7 +1168,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                         ],
                       ),
                       const SizedBox(height: 10),
-                      // Think Fast–style karaoke: spoken word highlights blue.
+                      // Word-by-word highlight (no voice).
                       if (_topicWords.isEmpty)
                         Text(
                           _topic,
@@ -1202,13 +1187,8 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                           children: List.generate(_topicWords.length, (index) {
                             final word = _topicWords[index];
                             final isRevealed = index < _topicRevealedCount;
-                            // Keep blue “current word” while speaking OR muted step-through.
-                            final revealing = _topicSpeaking ||
-                                (_topicMuted &&
-                                    _topicRevealedCount > 0 &&
-                                    _topicRevealedCount < _topicWords.length);
                             final isCurrent = index == _topicRevealedCount - 1 &&
-                                revealing;
+                                _topicSpeaking;
                             Color wordColor;
                             if (!isRevealed) {
                               wordColor = const Color(0xFFCBD5E1)
@@ -1237,38 +1217,6 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                             );
                           }),
                         ),
-                      if (_topicSpeaking ||
-                          _topicMuted ||
-                          (_topicRevealedCount > 0 &&
-                              _topicRevealedCount < _topicWords.length)) ...[
-                        const SizedBox(height: 10),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Material(
-                            color: const Color(0xFFEFF6FF),
-                            shape: const CircleBorder(),
-                            child: InkWell(
-                              customBorder: const CircleBorder(),
-                              onTap: (!_topicMuted &&
-                                      (_topicSpeaking ||
-                                          _topicRevealedCount <
-                                              _topicWords.length))
-                                  ? _muteTopicSpeech
-                                  : null,
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Icon(
-                                  _topicMuted
-                                      ? Icons.volume_off_rounded
-                                      : Icons.volume_up_rounded,
-                                  size: 20,
-                                  color: const Color(0xFF2563EB),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -1314,7 +1262,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                             Text(
                               _thinkTimerStarted
                                   ? 'seconds to think'
-                                  : 'topic first…',
+                                  : 'read first…',
                               style: const TextStyle(
                                 fontFamily: 'Inter',
                                 fontSize: 12,
@@ -1361,8 +1309,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
           child: ActionPillButton(
             label: _topicSpeaking ? 'Skip to opening' : 'Start opening',
             onTap: () {
-              unawaited(CoachTtsService.instance.stop());
-              _topicRevealFallbackTimer?.cancel();
+              _topicRevealTimer?.cancel();
               _goToStep(3);
             },
           ),
@@ -1679,24 +1626,65 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                         ],
                       ),
                       const SizedBox(height: 10),
-                      Text(
-                        _pushbackQuote,
-                        style: const TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF0F172A),
-                          height: 1.45,
+                      if (_pushbackWords.isEmpty)
+                        Text(
+                          _pushbackQuote,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF0F172A),
+                            height: 1.45,
+                          ),
+                        )
+                      else
+                        Wrap(
+                          spacing: 5,
+                          runSpacing: 6,
+                          children: List.generate(_pushbackWords.length, (index) {
+                            final word = _pushbackWords[index];
+                            final isRevealed = index < _pushbackRevealedCount;
+                            final isCurrent = index ==
+                                    _pushbackRevealedCount - 1 &&
+                                _pushbackRevealing;
+                            Color wordColor;
+                            if (!isRevealed) {
+                              wordColor = const Color(0xFFCBD5E1)
+                                  .withValues(alpha: 0.5);
+                            } else if (isCurrent) {
+                              wordColor = const Color(0xFF2563EB);
+                            } else {
+                              wordColor = const Color(0xFF0F172A);
+                            }
+                            return AnimatedScale(
+                              scale: isCurrent ? 1.05 : 1.0,
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOutCubic,
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 220),
+                                curve: Curves.easeOutCubic,
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: wordColor,
+                                  height: 1.45,
+                                ),
+                                child: Text(word),
+                              ),
+                            );
+                          }),
                         ),
-                      ),
                     ],
                   ),
                 ),
                 const Spacer(flex: 2),
 
-                // Circular countdown timer (10s response prep)
+                // Circular countdown timer (10s) — starts after highlight.
                 Center(
-                  child: Stack(
+                  child: Opacity(
+                    opacity: _pushbackRevealing ? 0.45 : 1,
+                    child: Stack(
                     alignment: Alignment.center,
                     children: [
                       SizedBox(
@@ -1737,6 +1725,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                       ),
                     ],
                   ),
+                  ),
                 ),
                 const Spacer(flex: 3),
 
@@ -1769,8 +1758,11 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
           child: ActionPillButton(
-            label: 'Start response',
-            onTap: () => _goToStep(5),
+            label: _pushbackRevealing ? 'Skip to response' : 'Start response',
+            onTap: () {
+              _pushbackRevealTimer?.cancel();
+              _goToStep(5);
+            },
           ),
         ),
       ],

@@ -14,7 +14,6 @@ import 'paywall_screen.dart';
 import 'practice_context_screen.dart';
 import 'privacy_permissions_screen.dart';
 import 'profile_section_screen.dart';
-import 'voice_coach_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -600,26 +599,8 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     iconBgColor: const Color(0xFFEFF6FF),
                     title: 'Progress & insights',
                     subtitle: 'Track your improvement and view your stats',
-                    showDivider: true,
-                    onTap: () => MainTabScaffold.switchTab(context, 1),
-                  ),
-                  _buildSettingRow(
-                    icon: Icons.volume_up_outlined,
-                    iconColor: const Color(0xFF10B981),
-                    iconBgColor: const Color(0xFFECFDF5),
-                    title: 'Coach voice',
-                    subtitle: state.voiceProfileLabel == 'Not set'
-                        ? 'Choose the voice you hear'
-                        : state.voiceProfileLabel,
                     showDivider: false,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const VoiceCoachScreen(),
-                        ),
-                      );
-                    },
+                    onTap: () => MainTabScaffold.switchTab(context, 1),
                   ),
                 ],
               ),

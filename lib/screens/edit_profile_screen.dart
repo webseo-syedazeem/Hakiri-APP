@@ -262,16 +262,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                     const SizedBox(height: 10),
                     _selectableRow(
-                      title: 'Voice profile',
-                      value: AppStateProvider.voiceLabels[_voice] ?? _voice,
-                      onTap: () => _pickOption(
-                        title: 'Voice profile',
-                        options: AppStateProvider.voiceLabels,
-                        current: _voice,
-                        onPicked: (v) => setState(() => _voice = v),
-                      ),
-                    ),
-                    _selectableRow(
                       title: 'Career stage',
                       value: AppStateProvider.careerStageLabels[_careerStage] ?? _careerStage,
                       onTap: () => _pickOption(

@@ -1655,6 +1655,8 @@ class AppStateProvider extends ChangeNotifier {
     String conversationMode = 'single',
     List<ConversationTurn> conversationTurns = const [],
     String? localAudioTempPath,
+    /// Debate Me: opening take (persisted separately from rebuttal).
+    String? localOpeningAudioTempPath,
     String? audioBase64,
     String audioMimeType = 'audio/mp4',
   }) async {
@@ -1672,6 +1674,14 @@ class AppStateProvider extends ChangeNotifier {
             ? SessionAudioStore.instance.persist(
                 sessionId: localId,
                 tempPath: localAudioTempPath,
+              )
+            : Future<String?>.value(null);
+    final persistOpeningFuture =
+        (localOpeningAudioTempPath != null &&
+                localOpeningAudioTempPath.isNotEmpty)
+            ? SessionAudioStore.instance.persist(
+                sessionId: '${localId}_opening',
+                tempPath: localOpeningAudioTempPath,
               )
             : Future<String?>.value(null);
 
@@ -1738,6 +1748,7 @@ class AppStateProvider extends ChangeNotifier {
 
     latestFeedback = feedback;
     final audioPath = await persistFuture;
+    final openingAudioPath = await persistOpeningFuture;
 
     // Create and save local session history record immediately
     final record = PracticeSessionRecord(
@@ -1756,6 +1767,7 @@ class AppStateProvider extends ChangeNotifier {
       durationSeconds: durationSeconds,
       feedback: feedback,
       localAudioPath: audioPath,
+      localOpeningAudioPath: openingAudioPath,
     );
     latestSession = record;
     sessionHistory.insert(0, record);
@@ -1938,10 +1950,17 @@ class AppStateProvider extends ChangeNotifier {
           fromId: localRecordId,
           toId: apiRecord.id,
         );
+        await SessionAudioStore.instance.rekey(
+          fromId: '${localRecordId}_opening',
+          toId: '${apiRecord.id}_opening',
+        );
         final audio = localAudioPath ??
             await SessionAudioStore.instance.pathFor(apiRecord.id);
+        final openingAudio =
+            await SessionAudioStore.instance.pathFor('${apiRecord.id}_opening');
         final merged = apiRecord.copyWith(
           localAudioPath: audio,
+          localOpeningAudioPath: openingAudio,
           // Preserve full prompt/transcript if API omitted older fields.
           promptText: apiRecord.promptText.isNotEmpty
               ? apiRecord.promptText

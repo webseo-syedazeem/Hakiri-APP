@@ -22,6 +22,7 @@ router.get("/ai/status", ai.status);
 router.post("/ai/live-token", verifyJWT, ai.liveToken);
 router.post("/ai/analyze-speech", verifyJWT, ai.analyzeSpeech);
 router.post("/ai/debate-pushback", verifyJWT, ai.debatePushback);
+router.post("/ai/coach-speak", verifyJWT, ai.coachSpeak);
 
 // FCM device token (app start / after login). No Cloud Functions.
 router.post("/device-token", verifyJWT, push.registerToken);

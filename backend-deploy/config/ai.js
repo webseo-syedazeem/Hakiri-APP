@@ -652,7 +652,7 @@ async function generateDebatePushback({
         text: [
           "You are Hakkiri Debate Coach. Craft ONE sharp workplace pushback.",
           "The user just gave an opening argument on a debate topic.",
-          "Return ONLY JSON: {\"transcript\":\"exact cleanup of opening words\",\"pushback\":\"2-3 spoken sentences\"}.",
+          "Return ONLY JSON: {\"transcript\":\"exact cleanup of opening words\",\"pushback\":\"2 short spoken sentences, about 30-40 words\"}.",
           "Rules:",
           "- transcript must echo the user's opening (light cleanup only). Never invent an opening.",
           hasRealOpening
@@ -660,7 +660,8 @@ async function generateDebatePushback({
             : "- Opening is empty/filler: invent a topic-fit challenge and set transcript to \"\".",
           "- Challenge their reasoning; do not insult them.",
           "- Stay in a professional workplace tone for: " + career + ".",
-          "- Do not score. Do not ask multiple questions. One challenge only.",
+          "- Keep pushback compact: 2 sentences, not a paragraph. One challenge only.",
+          "- Do not score. Do not ask multiple questions.",
           `Debate topic: """${debateTopic}"""`,
           `Opening transcript:"""`,
           opening || "(empty)",
@@ -673,14 +674,235 @@ async function generateDebatePushback({
   // Prefer STT we already have over model "cleanup" that might drop content.
   const transcriptOut = (opening || String(parsed.transcript || "").trim())
     .slice(0, 20000);
-  let pushback = String(parsed.pushback || "").trim().slice(0, 1200);
+  let pushback = String(parsed.pushback || "").trim().slice(0, 400);
+  const twoSentences = pushback.match(/^(.+?[.!?]\s+.+?[.!?])(?:\s|$)/);
+  const oneSentence = pushback.match(/^(.+?[.!?])(?:\s|$)/);
+  if (twoSentences) pushback = twoSentences[1].trim();
+  else if (oneSentence) pushback = oneSentence[1].trim();
+  const pbWords = pushback.split(/\s+/).filter(Boolean);
+  if (pbWords.length > 40) pushback = pbWords.slice(0, 40).join(" ");
   if (!pushback) {
     pushback = hasRealOpening
-      ? `But that still leaves a gap in what you just argued. If a senior stakeholder rejected that line of reasoning, what evidence would you use next — and what is your backup?`
-      : `But that still leaves a weak spot on "${debateTopic.slice(0, 100)}". If a senior stakeholder pushed back hard, what evidence would you use — and what is your backup if the first argument fails?`;
+      ? `That still leaves a gap in the claim you just made. If a senior stakeholder rejected it, what evidence would you use next?`
+      : `What's the weakest claim in that take? If a senior stakeholder pushed back, what evidence would you use?`;
   }
 
   return { model, transcript: transcriptOut, pushback };
+}
+
+const TTS_MODEL_FALLBACKS = [
+  "gemini-2.5-flash-preview-tts",
+  "gemini-2.5-pro-preview-tts",
+  "gemini-3.1-flash-tts-preview",
+];
+
+const COACH_VOICE_MAP = {
+  sarah: "Kore",
+  david: "Charon",
+  elena: "Aoede",
+  marcus: "Fenrir",
+  alex: "Puck",
+  female: "Kore",
+  male: "Charon",
+  non_binary: "Puck",
+};
+
+function pcm16ToWavBase64(pcmBase64, sampleRate = 24000, numChannels = 1) {
+  const pcm = Buffer.from(String(pcmBase64 || "").replace(/\s/g, ""), "base64");
+  const bitsPerSample = 16;
+  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + pcm.length, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(numChannels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([header, pcm]).toString("base64");
+}
+
+function wordTimingsFromText(text, durationMs) {
+  const words = String(text || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words.length || durationMs <= 0) {
+    return words.map((word, i) => ({
+      word,
+      start_ms: 0,
+      end_ms: durationMs,
+      index: i + 1,
+    }));
+  }
+  const weights = words.map((w) =>
+    Math.max(1, w.replace(/[^a-zA-Z0-9']/g, "").length)
+  );
+  const total = weights.reduce((a, b) => a + b, 0) || 1;
+  let t = 0;
+  return words.map((word, i) => {
+    const start = t;
+    const slice = (weights[i] / total) * durationMs;
+    t += slice;
+    return {
+      word,
+      start_ms: Math.round(start),
+      end_ms: Math.round(i === words.length - 1 ? durationMs : t),
+      index: i + 1,
+    };
+  });
+}
+
+/**
+ * Gemini TTS → WAV + word timings locked to the same audio the app plays.
+ * Perfect karaoke: highlight follows playback position of this clip.
+ */
+async function synthesizeCoachSpeech({
+  text,
+  voiceProfile = "sarah",
+  rate = 1,
+} = {}) {
+  const key = geminiApiKey();
+  if (!key) {
+    const err = new Error("GEMINI_API_KEY is not configured on the server.");
+    err.statusCode = 503;
+    throw err;
+  }
+
+  const clean = String(text || "").trim().slice(0, 2500);
+  if (!clean) {
+    const err = new Error("Text is required for coach speech.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const voiceKey = String(voiceProfile || "sarah").trim().toLowerCase();
+  const voiceName = COACH_VOICE_MAP[voiceKey] || "Kore";
+  // Mild rate hint in the prompt (Gemini TTS has no numeric rate).
+  const paceHint =
+    Number(rate) < 0.95
+      ? "Speak clearly at a calm, slightly slow pace. "
+      : Number(rate) > 1.05
+        ? "Speak clearly at a natural brisk pace. "
+        : "Speak clearly at a natural pace. ";
+
+  let lastErr;
+  for (const model of TTS_MODEL_FALLBACKS) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+        model
+      )}:generateContent?key=${encodeURIComponent(key)}`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 45_000);
+      let response;
+      try {
+        response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text:
+                      paceHint +
+                      "Read the following text aloud exactly, with no extra words:\n\n" +
+                      clean,
+                  },
+                ],
+              },
+            ],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName },
+                },
+              },
+            },
+          }),
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const err = new Error(
+          data?.error?.message || `Gemini TTS failed (${model}).`
+        );
+        err.statusCode = response.status >= 400 ? response.status : 502;
+        throw err;
+      }
+
+      const part =
+        data?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData) ||
+        data?.candidates?.[0]?.content?.parts?.[0];
+      const inline = part?.inlineData || part?.inline_data;
+      const pcmB64 = String(inline?.data || "").replace(/\s/g, "");
+      if (!pcmB64 || pcmB64.length < 64) {
+        const err = new Error("Gemini TTS returned empty audio.");
+        err.statusCode = 502;
+        throw err;
+      }
+
+      const mime = String(inline?.mimeType || inline?.mime_type || "").toLowerCase();
+      let sampleRate = 24000;
+      const rateMatch = mime.match(/rate=(\d+)/i);
+      if (rateMatch) sampleRate = Number(rateMatch[1]) || 24000;
+
+      const rawBytes = Buffer.from(pcmB64, "base64");
+      let wavBase64;
+      let durationMs;
+
+      if (mime.includes("wav") || rawBytes.slice(0, 4).toString("ascii") === "RIFF") {
+        wavBase64 = pcmB64;
+        // Parse WAV data chunk size for duration when possible.
+        let dataBytes = Math.max(0, rawBytes.length - 44);
+        if (rawBytes.length >= 44) {
+          const declared = rawBytes.readUInt32LE(40);
+          if (declared > 0 && declared < rawBytes.length) dataBytes = declared;
+          const declaredRate = rawBytes.readUInt32LE(24);
+          if (declaredRate > 0) sampleRate = declaredRate;
+        }
+        durationMs = Math.max(
+          200,
+          Math.round((dataBytes / (sampleRate * 2)) * 1000)
+        );
+      } else {
+        durationMs = Math.max(
+          200,
+          Math.round((rawBytes.length / (sampleRate * 2)) * 1000)
+        );
+        wavBase64 = pcm16ToWavBase64(pcmB64, sampleRate, 1);
+      }
+
+      const words = wordTimingsFromText(clean, durationMs);
+
+      return {
+        model,
+        voice: voiceName,
+        mime_type: "audio/wav",
+        audio_base64: wavBase64,
+        duration_ms: durationMs,
+        sample_rate: sampleRate,
+        text: clean,
+        words,
+      };
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error("Could not synthesize coach speech.");
 }
 
 module.exports = {
@@ -691,6 +913,7 @@ module.exports = {
   flashModel,
   analyzeSpeechWithGemini,
   generateDebatePushback,
+  synthesizeCoachSpeech,
   createLiveSessionToken,
   DEFAULT_COACH_INSTRUCTION,
 };

@@ -11,7 +11,6 @@ import 'paywall_screen.dart';
 import 'privacy_permissions_screen.dart';
 import 'practice_context_screen.dart';
 import 'profile_section_screen.dart';
-import 'voice_coach_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -130,19 +129,6 @@ class SettingsScreen extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (_) => const PracticeContextScreen(),
-                    ),
-                  );
-                },
-              ),
-              _buildSettingTile(
-                title: 'Voice Coach',
-                value: state.voiceProfileLabel,
-                icon: Icons.record_voice_over_outlined,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const VoiceCoachScreen(),
                     ),
                   );
                 },
