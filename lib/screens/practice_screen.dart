@@ -161,43 +161,9 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                       ),
                       const SizedBox(height: 14),
 
-                      // Horizontal Row of 3 White Sub-Cards
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildHeroSubCard(
-                              icon: Icons.bolt_rounded,
-                              iconColor: const Color(0xFF2563EB),
-                              iconBgColor: const Color(0xFFEFF6FF),
-                              title: 'Think Fast',
-                              description: 'Think clearly\nunder pressure',
-                              onTap: () => _openActivity(state, 'think_fast'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildHeroSubCard(
-                              icon: Icons.content_cut_rounded,
-                              iconColor: const Color(0xFFD97706),
-                              iconBgColor: const Color(0xFFF8FAFC),
-                              title: 'Cut it in Half',
-                              description: 'Get to the point\nfaster',
-                              onTap: () => _openActivity(state, 'cut_it_in_half'),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildHeroSubCard(
-                              icon: Icons.menu_book_rounded,
-                              iconColor: const Color(0xFF9333EA),
-                              iconBgColor: const Color(0xFFF3E8FF),
-                              title: 'Storytelling Gym',
-                              description: 'Make your answers\nmore engaging',
-                              onTap: () => _openActivity(state, 'storytelling_gym'),
-                            ),
-                          ),
-                        ],
-                      ),
+                      // Horizontal Row of 3 White Sub-Cards —
+                      // driven by the user's real plan so it matches Today.
+                      _buildRecommendedRow(state),
                     ],
                   ),
                 ),
@@ -459,6 +425,72 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
             fontSize: 12.5,
           ),
         ),
+      ],
+    );
+  }
+
+  /// Visual (icon, icon colour, icon background) for a given activity slug.
+  static (IconData, Color, Color) _recVisual(String slug) {
+    switch (slug) {
+      case 'cut_it_in_half':
+        return (Icons.content_cut_rounded, const Color(0xFFD97706), const Color(0xFFF8FAFC));
+      case 'storytelling_gym':
+        return (Icons.menu_book_rounded, const Color(0xFF9333EA), const Color(0xFFF3E8FF));
+      case 'debate_me':
+        return (Icons.chat_bubble_outline_rounded, const Color(0xFF2563EB), const Color(0xFFEFF6FF));
+      case 'connect_the_dots':
+        return (Icons.hub_outlined, const Color(0xFF9333EA), const Color(0xFFF5F3FF));
+      case 'explain_it_simply':
+        return (Icons.lightbulb_outline_rounded, const Color(0xFF10B981), const Color(0xFFECFDF5));
+      case 'one_minute_expert':
+        return (Icons.timer_outlined, const Color(0xFFEA580C), const Color(0xFFFEE2E2));
+      case 'think_fast':
+      default:
+        return (Icons.bolt_rounded, const Color(0xFF2563EB), const Color(0xFFEFF6FF));
+    }
+  }
+
+  /// The 3 "Recommended for you" cards — taken from the same personalised
+  /// plan the Today tab uses, so the two screens always agree.
+  Widget _buildRecommendedRow(AppStateProvider state) {
+    final slugs = state.todayDrillSlugs
+        .map(AppStateProvider.normalizeActivitySlug)
+        .take(3)
+        .toList();
+    while (slugs.length < 3) {
+      for (final fallback in const ['think_fast', 'cut_it_in_half', 'storytelling_gym']) {
+        if (!slugs.contains(fallback)) {
+          slugs.add(fallback);
+          if (slugs.length == 3) break;
+        }
+      }
+    }
+
+    return Row(
+      children: [
+        for (int i = 0; i < 3; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(
+            child: Builder(
+              builder: (_) {
+                final slug = slugs[i];
+                final activity = state.activities.firstWhere(
+                  (a) => a.slug == slug,
+                  orElse: () => state.activities.first,
+                );
+                final v = _recVisual(slug);
+                return _buildHeroSubCard(
+                  icon: v.$1,
+                  iconColor: v.$2,
+                  iconBgColor: v.$3,
+                  title: activity.name,
+                  description: activity.tagline,
+                  onTap: () => _openActivity(state, slug),
+                );
+              },
+            ),
+          ),
+        ],
       ],
     );
   }

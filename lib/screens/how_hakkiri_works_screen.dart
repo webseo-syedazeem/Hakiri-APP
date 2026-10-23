@@ -53,7 +53,7 @@ class HowHakkiriWorksScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          'AI feedback, deliberate practice & scoring',
+                          'Personalised feedback, deliberate practice & scoring',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 12,
