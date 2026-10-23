@@ -6,6 +6,7 @@ import '../core/constants/app_colors.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 
 /// Dedicated screen for Settings/Profile → Practice context.
@@ -85,19 +86,13 @@ class _PracticeContextScreenState extends State<PracticeContextScreen> {
       );
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Practice context updated.'),
-        ),
-      );
+      AppSnackBar.showSuccess(context, 'Practice context updated.');
     } on HakkiriApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      AppSnackBar.showError(context, e.message);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save. Check your connection.')),
-      );
+      AppSnackBar.showError(context, 'Could not save. Check your connection.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }

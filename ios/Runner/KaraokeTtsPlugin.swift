@@ -24,7 +24,7 @@ final class KaraokeTtsPlugin: NSObject, FlutterPlugin, AVSpeechSynthesizerDelega
     _ = KaraokeTtsPlugin(messenger: registrar.messenger())
   }
 
-  private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+  func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "speak":
       guard let args = call.arguments as? [String: Any],
@@ -94,9 +94,11 @@ final class KaraokeTtsPlugin: NSObject, FlutterPlugin, AVSpeechSynthesizerDelega
     let voices = AVSpeechSynthesisVoice.speechVoices().filter {
       $0.language.lowercased().hasPrefix("en")
     }
-    // Prefer enhanced / premium when installed.
-    if let premium = voices.first(where: { $0.quality == .premium }) {
-      return premium
+    // Prefer enhanced / premium when installed (premium is iOS 16+).
+    if #available(iOS 16.0, *) {
+      if let premium = voices.first(where: { $0.quality == .premium }) {
+        return premium
+      }
     }
     if let enhanced = voices.first(where: { $0.quality == .enhanced }) {
       return enhanced

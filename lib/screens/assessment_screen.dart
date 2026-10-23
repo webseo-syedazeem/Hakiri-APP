@@ -5,6 +5,7 @@ import '../core/services/analytics_service.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/confidence_gauge_widget.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/hakkiri_logo.dart';
@@ -363,14 +364,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     if (_isSubmitting) return;
 
     if (!_canProceedCurrentStep) {
-      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please select an option to continue.'),
-          duration: Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppSnackBar.showInfo(context, 'Please select an option to continue.');
       return;
     }
 
@@ -390,9 +384,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     final state = Provider.of<AppStateProvider>(context, listen: false);
     if (!state.isLoggedIn) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Create an account first.')),
-      );
+      AppSnackBar.showInfo(context, 'Create an account first.');
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const SignupScreen()),
@@ -423,14 +415,10 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       );
     } on HakkiriApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      AppSnackBar.showError(context, e.message);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save assessment. Check your connection.')),
-      );
+      AppSnackBar.showError(context, 'Could not save assessment. Check your connection.');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

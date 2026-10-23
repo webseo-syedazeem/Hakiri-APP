@@ -5,6 +5,7 @@ import '../core/services/analytics_service.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/auth_waveform_watermark.dart';
 import '../widgets/google_logo.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
@@ -42,11 +43,13 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  void _showMessage(String message) {
+  void _showMessage(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    if (isError) {
+      AppSnackBar.showError(context, message);
+    } else {
+      AppSnackBar.showInfo(context, message);
+    }
   }
 
   Future<void> _handleSignup() async {

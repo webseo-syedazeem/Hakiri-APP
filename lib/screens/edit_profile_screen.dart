@@ -5,6 +5,7 @@ import '../core/constants/app_colors.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -47,9 +48,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (_saving) return;
     final name = _nameController.text.trim();
     if (name.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter your full name.')),
-      );
+      AppSnackBar.showError(context, 'Enter your full name.');
       return;
     }
 
@@ -71,17 +70,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       );
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated.')),
-      );
+      AppSnackBar.showSuccess(context, 'Profile updated.');
     } on HakkiriApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      AppSnackBar.showError(context, e.message);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save profile. Check your connection.')),
-      );
+      AppSnackBar.showError(context, 'Could not save profile. Check your connection.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }

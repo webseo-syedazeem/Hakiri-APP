@@ -37,7 +37,9 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
     } else {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
+        MaterialPageRoute(
+          builder: (_) => ActivityDetailScreen(activitySlug: slug),
+        ),
       );
     }
   }
@@ -207,7 +209,6 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                 _buildCategoryHeader(
                   title: 'Think on your feet',
                   subtitle: 'Stay clear, calm and confident in the moment.',
-                  onTap: () {},
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -260,7 +261,6 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                 _buildCategoryHeader(
                   title: 'Be clear & concise',
                   subtitle: 'Get to the point and make your message land.',
-                  onTap: () {},
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -294,7 +294,6 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                 _buildCategoryHeader(
                   title: 'Engage people',
                   subtitle: 'Make your ideas more engaging and memorable.',
-                  onTap: () {},
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -413,7 +412,7 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
   Widget _buildCategoryHeader({
     required String title,
     required String subtitle,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -430,24 +429,25 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                 fontWeight: FontWeight.w800,
               ),
             ),
-            InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                width: 28,
-                height: 28,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEFF6FF),
-                  shape: BoxShape.circle,
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 18,
-                  color: Color(0xFF2563EB),
+            if (onTap != null)
+              InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEFF6FF),
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 18,
+                    color: Color(0xFF2563EB),
+                  ),
                 ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 3),

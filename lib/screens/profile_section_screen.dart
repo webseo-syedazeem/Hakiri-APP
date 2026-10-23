@@ -6,11 +6,12 @@ import '../core/constants/app_colors.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 
 enum ProfileSectionFocus { goals, practiceContext, dailyPractice }
 
-/// Focused editors for Profile → Your goals / Practice context / Daily practice.
+/// Focused editors for Profile → Your Focus / Practice context / Daily practice.
 /// Matches the onboarding assessment screen design language.
 class ProfileSectionScreen extends StatefulWidget {
   const ProfileSectionScreen({super.key, required this.focus});
@@ -40,13 +41,13 @@ class _ProfileSectionScreenState extends State<ProfileSectionScreen> {
   bool get _isDaily => widget.focus == ProfileSectionFocus.dailyPractice;
 
   String get _title {
-    if (_isGoals) return 'Your goals';
+    if (_isGoals) return 'Your Focus';
     if (_isContext) return 'Practice context';
     return 'Daily practice';
   }
 
   String get _subtitle {
-    if (_isGoals) return 'What you want Hakkiri to help you improve.';
+    if (_isGoals) return 'Your goals and the challenges you want to work on.';
     if (_isContext) {
       return 'Where and how you practise — used to pick better drills.';
     }
@@ -85,7 +86,7 @@ class _ProfileSectionScreenState extends State<ProfileSectionScreen> {
         detail: _isDaily
             ? 'Updating your daily practice length.'
             : _isGoals
-                ? 'Updating your goals.'
+                ? 'Updating your focus.'
                 : 'Updating your practice context.',
         action: () async {
           if (_isDaily) {
@@ -107,26 +108,20 @@ class _ProfileSectionScreenState extends State<ProfileSectionScreen> {
       );
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _isDaily
-                ? 'Daily practice set to $_dailyMinutes minutes.'
-                : _isGoals
-                    ? 'Goals updated.'
-                    : 'Practice context updated.',
-          ),
-        ),
+      AppSnackBar.showSuccess(
+        context,
+        _isDaily
+            ? 'Daily practice set to $_dailyMinutes minutes.'
+            : _isGoals
+                ? 'Focus updated.'
+                : 'Practice context updated.',
       );
     } on HakkiriApiException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      AppSnackBar.showError(context, e.message);
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save. Check your connection.')),
-      );
+      AppSnackBar.showError(context, 'Could not save. Check your connection.');
     } finally {
       if (mounted) setState(() => _saving = false);
     }

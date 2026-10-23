@@ -5,7 +5,9 @@ import '../core/constants/app_colors.dart';
 import '../core/services/analytics_service.dart';
 import '../core/services/push_notification_service.dart';
 import '../providers/app_state_provider.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/hakkiri_bottom_nav.dart';
+import 'coaching_prompt_sheet.dart';
 import 'home_screen.dart';
 import 'progress_screen.dart';
 import 'practice_screen.dart';
@@ -95,34 +97,10 @@ class _MainTabScaffoldState extends State<MainTabScaffold> {
     if (_lastBackPressTime == null ||
         now.difference(_lastBackPressTime!) > const Duration(seconds: 2)) {
       _lastBackPressTime = now;
-      ScaffoldMessenger.of(context).clearSnackBars();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: const Color(0xFF1E293B),
-          elevation: 4,
-          duration: const Duration(seconds: 2),
-          margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          content: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.info_outline_rounded, color: Colors.white, size: 18),
-              SizedBox(width: 10),
-              Text(
-                'Press back again to exit',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
-                ),
-              ),
-            ],
-          ),
-        ),
+      AppSnackBar.showInfo(
+        context,
+        'Press back again to exit',
+        duration: const Duration(seconds: 2),
       );
       return;
     }
@@ -185,9 +163,14 @@ class _MainTabScaffoldState extends State<MainTabScaffold> {
               currentIndex: _currentIndex,
               onTap: _setTab,
             ),
-            body: IndexedStack(
-              index: _currentIndex,
-              children: screens,
+            body: Stack(
+              children: [
+                IndexedStack(
+                  index: _currentIndex,
+                  children: screens,
+                ),
+                if (_currentIndex == 0) const CoachingPromptHost(),
+              ],
             ),
           ),
         ),

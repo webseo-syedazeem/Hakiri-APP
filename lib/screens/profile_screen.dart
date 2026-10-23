@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/orbital_background_painter.dart';
 import 'edit_profile_screen.dart';
@@ -199,11 +200,9 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                 onPressed: () {
                   Clipboard.setData(const ClipboardData(text: 'support@hakkiri.com'));
                   Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Support email copied to clipboard! (support@hakkiri.com)'),
-                      duration: Duration(seconds: 2),
-                    ),
+                  AppSnackBar.showSuccess(
+                    context,
+                    'Support email copied to clipboard! (support@hakkiri.com)',
                   );
                 },
                 icon: const Icon(Icons.copy_rounded, size: 18),
@@ -519,7 +518,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     icon: Icons.track_changes_rounded,
                     iconColor: const Color(0xFF3B82F6),
                     iconBgColor: const Color(0xFFEFF6FF),
-                    title: 'Your goals',
+                    title: 'Your Focus',
                     subtitle: state.primaryGoalLabel,
                     showDivider: true,
                     onTap: _openGoals,
@@ -552,15 +551,12 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     onChanged: _reminderSaving
                         ? null
                         : (val) async {
-                            final messenger = ScaffoldMessenger.of(context);
                             setState(() => _reminderSaving = true);
                             try {
                               await state.updateRemindersEnabled(val);
                             } catch (e) {
-                              if (mounted) {
-                                messenger.showSnackBar(
-                                  SnackBar(content: Text(e.toString())),
-                                );
+                              if (context.mounted) {
+                                AppSnackBar.showError(context, e.toString());
                               }
                             } finally {
                               if (mounted) {

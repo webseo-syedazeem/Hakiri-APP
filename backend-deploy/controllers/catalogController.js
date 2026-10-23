@@ -121,7 +121,12 @@ const nextPrompt = async (req, res) => {
 
   const profile = await Profile.findOne({ user: req.user._id });
   const career = canonical("career_type", req.query.career_type) || profile?.careerType || "general";
-  const difficulty = req.query.difficulty || confidenceToDifficulty(profile?.speakingConfidence);
+  const { activityLevel, hydrateCoaching } = require("../services/coaching");
+  const coaching = hydrateCoaching(profile?.coaching, {
+    confidence: profile?.speakingConfidence,
+    drills: profile?.plan?.initialDrills,
+  });
+  const difficulty = activityLevel(coaching, activitySlug);
   const recent = await PracticeSession.find({
     user: req.user._id,
     activitySlug,
@@ -177,7 +182,11 @@ const dailyAnchor = async (req, res) => {
   const primarySlug = drills[0];
   const queueSlugs = drills.slice(1, 3);
   const career = profile?.careerType || "general";
-  const difficulty = confidenceToDifficulty(profile?.speakingConfidence);
+  const { activityLevel, hydrateCoaching } = require("../services/coaching");
+  const coaching = hydrateCoaching(profile?.coaching, {
+    confidence: profile?.speakingConfidence,
+    drills,
+  });
   const minutes = settings?.dailyAnchorMinutes || 5;
   const plan = await buildPlanBlock({
     userId: req.user._id,
@@ -188,6 +197,7 @@ const dailyAnchor = async (req, res) => {
   async function card(slug, order) {
     const activity = await Activity.findOne({ slug });
     if (!activity) return null;
+    const difficulty = activityLevel(coaching, slug);
     const chosen = await choosePrompt({
       activitySlug: slug,
       difficulty,

@@ -230,7 +230,7 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          'Say what you mean. First time.',
+                          'Go blank less. Land the point.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontFamily: 'Inter',

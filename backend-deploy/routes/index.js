@@ -9,6 +9,8 @@ const subscription = require("../controllers/subscriptionController");
 const ai = require("../controllers/aiController");
 const bootstrap = require("../controllers/bootstrapController");
 const push = require("../controllers/pushController");
+const coaching = require("../controllers/coachingController");
+const reflections = require("../controllers/reflectionController");
 
 const router = express.Router();
 
@@ -18,6 +20,10 @@ router.post("/auth/google", auth.googleAuth);
 router.post("/auth/apple", auth.appleAuth);
 router.get("/auth/me", verifyJWT, auth.me);
 router.get("/bootstrap", verifyJWT, bootstrap.bootstrap);
+router.post("/coaching/decide", verifyJWT, coaching.decide);
+router.put("/coaching/level", verifyJWT, coaching.setLevel);
+router.get("/reflections", verifyJWT, reflections.list);
+router.post("/reflections", verifyJWT, reflections.create);
 router.get("/ai/status", ai.status);
 router.post("/ai/live-token", verifyJWT, ai.liveToken);
 router.post("/ai/analyze-speech", verifyJWT, ai.analyzeSpeech);

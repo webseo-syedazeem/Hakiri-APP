@@ -897,50 +897,19 @@ class FeedbackScreen extends StatelessWidget {
   List<ConversationTurn> _conversationTurnsForDisplay(
     PracticeSessionRecord session,
   ) {
+    if (session.isDebateMe) {
+      final rebuilt = PracticeSessionRecord.debateTurnsFrom(
+        transcript: session.transcript,
+        fallback: session.conversationTurns,
+      );
+      if (rebuilt.isNotEmpty) return rebuilt;
+    }
     if (session.conversationTurns.isNotEmpty) {
-      return session.conversationTurns;
+      return session.conversationTurns
+          .where((t) => !PracticeSessionRecord.isPlaceholderSpeech(t.text))
+          .toList();
     }
-    final isDebate = session.activitySlug == 'debate_me' ||
-        session.activitySlug == 'debate' ||
-        session.isBackAndForth;
-    if (!isDebate) return const [];
-
-    final t = session.transcript.trim();
-    if (t.isEmpty) return const [];
-
-    String sliceAfter(RegExp marker) {
-      final m = marker.firstMatch(t);
-      if (m == null) return '';
-      final start = m.end;
-      final next = RegExp(
-        r'(opening argument:|hakkiri pushback:|coach pushback:|rebuttal:)',
-        caseSensitive: false,
-      ).allMatches(t).where((x) => x.start > start).toList();
-      final end = next.isEmpty ? t.length : next.first.start;
-      return t.substring(start, end).trim();
-    }
-
-    final opening = sliceAfter(
-      RegExp(r'opening argument\s*:', caseSensitive: false),
-    );
-    final pushback = sliceAfter(
-      RegExp(r'(hakkiri|coach)\s+pushback\s*:', caseSensitive: false),
-    );
-    final rebuttal = sliceAfter(
-      RegExp(r'rebuttal\s*:', caseSensitive: false),
-    );
-
-    final turns = <ConversationTurn>[];
-    if (opening.isNotEmpty) {
-      turns.add(ConversationTurn(role: 'user', text: opening));
-    }
-    if (pushback.isNotEmpty) {
-      turns.add(ConversationTurn(role: 'coach', text: pushback));
-    }
-    if (rebuttal.isNotEmpty) {
-      turns.add(ConversationTurn(role: 'user', text: rebuttal));
-    }
-    return turns;
+    return const [];
   }
 
   Widget _buildShowConversationButton(
@@ -1258,6 +1227,7 @@ class FeedbackScreen extends StatelessWidget {
       if (text.isEmpty) {
         text = turn.text.trim();
       }
+      if (PracticeSessionRecord.isPlaceholderSpeech(text)) continue;
       final isCoach = turn.role == 'coach';
       final label = i < labels.length
           ? labels[i]

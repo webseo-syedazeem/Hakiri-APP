@@ -19,6 +19,23 @@ class ReflectAndGrowContent extends StatefulWidget {
 class _ReflectAndGrowContentState extends State<ReflectAndGrowContent> {
   String _selectedRange = 'Last 4 weeks';
 
+  int _daysForRange(String range) {
+    if (range == 'Last 7 days') return 7;
+    if (range == 'Last 3 months') return 90;
+    return 28;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<AppStateProvider>().loadReflections(
+            days: _daysForRange(_selectedRange),
+          );
+    });
+  }
+
   String _formatMonth(int month) {
     const months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -141,36 +158,103 @@ class _ReflectAndGrowContentState extends State<ReflectAndGrowContent> {
     );
   }
 
+  void _showAllReflections(List<ReflectionNote> notes) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.72,
+        minChildSize: 0.4,
+        maxChildSize: 0.94,
+        builder: (_, scroll) => Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+          child: Column(
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'All reflections',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Expanded(
+                child: notes.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No reflections yet.',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            color: Color(0xFF64748B),
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: scroll,
+                        itemCount: notes.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (_, index) {
+                          final note = notes[index];
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              _showReflectionDetail(note);
+                            },
+                            title: Text(
+                              note.title,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14.5,
+                              ),
+                            ),
+                            subtitle: Text(
+                              '${note.date.day} ${_formatMonth(note.date.month)} · ${note.learnings}',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: const Icon(
+                              Icons.chevron_right_rounded,
+                              color: Color(0xFF94A3B8),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
     final notes = state.reflectionNotes;
-
-    // Dynamic stats calibrated to match mockup showcase or live usage
-    int sessionCount = 12;
-    int focusCompletedCount = 3;
-    int streakCount = 7;
-
-    if (_selectedRange == 'Last 7 days') {
-      sessionCount = 4;
-      focusCompletedCount = 1;
-      streakCount = 7;
-    } else if (_selectedRange == 'Last 4 weeks') {
-      sessionCount = 12;
-      focusCompletedCount = 3;
-      streakCount = 7;
-    } else {
-      sessionCount = 36;
-      focusCompletedCount = 8;
-      streakCount = 7;
-    }
-
-    if (state.sessionHistory.length > sessionCount) {
-      sessionCount = state.sessionHistory.length;
-    }
-    if (state.currentStreak > streakCount) {
-      streakCount = state.currentStreak;
-    }
+    final sessionCount = state.reflectionPracticeSessions;
+    final focusCompletedCount = state.reflectionFocusAreasCompleted;
+    final streakCount = state.currentStreak;
 
     return Stack(
       children: [
@@ -362,7 +446,12 @@ class _ReflectAndGrowContentState extends State<ReflectAndGrowContent> {
                           // Dropdown pill
                           PopupMenuButton<String>(
                             initialValue: _selectedRange,
-                            onSelected: (val) => setState(() => _selectedRange = val),
+                            onSelected: (val) {
+                              setState(() => _selectedRange = val);
+                              context.read<AppStateProvider>().loadReflections(
+                                    days: _daysForRange(val),
+                                  );
+                            },
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -579,11 +668,7 @@ class _ReflectAndGrowContentState extends State<ReflectAndGrowContent> {
                             ),
                           ),
                           GestureDetector(
-                            onTap: () {
-                              if (notes.isNotEmpty) {
-                                _showReflectionDetail(notes.first);
-                              }
-                            },
+                            onTap: () => _showAllReflections(notes),
                             child: const Text(
                               'View all',
                               style: TextStyle(
@@ -598,7 +683,27 @@ class _ReflectAndGrowContentState extends State<ReflectAndGrowContent> {
                       ),
                       const SizedBox(height: 12),
 
-                      // List of Reflection Cards
+                      if (notes.isEmpty)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(16, 22, 16, 22),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFF1F5F9)),
+                          ),
+                          child: const Text(
+                            'No reflections yet. Capture what you learned and set a focus for next time.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 13.5,
+                              color: Color(0xFF64748B),
+                              height: 1.4,
+                            ),
+                          ),
+                        )
+                      else
                       ListView.separated(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),

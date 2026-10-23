@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../core/services/coach_tts_service.dart';
 import '../core/services/session_audio_store.dart';
+import 'app_snackbar.dart';
 
 /// Plays the user's on-device drill recording with a live waveform.
 class SessionRecordingPlayButton extends StatefulWidget {
@@ -169,9 +170,7 @@ class _SessionRecordingPlayButtonState extends State<SessionRecordingPlayButton>
       if (mounted) setState(() => _playing = true);
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-          const SnackBar(content: Text('Could not play your recording.')),
-        );
+        AppSnackBar.showError(context, 'Could not play your recording.');
       }
     }
   }

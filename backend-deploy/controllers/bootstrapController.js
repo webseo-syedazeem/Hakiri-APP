@@ -5,6 +5,8 @@ const Settings = require("../models/Settings");
 const PracticeSession = require("../models/PracticeSession");
 const ChallengeProgress = require("../models/ChallengeProgress");
 const Activity = require("../models/Activity");
+const Reflection = require("../models/Reflection");
+const { reflectionJson, buildStats } = require("./reflectionController");
 const { CHALLENGES } = require("../data/catalog");
 const { success } = require("../helpers/response");
 const {
@@ -84,6 +86,11 @@ async function buildDailyAnchorLite(userId, profile, settings, streak) {
   const bySlug = new Map(activities.map((row) => [row.slug, row]));
   const plan = await buildPlanBlock({ userId, profile, settings });
 
+  const { activityLevel, hydrateCoaching } = require("../services/coaching");
+  const coaching = hydrateCoaching(profile?.coaching, {
+    confidence: profile?.speakingConfidence,
+    drills,
+  });
   const card = (slug, order) => {
     const activity = bySlug.get(slug);
     if (!activity) return null;
@@ -91,7 +98,7 @@ async function buildDailyAnchorLite(userId, profile, settings, streak) {
       order,
       activity: activityJson(activity),
       prompt: null,
-      difficulty: "intermediary",
+      difficulty: activityLevel(coaching, slug),
       career_type: career,
       career_label: TRACK_LABEL[career] || career,
       duration_label: `${Math.max(1, Math.round((activity.defaultDurationSeconds || 60) / 60))} min`,
@@ -123,7 +130,8 @@ const bootstrap = async (req, res) => {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const sessionLimit = Math.min(Number(req.query.limit) || 30, 50);
 
-  const [profile, subscription, streak, settings, challengeRows, recentSessions] =
+  const since28 = new Date(Date.now() - 28 * 24 * 60 * 60 * 1000);
+  const [profile, subscription, streak, settings, challengeRows, recentSessions, reflectionRows, reflectionStats] =
     await Promise.all([
       Profile.findOne({ user: userId }).lean(),
       Subscription.findOne({ user: userId }).lean(),
@@ -131,6 +139,8 @@ const bootstrap = async (req, res) => {
       Settings.findOne({ user: userId }).lean(),
       ChallengeProgress.find({ user: userId }).lean(),
       PracticeSession.find({ user: userId }).sort({ createdAt: -1 }).limit(sessionLimit).lean(),
+      Reflection.find({ user: userId }).sort({ createdAt: -1 }).limit(100).lean(),
+      buildStats(userId, since28),
     ]);
 
   const fresh = recentSessions.filter(
@@ -142,6 +152,21 @@ const bootstrap = async (req, res) => {
   const bySlug = new Map(challengeRows.map((row) => [row.slug, row]));
   const dailyAnchor = await buildDailyAnchorLite(userId, profile, settings, streak);
 
+  let coachingPrompt = null;
+  let activityLevels = {};
+  try {
+    const coachingCtl = require("./coachingController");
+    const Profile = require("../models/Profile");
+    const profileDoc = await Profile.findOne({ user: userId });
+    if (profileDoc) {
+      const offered = await coachingCtl.coachingPromptFor(userId, profileDoc);
+      coachingPrompt = offered.prompt;
+      activityLevels = offered.levels || {};
+    }
+  } catch (err) {
+    console.error("coaching prompt skipped:", err.message);
+  }
+
   return success(res, "Bootstrap.", {
     user: userJson(req.user),
     profile: profileJson(profile),
@@ -150,10 +175,17 @@ const bootstrap = async (req, res) => {
     settings: settingsJson(settings),
     dashboard: buildDashboard(fresh, recentSessions.slice(0, 8), streak),
     daily_anchor: dailyAnchor,
+    coaching_prompt: coachingPrompt,
+    activity_levels: activityLevels,
     challenges: CHALLENGES.map((item) => challengeView(item, bySlug.get(item.slug))),
     sessions: {
       total: recentSessions.length,
       sessions: recentSessions.map(sessionJson),
+    },
+    reflections: {
+      days: 28,
+      stats: reflectionStats,
+      reflections: reflectionRows.map(reflectionJson),
     },
   });
 };

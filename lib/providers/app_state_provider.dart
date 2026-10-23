@@ -29,6 +29,23 @@ class ReflectionNote {
     required this.learnings,
     required this.focusArea,
   });
+
+  factory ReflectionNote.fromApi(Map<String, dynamic> json) {
+    final rawDate = json['created_at'] ?? json['date'];
+    DateTime date = DateTime.now();
+    if (rawDate is String) {
+      date = DateTime.tryParse(rawDate) ?? date;
+    } else if (rawDate is DateTime) {
+      date = rawDate;
+    }
+    return ReflectionNote(
+      id: (json['id'] ?? '').toString(),
+      date: date.toLocal(),
+      title: (json['title'] ?? '').toString(),
+      learnings: (json['learnings'] ?? '').toString(),
+      focusArea: (json['focus_area'] ?? json['focusArea'] ?? '').toString(),
+    );
+  }
 }
 
 class AppStateProvider extends ChangeNotifier {
@@ -92,6 +109,8 @@ class AppStateProvider extends ChangeNotifier {
   ActivityModel? selectedActivity;
   PromptModel? selectedPrompt;
   String selectedDifficulty = 'beginner';
+  Map<String, String> activityLevels = {};
+  Map<String, dynamic>? coachingPrompt;
 
   // Last evaluation feedback
   EvaluationFeedback? latestFeedback;
@@ -225,46 +244,69 @@ class AppStateProvider extends ChangeNotifier {
     return slugs;
   }
 
-  final List<ReflectionNote> _reflectionNotes = [
-    ReflectionNote(
-      id: 'ref-1',
-      date: DateTime(2026, 10, 18),
-      title: 'I was more confident',
-      learnings: 'I communicated my ideas more clearly today.',
-      focusArea: 'Build my confidence',
-    ),
-    ReflectionNote(
-      id: 'ref-2',
-      date: DateTime(2026, 10, 10),
-      title: 'Focus on structure',
-      learnings: 'Next time I want to slow down and organise my points.',
-      focusArea: 'Be more concise',
-    ),
-    ReflectionNote(
-      id: 'ref-3',
-      date: DateTime(2026, 10, 3),
-      title: 'More engaging',
-      learnings: 'I kept people with me and used better examples.',
-      focusArea: 'Tell better stories',
-    ),
-  ];
+  final List<ReflectionNote> _reflectionNotes = [];
+  int reflectionPracticeSessions = 0;
+  int reflectionFocusAreasCompleted = 0;
+  int _reflectionRangeDays = 28;
 
   List<ReflectionNote> get reflectionNotes => List.unmodifiable(_reflectionNotes);
 
-  void addReflectionNote({
+  void _applyReflections(Map<String, dynamic> data) {
+    final rows = <ReflectionNote>[];
+    for (final raw in ((data['reflections'] as List?) ?? [])) {
+      if (raw is! Map) continue;
+      rows.add(ReflectionNote.fromApi(Map<String, dynamic>.from(raw)));
+    }
+    _reflectionNotes
+      ..clear()
+      ..addAll(rows);
+    final stats = data['stats'];
+    if (stats is Map) {
+      reflectionPracticeSessions =
+          (stats['practice_sessions'] as num?)?.round() ?? 0;
+      reflectionFocusAreasCompleted =
+          (stats['focus_areas_completed'] as num?)?.round() ?? 0;
+      final streak = (stats['day_streak'] as num?)?.round();
+      if (streak != null) currentStreak = streak;
+    }
+  }
+
+  Future<void> loadReflections({int days = 28}) async {
+    if (!_api.isLoggedIn) return;
+    _reflectionRangeDays = days;
+    try {
+      final data = await _api.listReflections(days: days);
+      _applyReflections(data);
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> addReflectionNote({
     required String title,
     required String learnings,
     required String focusArea,
-  }) {
-    final note = ReflectionNote(
+  }) async {
+    final optimistic = ReflectionNote(
       id: 'ref-${DateTime.now().millisecondsSinceEpoch}',
       date: DateTime.now(),
       title: title.trim().isEmpty ? 'Daily Reflection' : title.trim(),
       learnings: learnings.trim(),
       focusArea: focusArea.trim(),
     );
-    _reflectionNotes.insert(0, note);
+    _reflectionNotes.insert(0, optimistic);
     notifyListeners();
+    try {
+      await _api.createReflection(
+        title: optimistic.title,
+        learnings: optimistic.learnings,
+        focusArea: optimistic.focusArea,
+      );
+      await loadReflections(days: _reflectionRangeDays);
+    } catch (e) {
+      _reflectionNotes.removeWhere((n) => n.id == optimistic.id);
+      notifyListeners();
+      rethrow;
+    }
   }
 
   bool isTargetedRetryCompletedToday = false;
@@ -316,6 +358,26 @@ class AppStateProvider extends ChangeNotifier {
       isCorePlanComplete &&
       dailyAnchorMinutes >= 10 &&
       !isFullPlanComplete;
+
+  bool isCoreSlugDoneToday(String slug) {
+    final resolved = normalizeActivitySlug(slug);
+    final today = DateTime.now();
+    return sessionHistory.any((s) {
+      return s.activitySlug == resolved &&
+          !s.feedback.isCoachedRetry &&
+          s.timestamp.year == today.year &&
+          s.timestamp.month == today.month &&
+          s.timestamp.day == today.day;
+    });
+  }
+
+  /// First core drill not yet done today — any order is allowed.
+  String? firstIncompleteCoreSlug() {
+    for (final slug in todayDrillSlugs.take(3)) {
+      if (!isCoreSlugDoneToday(slug)) return slug;
+    }
+    return null;
+  }
 
   int completedTodayDrills() {
     final fromApi = (todayPlan['core_completed'] as num?)?.round();
@@ -728,6 +790,9 @@ class AppStateProvider extends ChangeNotifier {
     answers.primaryGoal = null;
     personalizedPlan = null;
     sessionHistory.clear();
+    _reflectionNotes.clear();
+    reflectionPracticeSessions = 0;
+    reflectionFocusAreasCompleted = 0;
     challenges = [];
     todayQueue = [];
     todayPrimary = null;
@@ -985,13 +1050,21 @@ class AppStateProvider extends ChangeNotifier {
         ..clear()
         ..addAll(rows);
 
-      if (answers.careerType != null) {
-        selectedDifficulty = answers.confidence == 'not_very'
-            ? 'beginner'
-            : answers.confidence == 'very'
-                ? 'pro'
-                : 'intermediary';
+      final reflectionsBlock = data['reflections'];
+      if (reflectionsBlock is Map<String, dynamic>) {
+        _applyReflections(reflectionsBlock);
       }
+
+      _applyActivityLevels(
+        (data['activity_levels'] as Map?)?.map(
+              (k, v) => MapEntry(k.toString(), v.toString()),
+            ) ??
+            const {},
+      );
+      final promptRaw = data['coaching_prompt'];
+      coachingPrompt = promptRaw is Map
+          ? Map<String, dynamic>.from(promptRaw)
+          : null;
       _updateSelectedPrompt();
     } catch (_) {
       // Keep last good local snapshot if a refresh fails.
@@ -1525,12 +1598,28 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 
+  void _applyActivityLevels(Map<String, String> levels) {
+    if (levels.isEmpty) return;
+    activityLevels = {...activityLevels, ...levels};
+    final slug = selectedActivity?.slug;
+    if (slug != null && activityLevels[slug] != null) {
+      selectedDifficulty = activityLevels[slug]!;
+    }
+  }
+
+  String levelForActivity(String slug) {
+    return activityLevels[normalizeActivitySlug(slug)] ?? selectedDifficulty;
+  }
+
   void selectActivity(String slug) {
     final resolved = normalizeActivitySlug(slug);
     selectedActivity = activities.firstWhere(
       (a) => a.slug == resolved,
       orElse: () => activities.first,
     );
+    if (activityLevels[resolved] != null) {
+      selectedDifficulty = activityLevels[resolved]!;
+    }
     _updateSelectedPrompt();
     notifyListeners();
     if (isLoggedIn) {
@@ -1538,11 +1627,62 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> decideCoachingPrompt(String choice) async {
+    if (!_api.isLoggedIn) {
+      coachingPrompt = null;
+      notifyListeners();
+      return;
+    }
+    try {
+      final data = await _api.decideCoaching(choice);
+      coachingPrompt = null;
+      final levels = data['activity_levels'];
+      if (levels is Map) {
+        _applyActivityLevels(
+          levels.map((k, v) => MapEntry(k.toString(), v.toString())),
+        );
+      }
+      notifyListeners();
+      await refreshFromApi();
+    } catch (_) {
+      coachingPrompt = null;
+      notifyListeners();
+    }
+  }
+
+  Future<void> setActivityLevel(String slug, String difficulty) async {
+    final resolved = normalizeActivitySlug(slug);
+    activityLevels[resolved] = difficulty;
+    if (selectedActivity?.slug == resolved) {
+      selectedDifficulty = difficulty;
+    }
+    notifyListeners();
+    if (!_api.isLoggedIn) return;
+    try {
+      await _api.setCoachingLevel(
+        activitySlug: resolved,
+        difficulty: difficulty,
+      );
+      await fetchNextPromptFromApi();
+    } catch (_) {}
+  }
+
   /// Keep [selectedActivity] aligned with the drill UI the user is viewing.
   void ensureActivitySelected(String slug) {
     final resolved = normalizeActivitySlug(slug);
-    if (selectedActivity?.slug == resolved) return;
+    if (selectedActivity?.slug == resolved) {
+      syncDifficultyForActivity(resolved);
+      return;
+    }
     selectActivity(resolved);
+  }
+
+  /// Questions always follow the assigned activity level, not a session picker.
+  void syncDifficultyForActivity(String slug) {
+    final assigned = levelForActivity(slug);
+    if (selectedDifficulty == assigned) return;
+    selectedDifficulty = assigned;
+    notifyListeners();
   }
 
   void setDifficulty(String diff) {
@@ -1564,6 +1704,7 @@ class AppStateProvider extends ChangeNotifier {
       return true;
     }
     try {
+      selectedDifficulty = levelForActivity(activity.slug);
       final difficulty = selectedDifficulty == 'pro'
           ? 'professional'
           : selectedDifficulty == 'i_dont_know'
@@ -1750,6 +1891,26 @@ class AppStateProvider extends ChangeNotifier {
     final audioPath = await persistFuture;
     final openingAudioPath = await persistOpeningFuture;
 
+    var turns = List<ConversationTurn>.from(conversationTurns);
+    if (prompt.activitySlug == 'debate_me' ||
+        prompt.activitySlug == 'debate') {
+      turns = PracticeSessionRecord.debateTurnsFrom(
+        transcript: resolvedTranscript,
+        fallback: turns,
+      );
+      if (turns.length >= 2) {
+        resolvedTranscript = PracticeSessionRecord.formatDebateTranscript(
+          opening: turns[0].text,
+          pushback: turns.length > 1 && turns[1].role == 'coach'
+              ? turns[1].text
+              : PracticeSessionRecord.extractPushback(resolvedTranscript),
+          rebuttal: turns.length > 2
+              ? turns[2].text
+              : PracticeSessionRecord.extractRebuttal(resolvedTranscript),
+        );
+      }
+    }
+
     // Create and save local session history record immediately
     final record = PracticeSessionRecord(
       id: localId,
@@ -1762,7 +1923,7 @@ class AppStateProvider extends ChangeNotifier {
       promptText: prompt.promptText,
       transcript: resolvedTranscript,
       conversationMode: mode,
-      conversationTurns: conversationTurns,
+      conversationTurns: turns,
       timestamp: DateTime.now(),
       durationSeconds: durationSeconds,
       feedback: feedback,
@@ -1810,7 +1971,7 @@ class AppStateProvider extends ChangeNotifier {
         planExtra: resolvedPlanExtra,
         localRecordId: record.id,
         conversationMode: mode,
-        conversationTurns: conversationTurns,
+        conversationTurns: turns,
         localAudioPath: audioPath,
       ).then((_) => refreshFromApi()));
     } else {
@@ -1838,6 +1999,7 @@ class AppStateProvider extends ChangeNotifier {
     if (!_api.isLoggedIn) {
       throw HakkiriApiException('Sign in required for AI scoring.');
     }
+    selectedDifficulty = levelForActivity(prompt.activitySlug);
     final difficulty = selectedDifficulty == 'pro'
         ? 'professional'
         : selectedDifficulty == 'i_dont_know'

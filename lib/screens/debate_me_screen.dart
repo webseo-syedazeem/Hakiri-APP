@@ -14,6 +14,7 @@ import '../core/services/session_audio_store.dart';
 import '../models/session_model.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/blue_accent_rays.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/mic_reactive_waveform.dart';
@@ -169,10 +170,9 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
       final granted = await _audioRecorder.hasPermission();
       if (!granted) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Microphone permission is needed to record your debate.'),
-            ),
+          AppSnackBar.showError(
+            context,
+            'Microphone permission is needed to record your debate.',
           );
         }
         return false;
@@ -221,10 +221,9 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
         return _startRecorder(attempt: attempt + 1);
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not start the mic. Tap Finish and try again.'),
-          ),
+        AppSnackBar.showError(
+          context,
+          'Could not start the mic. Tap Finish and try again.',
         );
       }
       return false;
@@ -403,12 +402,9 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
 
     final hasClip = audioBase64 != null && audioBase64.isNotEmpty;
     if (!hasClip && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No opening audio was captured. Check mic permission and try again.',
-          ),
-        ),
+      AppSnackBar.showInfo(
+        context,
+        'No opening audio was captured. Check mic permission and try again.',
       );
     }
 
@@ -471,12 +467,9 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
     if (!gotPushback) {
       _pushbackQuote = _topicAwareFallbackPushback();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Could not hear your opening clearly. Pushback is based on the topic — try speaking closer to the mic next time.',
-            ),
-          ),
+        AppSnackBar.showInfo(
+          context,
+          'Could not hear your opening clearly. Pushback is based on the topic — try speaking closer to the mic next time.',
         );
       }
     }
@@ -574,58 +567,18 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
             audioBase64: audioBase64,
             audioMimeType: 'audio/mp4',
           );
-          // Fill rebuttal + opening turns from scored transcript when STT returns them.
           final latest = state.latestSession;
           if (latest != null) {
-            final rebuttalText = _extractRebuttal(latest.transcript);
-            final openingFromScore =
-                _extractOpening(latest.transcript);
-            final filledTurns = [
-              ConversationTurn(
-                role: 'user',
-                text: openingFromScore.isNotEmpty &&
-                        !openingFromScore.startsWith('(')
-                    ? openingFromScore
-                    : turns[0].text,
-              ),
-              turns[1],
-              ConversationTurn(
-                role: 'user',
-                text: rebuttalText.isNotEmpty
-                    ? rebuttalText
-                    : turns[2].text,
-              ),
-            ];
-            final displayTranscript = [
-              'Opening argument:',
-              filledTurns[0].text,
-              '',
-              'Hakkiri pushback:',
-              filledTurns[1].text,
-              '',
-              'Rebuttal:',
-              filledTurns[2].text,
-            ].join('\n');
-            final patched = latest.copyWith(
-              transcript: displayTranscript,
-              conversationMode: 'back_and_forth',
-              conversationTurns: filledTurns,
-            );
-            state.latestSession = patched;
-            final idx =
-                state.sessionHistory.indexWhere((s) => s.id == patched.id);
-            if (idx >= 0) state.sessionHistory[idx] = patched;
-            scoredSession = patched;
+            scoredSession = latest;
           }
         },
       );
     } catch (_) {
       _busy = false;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not score this debate. Please try again.'),
-          ),
+        AppSnackBar.showError(
+          context,
+          'Could not score this debate. Please try again.',
         );
       }
       return;
@@ -643,42 +596,6 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
         builder: (_) => FeedbackScreen(session: sessionForUi),
       ),
     );
-  }
-
-  String _extractOpening(String transcript) {
-    final t = transcript.trim();
-    if (t.isEmpty) return '';
-    final marker = RegExp(r'opening argument\s*:', caseSensitive: false);
-    final match = marker.firstMatch(t);
-    if (match == null) return '';
-    final start = match.end;
-    final next = RegExp(
-      r'(hakkiri|coach)\s+pushback\s*:|rebuttal\s*:',
-      caseSensitive: false,
-    ).allMatches(t).where((x) => x.start > start).toList();
-    final end = next.isEmpty ? t.length : next.first.start;
-    var body = t.substring(start, end).trim();
-    body = body.replaceFirst(
-      RegExp(r'^opening argument\s*:\s*', caseSensitive: false),
-      '',
-    );
-    return body.trim();
-  }
-
-  String _extractRebuttal(String transcript) {
-    final t = transcript.trim();
-    if (t.isEmpty) return '';
-    // Prefer the last "Rebuttal:" block (API may append another after ours).
-    final marker = RegExp(r'rebuttal\s*:', caseSensitive: false);
-    final matches = marker.allMatches(t).toList();
-    if (matches.isEmpty) return '';
-    var body = t.substring(matches.last.end).trim();
-    // Strip accidental duplicated label left in the body.
-    body = body.replaceFirst(
-      RegExp(r'^rebuttal\s*:\s*', caseSensitive: false),
-      '',
-    );
-    return body.trim();
   }
 
   /// While the guided debate is running, confirm before leaving.

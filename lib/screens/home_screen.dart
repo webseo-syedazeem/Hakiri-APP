@@ -4,11 +4,13 @@ import '../core/constants/app_colors.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../core/services/push_notification_service.dart';
 import '../providers/app_state_provider.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/shimmer_loading.dart';
 import 'activity_detail_screen.dart';
 import 'main_tab_scaffold.dart';
+import 'profile_section_screen.dart';
 import 'targeted_retry_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -26,15 +28,11 @@ class HomeScreenContent extends StatelessWidget {
   Future<void> _onFreezeTap(BuildContext context) async {
     final state = context.read<AppStateProvider>();
     if (!state.isLoggedIn) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sign in to use a streak freeze.')),
-      );
+      AppSnackBar.showInfo(context, 'Sign in to use a streak freeze.');
       return;
     }
     if (state.streakFreezeCount < 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No streak freezes left.')),
-      );
+      AppSnackBar.showInfo(context, 'No streak freezes left.');
       return;
     }
 
@@ -69,26 +67,20 @@ class HomeScreenContent extends StatelessWidget {
         action: () => state.freezeStreakFromApi(),
       );
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            state.streakFreezeCount > 0
-                ? 'Freeze applied. ${state.streakFreezeCount} freeze${state.streakFreezeCount == 1 ? '' : 's'} left.'
-                : 'Freeze applied. No freezes left.',
-          ),
-        ),
+      AppSnackBar.showSuccess(
+        context,
+        state.streakFreezeCount > 0
+            ? 'Freeze applied. ${state.streakFreezeCount} freeze${state.streakFreezeCount == 1 ? '' : 's'} left.'
+            : 'Freeze applied. No freezes left.',
       );
     } on HakkiriApiException catch (e) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      AppSnackBar.showError(context, e.message);
     } catch (_) {
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not apply freeze. Check your connection.'),
-        ),
+      AppSnackBar.showError(
+        context,
+        'Could not apply freeze. Check your connection.',
       );
     }
   }
@@ -122,16 +114,17 @@ class HomeScreenContent extends StatelessWidget {
     );
     String nextSlug;
     String nextLabel;
+    final nextIncomplete = state.firstIncompleteCoreSlug();
     if (offerExtras) {
       nextSlug = (weakest['slug'] as String?) ?? primarySlug;
       nextLabel = minutes >= 15
           ? 'Choose retry or stretch'
           : 'Targeted retry';
-    } else if (coreDone >= drills.length) {
+    } else if (nextIncomplete == null) {
       nextSlug = primarySlug;
       nextLabel = 'Plan complete';
     } else {
-      nextSlug = drills[coreDone.clamp(0, drills.length - 1)];
+      nextSlug = nextIncomplete;
       nextLabel = hasStarted ? 'UP NEXT · ~2 MIN' : 'START HERE · ~2 MIN';
     }
     final nextActivity = state.activities.firstWhere(
@@ -369,60 +362,76 @@ class HomeScreenContent extends StatelessWidget {
             const SizedBox(height: 14),
 
             // Assessment Personalization Banner Card (from img_0.png)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceWhite,
+            Material(
+              color: AppColors.surfaceWhite,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEDE9FE),
-                      borderRadius: BorderRadius.circular(10),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ProfileSectionScreen(
+                        focus: ProfileSectionFocus.goals,
+                      ),
                     ),
-                    alignment: Alignment.center,
-                    child: const Icon(
-                      Icons.auto_awesome_rounded,
-                      color: Color(0xFF6366F1),
-                      size: 20,
-                    ),
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Personalised from your assessment',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                          ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEDE9FE),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Focus: ${state.focusLine}',
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 11,
-                          ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.auto_awesome_rounded,
+                          color: Color(0xFF6366F1),
+                          size: 20,
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Personalised from your assessment',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Focus: ${state.focusLine}',
+                              style: const TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        color: AppColors.textMuted,
+                        size: 22,
+                      ),
+                    ],
                   ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    color: AppColors.textMuted,
-                    size: 22,
-                  ),
-                ],
+                ),
               ),
             ),
             const SizedBox(height: 18),
@@ -593,17 +602,8 @@ class HomeScreenContent extends StatelessWidget {
                 (a) => a.slug == slug,
                 orElse: () => state.activities.first,
               );
-              final doneToday = index < coreDone ||
-                  state.sessionHistory.any((s) {
-                    final now = DateTime.now();
-                    return s.activitySlug == slug &&
-                        !s.feedback.isCoachedRetry &&
-                        s.timestamp.year == now.year &&
-                        s.timestamp.month == now.month &&
-                        s.timestamp.day == now.day;
-                  });
+              final doneToday = state.isCoreSlugDoneToday(slug);
               final visuals = _exerciseVisual(slug);
-              final locked = !doneToday && index > coreDone;
               return Padding(
                 padding: EdgeInsets.only(bottom: index < drills.length - 1 ? 10 : 0),
                 child: _buildExerciseCard(
@@ -614,20 +614,16 @@ class HomeScreenContent extends StatelessWidget {
                   title: activity.name,
                   subtitle: activity.tagline,
                   isCompleted: doneToday,
-                  trailingText: doneToday
-                      ? null
-                      : (locked ? 'Locked' : '~2 min'),
-                  onTap: locked
-                      ? null
-                      : () {
-                          state.selectActivity(slug);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ActivityDetailScreen(),
-                            ),
-                          );
-                        },
+                  trailingText: doneToday ? null : '~2 min',
+                  onTap: () {
+                    state.selectActivity(slug);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ActivityDetailScreen(),
+                      ),
+                    );
+                  },
                 ),
               );
             }),

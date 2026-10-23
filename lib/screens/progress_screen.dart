@@ -632,7 +632,6 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
               ...filteredSessions.take(3).map((session) {
                 final score = session.feedback.overallScore;
                 final minutes = (session.durationSeconds / 60).ceil().clamp(1, 99);
-                final modeTag = session.isBackAndForth ? ' · Chat' : '';
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _buildRecentSessionCard(
@@ -645,7 +644,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                             : const Color(0xFFF59E0B),
                     title: session.activityName,
                     dateDuration:
-                        '${_formatSessionDay(session.timestamp)} · 🕒 $minutes min$modeTag',
+                        '${_formatSessionDay(session.timestamp)} · 🕒 $minutes min',
                     onTap: () {
                       Navigator.push(
                         context,
@@ -1188,13 +1187,13 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                     color: const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: const Text(
+                    child: const Text(
                     'Feedback',
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      color: Color(0xFF2563EB),
+                      color: Color(0xFF93C5FD),
                       fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ),

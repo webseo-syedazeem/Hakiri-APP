@@ -8,6 +8,68 @@ const { sessionJson, streakJson } = require("../services/serializers");
 const { applyPractice, bumpChallenges } = require("../services/progress");
 const { subscriptionJson } = require("../services/serializers");
 
+function isPlaceholderSpeech(text) {
+  const s = String(text || "").trim().toLowerCase();
+  if (!s) return true;
+  if (s.includes("rebuttal recorded")) return true;
+  if (s.includes("transcript unavailable")) return true;
+  if (s.includes("no opening captured")) return true;
+  if (s.includes("opening was recorded")) return true;
+  return s.startsWith("(") && s.endsWith(")");
+}
+
+function sliceAfter(transcript, startRe, stopRe) {
+  const t = String(transcript || "");
+  const startReLocal = new RegExp(startRe.source, startRe.flags.replace("g", ""));
+  const m = startReLocal.exec(t);
+  if (!m) return "";
+  const from = m.index + m[0].length;
+  const rest = t.slice(from);
+  const stopReLocal = new RegExp(stopRe.source, stopRe.flags.replace("g", ""));
+  const stop = stopReLocal.exec(rest);
+  return (stop ? rest.slice(0, stop.index) : rest).trim();
+}
+
+function lastRebuttal(transcript) {
+  const t = String(transcript || "");
+  const matches = [...t.matchAll(/rebuttal\s*:/gi)];
+  if (!matches.length) return "";
+  const last = matches[matches.length - 1];
+  return t.slice(last.index + last[0].length).replace(/^\s*rebuttal\s*:\s*/i, "").trim();
+}
+
+function preferSpeech(parsed, fallback) {
+  if (!isPlaceholderSpeech(parsed)) return String(parsed).trim();
+  if (!isPlaceholderSpeech(fallback)) return String(fallback).trim();
+  return "";
+}
+
+function hydrateDebateTurns(activitySlug, transcript, turns) {
+  if (activitySlug !== "debate_me" && activitySlug !== "debate") return turns;
+  const opening = preferSpeech(
+    sliceAfter(
+      transcript,
+      /opening argument\s*:/i,
+      /(hakkiri|coach)\s+pushback\s*:|rebuttal\s*:/i
+    ),
+    turns[0]?.text || ""
+  );
+  const pushback = preferSpeech(
+    sliceAfter(
+      transcript,
+      /(hakkiri|coach)\s+pushback\s*:/i,
+      /rebuttal\s*:/i
+    ),
+    turns[1]?.text || ""
+  );
+  const rebuttal = preferSpeech(lastRebuttal(transcript), turns[2]?.text || "");
+  const next = [];
+  if (opening) next.push({ role: "user", text: opening.slice(0, 4000) });
+  if (pushback) next.push({ role: "coach", text: pushback.slice(0, 4000) });
+  if (rebuttal) next.push({ role: "user", text: rebuttal.slice(0, 4000) });
+  return next.length ? next : turns;
+}
+
 function integerScore(value, label, { required }) {
   if (value == null || value === "") {
     if (required) return `${label} is required.`;
@@ -94,13 +156,19 @@ const createSession = async (req, res) => {
       ? "back_and_forth"
       : "single";
   const turnsIn = Array.isArray(body.conversation_turns) ? body.conversation_turns : [];
-  const conversationTurns = turnsIn
+  const rawTurns = turnsIn
     .slice(0, 80)
     .map((t) => ({
       role: String(t?.role || "").toLowerCase() === "coach" ? "coach" : "user",
       text: String(t?.text || "").slice(0, 4000),
     }))
     .filter((t) => t.text);
+  const transcriptText = String(body.transcript || "").slice(0, 20000);
+  const conversationTurns = hydrateDebateTurns(
+    activity.slug,
+    transcriptText,
+    rawTurns
+  );
 
   // Tougher challenge: bump difficulty when requested.
   let difficulty = body.difficulty || prompt?.difficulty || "beginner";
@@ -116,7 +184,7 @@ const createSession = async (req, res) => {
     promptTitle: body.prompt_title || prompt?.title || prompt?.promptText?.slice(0, 80) || activity.name,
     promptText: String(body.prompt_text || prompt?.promptText || "").slice(0, 8000),
     difficulty,
-    transcript: String(body.transcript || "").slice(0, 20000),
+    transcript: transcriptText,
     durationSeconds: Number(body.duration_seconds || 0),
     isCoachedRetry,
     withholdJudgement: withhold,

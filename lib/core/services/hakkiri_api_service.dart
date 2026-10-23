@@ -374,6 +374,32 @@ class HakkiriApiService {
         timeout: const Duration(seconds: 90),
       );
 
+  Future<Map<String, dynamic>> decideCoaching(String choice) =>
+      _post('/coaching/decide', auth: true, body: {'choice': choice});
+
+  Future<Map<String, dynamic>> setCoachingLevel({
+    required String activitySlug,
+    required String difficulty,
+  }) =>
+      _put('/coaching/level', auth: true, body: {
+        'activity_slug': activitySlug,
+        'difficulty': difficulty,
+      });
+
+  Future<Map<String, dynamic>> listReflections({int days = 28}) =>
+      _get('/reflections?days=$days', auth: true);
+
+  Future<Map<String, dynamic>> createReflection({
+    required String title,
+    required String learnings,
+    required String focusArea,
+  }) =>
+      _post('/reflections', auth: true, body: {
+        'title': title,
+        'learnings': learnings,
+        'focus_area': focusArea,
+      });
+
   /// Gemini TTS: WAV + word timings for lockstep karaoke highlight.
   Future<Map<String, dynamic>> coachSpeak({
     required String text,

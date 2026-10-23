@@ -85,6 +85,22 @@ class HakkiriApp extends StatelessWidget {
               statusBarBrightness: Brightness.light,    // Dark icons on iOS
             ),
           ),
+          snackBarTheme: SnackBarThemeData(
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.white,
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.2),
+            ),
+            contentTextStyle: const TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+            insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          ),
           // Smooth fade + slide transition for every screen navigation.
           pageTransitionsTheme: const PageTransitionsTheme(
             builders: {

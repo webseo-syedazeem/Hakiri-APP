@@ -78,10 +78,18 @@ const submitAssessment = async (req, res) => {
   if (fullName && fullName.length < 2) return error(res, "Enter your name.");
 
   const plan = buildPlan(answers);
+  const { defaultCoaching } = require("../services/coaching");
+  const existing = await Profile.findOne({ user: req.user._id }).lean();
+  const coaching = existing?.coaching?.startedAt
+    ? existing.coaching
+    : defaultCoaching({
+        confidence: answers.speakingConfidence,
+        drills: plan.initialDrills,
+      });
   const writes = [
     Profile.findOneAndUpdate(
       { user: req.user._id },
-      { ...answers, onboardingComplete: true, plan },
+      { ...answers, onboardingComplete: true, plan, coaching },
       { new: true, upsert: true }
     ),
     Settings.findOneAndUpdate(

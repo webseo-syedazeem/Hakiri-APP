@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/practice_orbital_accent.dart';
 
 class NotesToFutureSelfScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class _NotesToFutureSelfScreenState extends State<NotesToFutureSelfScreen> {
   final TextEditingController _learningsController = TextEditingController();
   final TextEditingController _customFocusController = TextEditingController();
   String? _selectedFocus;
+  bool _saving = false;
 
   final List<Map<String, dynamic>> _focusOptions = const [
     {
@@ -68,19 +70,14 @@ class _NotesToFutureSelfScreenState extends State<NotesToFutureSelfScreen> {
     super.dispose();
   }
 
-  void _saveNote() {
+  Future<void> _saveNote() async {
     final learnings = _learningsController.text.trim();
     final focus = _customFocusController.text.trim().isNotEmpty
         ? _customFocusController.text.trim()
         : (_selectedFocus ?? 'General growth');
 
-    if (learnings.isEmpty && focus.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please share a few thoughts before saving.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    if (learnings.isEmpty && (_selectedFocus == null && _customFocusController.text.trim().isEmpty)) {
+      AppSnackBar.showInfo(context, 'Please share a few thoughts before saving.');
       return;
     }
 
@@ -89,22 +86,21 @@ class _NotesToFutureSelfScreenState extends State<NotesToFutureSelfScreen> {
         ? '${firstLine.substring(0, 28)}...'
         : (firstLine.isNotEmpty ? firstLine : focus);
 
-    context.read<AppStateProvider>().addReflectionNote(
-          title: title,
-          learnings: learnings.isNotEmpty ? learnings : 'Focused on $focus today.',
-          focusArea: focus,
-        );
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Note saved to your reflections!'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: Color(0xFF10B981),
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    Navigator.pop(context);
+    setState(() => _saving = true);
+    try {
+      await context.read<AppStateProvider>().addReflectionNote(
+            title: title,
+            learnings: learnings.isNotEmpty ? learnings : 'Focused on $focus today.',
+            focusArea: focus,
+          );
+      if (!mounted) return;
+      AppSnackBar.showSuccess(context, 'Note saved to your reflections!');
+      Navigator.pop(context);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppSnackBar.showError(context, 'Could not save note. Try again.');
+    }
   }
 
   @override
@@ -462,7 +458,7 @@ class _NotesToFutureSelfScreenState extends State<NotesToFutureSelfScreen> {
                     width: double.infinity,
                     height: 52,
                     child: ElevatedButton(
-                      onPressed: _saveNote,
+                      onPressed: _saving ? null : _saveNote,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF2563EB),
                         foregroundColor: Colors.white,
@@ -471,14 +467,23 @@ class _NotesToFutureSelfScreenState extends State<NotesToFutureSelfScreen> {
                           borderRadius: BorderRadius.circular(26),
                         ),
                       ),
-                      child: const Text(
-                        'Save note',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      child: _saving
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              'Save note',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                     ),
                   ),
                 ),

@@ -210,6 +210,8 @@ class ActivityDetailScreen extends StatelessWidget {
                             const SizedBox(height: 12),
                             // 4. Card: Strategy (USE YOUR 5 SECONDS / BUILD THE CONNECTION)
                             _buildStrategyCard(spec.strategyTitle, spec.strategy),
+                            const SizedBox(height: 14),
+                            _AssignedLevelLabel(slug: slug),
                             const SizedBox(height: 18),
                           ],
                         ),
@@ -226,6 +228,7 @@ class ActivityDetailScreen extends StatelessWidget {
                           final app = context.read<AppStateProvider>();
                           // Lock provider to this drill before fetching the prompt.
                           app.ensureActivitySelected(slug);
+                          app.syncDifficultyForActivity(slug);
 
                           if (app.isLoggedIn) {
                             await HakkiriLoadingOverlay.run(
@@ -241,7 +244,7 @@ class ActivityDetailScreen extends StatelessWidget {
                               ),
                             );
                           } else if (!isDebateMe) {
-                            app.setDifficulty(app.selectedDifficulty);
+                            app.setDifficulty(app.levelForActivity(slug));
                           }
                           if (!context.mounted) return;
 
@@ -757,6 +760,85 @@ class _LightningBoltPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _AssignedLevelLabel extends StatelessWidget {
+  final String slug;
+  const _AssignedLevelLabel({required this.slug});
+
+  static String _label(String code) {
+    switch (code) {
+      case 'beginner':
+        return 'Beginner';
+      case 'professional':
+      case 'pro':
+        return 'Pro';
+      default:
+        return 'Intermediate';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppStateProvider>();
+    final current = _label(state.levelForActivity(slug));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'LEVEL',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.0,
+            color: Color(0xFF94A3B8),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2563EB),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  current,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'You’ll practice at this level. Hakkiri may suggest a change after a week.',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF64748B),
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 /// Crisp custom painter for the connected nodes icon matching Image 5

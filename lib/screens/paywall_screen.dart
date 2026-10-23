@@ -11,6 +11,7 @@ import '../core/services/analytics_service.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../core/services/iap_service.dart';
 import '../providers/app_state_provider.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/paywall_wave_background.dart';
 import 'home_screen.dart';
@@ -61,14 +62,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    AppSnackBar.showInfo(context, message);
   }
 
   String _priceForTier(String tier, String fallback) {
@@ -286,6 +280,11 @@ class _PaywallScreenState extends State<PaywallScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final short = media.size.height < 780;
+    final isIos = defaultTargetPlatform == TargetPlatform.iOS;
+    final gap = short ? 8.0 : 14.0;
+    final titleSize = short ? 28.0 : 36.0;
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
@@ -297,9 +296,14 @@ class _PaywallScreenState extends State<PaywallScreen> {
           children: [
             const PaywallWaveBackground(),
             SafeArea(
+              bottom: !isIos,
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  short ? 8 : 14,
+                  24,
+                  isIos ? 4 : (short ? 8 : 14),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -323,129 +327,148 @@ class _PaywallScreenState extends State<PaywallScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    SizedBox(height: short ? 8 : 16),
                     Expanded(
-                      child: SingleChildScrollView(
-                        physics: const BouncingScrollPhysics(),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'HAKKIRI PRO',
-                              style: TextStyle(
-                                color: Color(0xFF5B6BFF),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            RichText(
-                              text: const TextSpan(
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  color: Colors.white,
-                                  fontSize: 36,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -1.0,
-                                  height: 1.15,
-                                ),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          return FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.topCenter,
+                            child: SizedBox(
+                              width: constraints.maxWidth,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  TextSpan(text: 'Keep improving\n'),
-                                  TextSpan(
-                                    text: 'every day.',
-                                    style: TextStyle(color: Color(0xFF4E75FF)),
+                                  const Text(
+                                    'HAKKIRI PRO',
+                                    style: TextStyle(
+                                      color: Color(0xFF5B6BFF),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.2,
+                                    ),
                                   ),
+                                  const SizedBox(height: 6),
+                                  RichText(
+                                    text: TextSpan(
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        color: Colors.white,
+                                        fontSize: titleSize,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: -1.0,
+                                        height: 1.12,
+                                      ),
+                                      children: const [
+                                        TextSpan(text: 'Keep improving\n'),
+                                        TextSpan(
+                                          text: 'every day.',
+                                          style: TextStyle(
+                                            color: Color(0xFF4E75FF),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(height: short ? 12 : 20),
+                                  _buildFeatureRow(
+                                    icon: Icons.article_outlined,
+                                    title: 'New prompts every day',
+                                    subtitle:
+                                        'Matched to your goals and challenges',
+                                    compact: short,
+                                  ),
+                                  SizedBox(height: gap),
+                                  _buildFeatureRow(
+                                    icon: Icons.chat_bubble_outline_rounded,
+                                    title:
+                                        'Specific feedback after every answer',
+                                    subtitle:
+                                        "Understand what's working and how to improve",
+                                    compact: short,
+                                  ),
+                                  SizedBox(height: gap),
+                                  _buildFeatureRow(
+                                    icon: Icons.tune_rounded,
+                                    title: 'A plan that adapts each week',
+                                    subtitle:
+                                        'Personalised to your progress',
+                                    compact: short,
+                                  ),
+                                  SizedBox(height: gap),
+                                  _buildFeatureRow(
+                                    icon: Icons.bar_chart_rounded,
+                                    title: 'More exercises, every level',
+                                    subtitle:
+                                        'From everyday conversations to high-stakes moments',
+                                    compact: short,
+                                  ),
+                                  SizedBox(height: gap),
+                                  _buildFeatureRow(
+                                    icon: Icons.track_changes_rounded,
+                                    title: 'Progress tracking and streaks',
+                                    subtitle:
+                                        'Stay consistent and see real improvement',
+                                    compact: short,
+                                  ),
+                                  SizedBox(height: short ? 12 : 20),
+                                  if (_loadingProducts)
+                                    const Padding(
+                                      padding: EdgeInsets.only(bottom: 10),
+                                      child: LinearProgressIndicator(
+                                        minHeight: 2,
+                                        color: Color(0xFF3B82F6),
+                                        backgroundColor: Color(0xFF23263B),
+                                      ),
+                                    ),
+                                  _buildPlanCard(
+                                    id: 'annual_pro',
+                                    title: 'Yearly',
+                                    subtitle: _subtitleForTier(
+                                      'annual_pro',
+                                      '£69.99 per year · billed yearly',
+                                    ),
+                                    priceText: _priceForTier(
+                                      'annual_pro',
+                                      '£69.99/yr',
+                                    ),
+                                    badgeText: 'BEST VALUE',
+                                    isSelected: _selectedTier == 'annual_pro',
+                                    compact: short,
+                                  ),
+                                  SizedBox(height: short ? 8 : 12),
+                                  _buildPlanCard(
+                                    id: 'monthly_pro',
+                                    title: 'Monthly',
+                                    subtitle: _subtitleForTier(
+                                      'monthly_pro',
+                                      '£9.99 per month · billed monthly',
+                                    ),
+                                    priceText: _priceForTier(
+                                      'monthly_pro',
+                                      '£9.99/mo',
+                                    ),
+                                    isSelected: _selectedTier == 'monthly_pro',
+                                    compact: short,
+                                  ),
+                                  if (_statusMessage != null) ...[
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      _statusMessage!,
+                                      style: const TextStyle(
+                                        color: Color(0xFF93C5FD),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        height: 1.35,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 24),
-                            _buildFeatureRow(
-                              icon: Icons.article_outlined,
-                              title: 'New prompts every day',
-                              subtitle:
-                                  'Matched to your goals and challenges',
-                            ),
-                            const SizedBox(height: 14),
-                            _buildFeatureRow(
-                              icon: Icons.chat_bubble_outline_rounded,
-                              title: 'Specific feedback after every answer',
-                              subtitle:
-                                  "Understand what's working and how to improve",
-                            ),
-                            const SizedBox(height: 14),
-                            _buildFeatureRow(
-                              icon: Icons.tune_rounded,
-                              title: 'A plan that adapts each week',
-                              subtitle: 'Personalised to your progress',
-                            ),
-                            const SizedBox(height: 14),
-                            _buildFeatureRow(
-                              icon: Icons.bar_chart_rounded,
-                              title: 'More exercises, every level',
-                              subtitle:
-                                  'From everyday conversations to high-stakes moments',
-                            ),
-                            const SizedBox(height: 14),
-                            _buildFeatureRow(
-                              icon: Icons.track_changes_rounded,
-                              title: 'Progress tracking and streaks',
-                              subtitle:
-                                  'Stay consistent and see real improvement',
-                            ),
-                            const SizedBox(height: 24),
-                            if (_loadingProducts)
-                              const Padding(
-                                padding: EdgeInsets.only(bottom: 12),
-                                child: LinearProgressIndicator(
-                                  minHeight: 2,
-                                  color: Color(0xFF3B82F6),
-                                  backgroundColor: Color(0xFF23263B),
-                                ),
-                              ),
-                            _buildPlanCard(
-                              id: 'annual_pro',
-                              title: 'Yearly',
-                              subtitle: _subtitleForTier(
-                                'annual_pro',
-                                '£69.99 per year · billed yearly',
-                              ),
-                              priceText: _priceForTier(
-                                'annual_pro',
-                                '£69.99/yr',
-                              ),
-                              badgeText: 'BEST VALUE',
-                              isSelected: _selectedTier == 'annual_pro',
-                            ),
-                            const SizedBox(height: 12),
-                            _buildPlanCard(
-                              id: 'monthly_pro',
-                              title: 'Monthly',
-                              subtitle: _subtitleForTier(
-                                'monthly_pro',
-                                '£9.99 per month · billed monthly',
-                              ),
-                              priceText: _priceForTier(
-                                'monthly_pro',
-                                '£9.99/mo',
-                              ),
-                              isSelected: _selectedTier == 'monthly_pro',
-                            ),
-                            if (_statusMessage != null) ...[
-                              const SizedBox(height: 14),
-                              Text(
-                                _statusMessage!,
-                                style: const TextStyle(
-                                  color: Color(0xFF93C5FD),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.35,
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 16),
-                          ],
-                        ),
+                          );
+                        },
                       ),
                     ),
                     SizedBox(
@@ -534,7 +557,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 6),
+                    SizedBox(height: isIos ? 2 : 6),
                   ],
                 ),
               ),
@@ -549,39 +572,41 @@ class _PaywallScreenState extends State<PaywallScreen> {
     required IconData icon,
     required String title,
     required String subtitle,
+    bool compact = false,
   }) {
+    final box = compact ? 32.0 : 40.0;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: box,
+          height: box,
           decoration: BoxDecoration(
             color: const Color(0xFF161928),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(compact ? 10 : 12),
           ),
           alignment: Alignment.center,
-          child: Icon(icon, color: const Color(0xFF8B95B8), size: 20),
+          child: Icon(icon, color: const Color(0xFF8B95B8), size: compact ? 16 : 20),
         ),
-        const SizedBox(width: 14),
+        SizedBox(width: compact ? 10 : 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   color: Colors.white,
-                  fontSize: 14.5,
+                  fontSize: compact ? 13 : 14.5,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 3),
+              SizedBox(height: compact ? 1 : 3),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  color: Color(0xFF8B92A8),
-                  fontSize: 12,
+                style: TextStyle(
+                  color: const Color(0xFF8B92A8),
+                  fontSize: compact ? 11 : 12,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -599,12 +624,16 @@ class _PaywallScreenState extends State<PaywallScreen> {
     required String priceText,
     String? badgeText,
     required bool isSelected,
+    bool compact = false,
   }) {
     return GestureDetector(
       onTap: _purchasing ? null : () => setState(() => _selectedTier = id),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 14 : 18,
+          vertical: compact ? 10 : 16,
+        ),
         decoration: BoxDecoration(
           color: const Color(0xFF141624),
           borderRadius: BorderRadius.circular(16),

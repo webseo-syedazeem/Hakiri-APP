@@ -5,6 +5,7 @@ import '../core/services/analytics_service.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/auth_waveform_watermark.dart';
 import '../widgets/google_logo.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
@@ -40,11 +41,13 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _showMessage(String message) {
+  void _showMessage(String message, {bool isError = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    if (isError) {
+      AppSnackBar.showError(context, message);
+    } else {
+      AppSnackBar.showInfo(context, message);
+    }
   }
 
   Future<void> _handleLogin() async {
@@ -291,11 +294,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Password reset link sent to your email.'),
-                            duration: Duration(seconds: 2),
-                          ),
+                        AppSnackBar.showSuccess(
+                          context,
+                          'Password reset link sent to your email.',
                         );
                       },
                       style: TextButton.styleFrom(

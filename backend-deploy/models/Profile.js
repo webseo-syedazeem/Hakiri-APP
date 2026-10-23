@@ -28,6 +28,7 @@ const profileSchema = new mongoose.Schema(
       initialDrills: { type: [String], default: [] },
       milestones: { type: [milestoneSchema], default: [] },
     },
+    coaching: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { timestamps: true }
 );

@@ -288,6 +288,113 @@ class PracticeSessionRecord {
 
   bool get isBackAndForth => conversationMode == 'back_and_forth';
 
+  bool get isDebateMe =>
+      activitySlug == 'debate_me' || activitySlug == 'debate';
+
+  static bool isPlaceholderSpeech(String text) {
+    final s = text.trim().toLowerCase();
+    if (s.isEmpty) return true;
+    if (s.contains('rebuttal recorded')) return true;
+    if (s.contains('transcript unavailable')) return true;
+    if (s.contains('no opening captured')) return true;
+    if (s.contains('opening was recorded')) return true;
+    return s.startsWith('(') && s.endsWith(')');
+  }
+
+  static String _sliceAfter(
+    String transcript,
+    RegExp start, {
+    required RegExp until,
+  }) {
+    final match = start.firstMatch(transcript);
+    if (match == null) return '';
+    final from = match.end;
+    final next =
+        until.allMatches(transcript).where((m) => m.start >= from).toList();
+    final end = next.isEmpty ? transcript.length : next.first.start;
+    return transcript.substring(from, end).trim();
+  }
+
+  static String extractOpening(String transcript) => _sliceAfter(
+        transcript,
+        RegExp(r'opening argument\s*:', caseSensitive: false),
+        until: RegExp(
+          r'(hakkiri|coach)\s+pushback\s*:|rebuttal\s*:',
+          caseSensitive: false,
+        ),
+      );
+
+  static String extractPushback(String transcript) => _sliceAfter(
+        transcript,
+        RegExp(r'(hakkiri|coach)\s+pushback\s*:', caseSensitive: false),
+        until: RegExp(r'rebuttal\s*:', caseSensitive: false),
+      );
+
+  static String extractRebuttal(String transcript) {
+    final t = transcript.trim();
+    final marker = RegExp(r'rebuttal\s*:', caseSensitive: false);
+    final matches = marker.allMatches(t).toList();
+    if (matches.isEmpty) return '';
+    var body = t.substring(matches.last.end).trim();
+    body = body.replaceFirst(
+      RegExp(r'^rebuttal\s*:\s*', caseSensitive: false),
+      '',
+    );
+    return body.trim();
+  }
+
+  static String formatDebateTranscript({
+    required String opening,
+    required String pushback,
+    required String rebuttal,
+  }) {
+    return [
+      'Opening argument:',
+      opening,
+      '',
+      'Hakkiri pushback:',
+      pushback,
+      '',
+      'Rebuttal:',
+      rebuttal,
+    ].join('\n');
+  }
+
+  static String _preferSpeech(String parsed, String fallback) {
+    if (!isPlaceholderSpeech(parsed)) return parsed.trim();
+    if (!isPlaceholderSpeech(fallback)) return fallback.trim();
+    return '';
+  }
+
+  static List<ConversationTurn> debateTurnsFrom({
+    required String transcript,
+    List<ConversationTurn> fallback = const [],
+  }) {
+    final opening = _preferSpeech(
+      extractOpening(transcript),
+      fallback.isNotEmpty ? fallback[0].text : '',
+    );
+    final pushback = _preferSpeech(
+      extractPushback(transcript),
+      fallback.length > 1 ? fallback[1].text : '',
+    );
+    final rebuttal = _preferSpeech(
+      extractRebuttal(transcript),
+      fallback.length > 2 ? fallback[2].text : '',
+    );
+    final turns = <ConversationTurn>[];
+    if (opening.isNotEmpty) {
+      turns.add(ConversationTurn(role: 'user', text: opening));
+    }
+    if (pushback.isNotEmpty) {
+      turns.add(ConversationTurn(role: 'coach', text: pushback));
+    }
+    if (rebuttal.isNotEmpty) {
+      turns.add(ConversationTurn(role: 'user', text: rebuttal));
+    }
+    return turns;
+  }
+
   PracticeSessionRecord copyWith({
     String? id,
     String? localAudioPath,

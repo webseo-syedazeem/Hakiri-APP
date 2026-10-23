@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../core/services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/blue_accent_rays.dart';
 import '../widgets/exercise_illustrations.dart';
 import '../widgets/onboarding_bubble_background.dart';
@@ -155,11 +156,10 @@ class _LandingScreenState extends State<LandingScreen>
       return;
     }
     _lastBackPress = now;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Press back again to exit'),
-        duration: Duration(seconds: 2),
-      ),
+    AppSnackBar.showInfo(
+      context,
+      'Press back again to exit',
+      duration: const Duration(seconds: 2),
     );
   }
 

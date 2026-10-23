@@ -309,7 +309,6 @@ class _AllSessionsScreenState extends State<AllSessionsScreen> {
   Widget _buildSessionCard(BuildContext context, PracticeSessionRecord session) {
     final score = session.feedback.overallScore;
     final minutes = (session.durationSeconds / 60).ceil().clamp(1, 99);
-    final modeTag = session.isBackAndForth ? ' · Live Coach' : '';
     final ringColor = score >= 4
         ? const Color(0xFF10B981)
         : score >= 3
@@ -396,7 +395,7 @@ class _AllSessionsScreenState extends State<AllSessionsScreen> {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      '${_formatSessionDay(session.timestamp)} · 🕒 $minutes min$modeTag',
+                      '${_formatSessionDay(session.timestamp)} · 🕒 $minutes min',
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         color: Color(0xFF64748B),
@@ -439,9 +438,9 @@ class _AllSessionsScreenState extends State<AllSessionsScreen> {
                       'Feedback',
                       style: TextStyle(
                         fontFamily: 'Inter',
-                        color: Color(0xFF2563EB),
+                        color: Color(0xFF93C5FD),
                         fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),

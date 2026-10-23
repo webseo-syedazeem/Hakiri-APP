@@ -41,9 +41,13 @@ function areaLabelForSlug(slug) {
 }
 
 function coreDrillsFromProfile(profile) {
-  const drills = profile?.plan?.initialDrills?.length
-    ? profile.plan.initialDrills.map(String)
-    : [...DEFAULT_DRILLS];
+  const fromCoach = profile?.coaching?.planDrills;
+  const drills = (Array.isArray(fromCoach) && fromCoach.length
+    ? fromCoach
+    : profile?.plan?.initialDrills?.length
+      ? profile.plan.initialDrills
+      : DEFAULT_DRILLS
+  ).map(String);
   // Keep first 3 unique MVP drills.
   const out = [];
   for (const slug of drills) {
