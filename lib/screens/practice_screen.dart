@@ -177,6 +177,7 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                 ),
                 const SizedBox(height: 12),
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     Expanded(
                       child: _buildVerticalCard(
@@ -582,7 +583,6 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        height: 140,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -597,6 +597,7 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
           ],
         ),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -620,7 +621,7 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                 ),
               ],
             ),
-            const Spacer(),
+            const SizedBox(height: 12),
             FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerLeft,
