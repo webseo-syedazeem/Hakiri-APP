@@ -770,7 +770,11 @@ class _LandingScreenState extends State<LandingScreen>
                           );
                         }
                       },
-                      child: Container(
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 460),
+                        child: Container(
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -900,7 +904,7 @@ class _LandingScreenState extends State<LandingScreen>
                                     );
                                   },
                                   child: Transform.scale(
-                                    scale: 1.26,
+                                    scale: 1.14,
                                     alignment: Alignment.bottomCenter,
                                     child: Padding(
                                       padding:
@@ -920,6 +924,8 @@ class _LandingScreenState extends State<LandingScreen>
                             ),
                           ],
                         ),
+                      ),
+                      ),
                       ),
                     ),
                   ),

@@ -798,16 +798,22 @@ class HomeScreenContent extends StatelessWidget {
 
   static (IconData, Color, Color) _exerciseVisual(String slug) {
     switch (slug) {
+      case 'think_fast':
+        return (Icons.bolt_rounded, const Color(0xFF2563EB), const Color(0xFFEFF6FF));
       case 'cut_it_in_half':
         return (Icons.content_cut_rounded, const Color(0xFFEF4444), const Color(0xFFFEF2F2));
       case 'debate_me':
-        return (Icons.chat_bubble_outline_rounded, const Color(0xFFF59E0B), const Color(0xFFFFFBEB));
+        return (Icons.chat_bubble_rounded, const Color(0xFFF59E0B), const Color(0xFFFFFBEB));
+      case 'connect_the_dots':
+        return (Icons.hub_rounded, const Color(0xFF9333EA), const Color(0xFFF5F3FF));
       case 'storytelling_gym':
-        return (Icons.auto_stories_outlined, const Color(0xFF8B5CF6), const Color(0xFFF5F3FF));
+        return (Icons.auto_stories_rounded, const Color(0xFF8B5CF6), const Color(0xFFF5F3FF));
+      case 'one_minute_expert':
+        return (Icons.timer_rounded, const Color(0xFFEA580C), const Color(0xFFFFF1EC));
       case 'explain_it_simply':
-        return (Icons.lightbulb_outline_rounded, const Color(0xFF10B981), const Color(0xFFECFDF5));
+        return (Icons.lightbulb_rounded, const Color(0xFF10B981), const Color(0xFFECFDF5));
       default:
-        return (Icons.bolt_rounded, const Color(0xFF3B82F6), const Color(0xFFEFF6FF));
+        return (Icons.bolt_rounded, const Color(0xFF2563EB), const Color(0xFFEFF6FF));
     }
   }
 
@@ -835,14 +841,14 @@ class HomeScreenContent extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
                 color: iconBgColor,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(14),
               ),
               alignment: Alignment.center,
-              child: Icon(icon, color: iconColor, size: 20),
+              child: Icon(icon, color: iconColor, size: 26),
             ),
             const SizedBox(width: 14),
             Expanded(
