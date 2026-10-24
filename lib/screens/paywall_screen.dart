@@ -401,55 +401,56 @@ class _PaywallScreenState extends State<PaywallScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 30),
-                            if (_loadingProducts)
-                              const Padding(
-                                padding: EdgeInsets.only(bottom: 12),
-                                child: LinearProgressIndicator(
-                                  minHeight: 2,
-                                  color: Color(0xFF3B82F6),
-                                  backgroundColor: Color(0xFF23263B),
-                                ),
-                              ),
-                            _buildPlanCard(
-                              id: 'annual_pro',
-                              title: 'Yearly',
-                              subtitle: '£0.19 per day · billed yearly',
-                              priceText: _priceForTier(
-                                'annual_pro',
-                                '£69.99',
-                              ),
-                              badgeText: 'BEST VALUE',
-                              isSelected: _selectedTier == 'annual_pro',
-                            ),
-                            const SizedBox(height: 12),
-                            _buildPlanCard(
-                              id: 'monthly_pro',
-                              title: 'Monthly',
-                              subtitle: '£0.33 per day · billed monthly',
-                              priceText: _priceForTier(
-                                'monthly_pro',
-                                '£9.99',
-                              ),
-                              isSelected: _selectedTier == 'monthly_pro',
-                            ),
-                            if (_statusMessage != null) ...[
-                              const SizedBox(height: 14),
-                              Text(
-                                _statusMessage!,
-                                style: const TextStyle(
-                                  color: Color(0xFF93C5FD),
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.35,
-                                ),
-                              ),
-                            ],
                             const SizedBox(height: 16),
                           ],
                         ),
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    if (_loadingProducts)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 12),
+                        child: LinearProgressIndicator(
+                          minHeight: 2,
+                          color: Color(0xFF3B82F6),
+                          backgroundColor: Color(0xFF23263B),
+                        ),
+                      ),
+                    _buildPlanCard(
+                      id: 'annual_pro',
+                      title: 'Yearly',
+                      subtitle: '£0.19 per day · billed yearly',
+                      priceText: _priceForTier(
+                        'annual_pro',
+                        '£69.99',
+                      ),
+                      badgeText: 'BEST VALUE',
+                      isSelected: _selectedTier == 'annual_pro',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildPlanCard(
+                      id: 'monthly_pro',
+                      title: 'Monthly',
+                      subtitle: '£0.33 per day · billed monthly',
+                      priceText: _priceForTier(
+                        'monthly_pro',
+                        '£9.99',
+                      ),
+                      isSelected: _selectedTier == 'monthly_pro',
+                    ),
+                    if (_statusMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        _statusMessage!,
+                        style: const TextStyle(
+                          color: Color(0xFF93C5FD),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       height: 56,

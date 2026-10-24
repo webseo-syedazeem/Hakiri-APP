@@ -222,31 +222,31 @@ class _ReflectAndGrowContentState extends State<ReflectAndGrowContent> {
                     children: [
                       // Green Bar Chart Squircle Badge
                       Container(
-                        width: 44,
-                        height: 44,
+                        width: 56,
+                        height: 56,
                         decoration: BoxDecoration(
                           color: const Color(0xFFDCFCE7),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         alignment: Alignment.center,
                         child: const Icon(
                           Icons.bar_chart_rounded,
                           color: Color(0xFF10B981),
-                          size: 26,
+                          size: 34,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
 
                       // Large Headline
                       const Text(
                         'Reflect and grow',
                         style: TextStyle(
                           fontFamily: 'Inter',
-                          fontSize: 30,
+                          fontSize: 34,
                           fontWeight: FontWeight.w900,
                           color: Color(0xFF0F172A),
-                          letterSpacing: -0.8,
-                          height: 1.15,
+                          letterSpacing: -0.9,
+                          height: 1.12,
                         ),
                       ),
                       const SizedBox(height: 6),
@@ -291,23 +291,22 @@ class _ReflectAndGrowContentState extends State<ReflectAndGrowContent> {
                           ),
                           child: Row(
                             children: [
-                              // Note Squircle Badge (clean crisp neutral, no yellowish tint)
+                              // Note Squircle Badge (orange, matching the design)
                               Container(
-                                width: 44,
-                                height: 44,
+                                width: 54,
+                                height: 54,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF8FAFC),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+                                  color: const Color(0xFFFEF0DD),
+                                  borderRadius: BorderRadius.circular(15),
                                 ),
                                 alignment: Alignment.center,
                                 child: const Icon(
                                   Icons.edit_note_rounded,
-                                  color: Color(0xFF2563EB),
-                                  size: 26,
+                                  color: Color(0xFFF59E0B),
+                                  size: 32,
                                 ),
                               ),
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 14),
                               const Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -418,7 +417,7 @@ class _ReflectAndGrowContentState extends State<ReflectAndGrowContent> {
                           // Card 1: Practice sessions
                           Expanded(
                             child: Container(
-                              height: 114,
+                              height: 130,
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF0F7FF),
@@ -428,10 +427,19 @@ class _ReflectAndGrowContentState extends State<ReflectAndGrowContent> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Icon(
-                                    Icons.bar_chart_rounded,
-                                    color: Color(0xFF2563EB),
-                                    size: 22,
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFDCE9FF),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      Icons.bar_chart_rounded,
+                                      color: Color(0xFF2563EB),
+                                      size: 24,
+                                    ),
                                   ),
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,7 +475,7 @@ class _ReflectAndGrowContentState extends State<ReflectAndGrowContent> {
                           // Card 2: Focus areas completed
                           Expanded(
                             child: Container(
-                              height: 114,
+                              height: 130,
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFAF5FF),
@@ -477,10 +485,19 @@ class _ReflectAndGrowContentState extends State<ReflectAndGrowContent> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Icon(
-                                    Icons.crisis_alert_rounded,
-                                    color: Color(0xFF9333EA),
-                                    size: 22,
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFEFE0FF),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      Icons.crisis_alert_rounded,
+                                      color: Color(0xFF9333EA),
+                                      size: 24,
+                                    ),
                                   ),
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -516,7 +533,7 @@ class _ReflectAndGrowContentState extends State<ReflectAndGrowContent> {
                           // Card 3: Day streak (crisp cool neutral card, no yellowish tint)
                           Expanded(
                             child: Container(
-                              height: 114,
+                              height: 130,
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF8FAFC),
@@ -527,10 +544,19 @@ class _ReflectAndGrowContentState extends State<ReflectAndGrowContent> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Icon(
-                                    Icons.star_rounded,
-                                    color: Color(0xFFF59E0B),
-                                    size: 22,
+                                  Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFDEBCB),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const Icon(
+                                      Icons.star_rounded,
+                                      color: Color(0xFFF59E0B),
+                                      size: 24,
+                                    ),
                                   ),
                                   Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
