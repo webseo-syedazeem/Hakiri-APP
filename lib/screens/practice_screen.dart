@@ -183,7 +183,7 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                         iconWidget: const Icon(
                           Icons.bolt_rounded,
                           color: Color(0xFF2563EB),
-                          size: 18,
+                          size: 24,
                         ),
                         iconBgColor: const Color(0xFFEFF6FF),
                         title: 'Think Fast',
@@ -197,7 +197,7 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                         iconWidget: const Icon(
                           Icons.chat_bubble_outline_rounded,
                           color: Color(0xFF2563EB),
-                          size: 18,
+                          size: 24,
                         ),
                         iconBgColor: const Color(0xFFEFF6FF),
                         title: 'Debate Me',
@@ -210,7 +210,7 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                       child: _buildVerticalCard(
                         iconWidget: const ConnectTheDotsIcon(
                           color: Color(0xFF9333EA),
-                          size: 18,
+                          size: 24,
                         ),
                         iconBgColor: const Color(0xFFF5F3FF),
                         title: 'Connect the Dots',
@@ -520,15 +520,15 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  width: 30,
-                  height: 30,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: iconBgColor,
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(13),
                     border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
                   ),
                   alignment: Alignment.center,
-                  child: Icon(icon, color: iconColor, size: 17),
+                  child: Icon(icon, color: iconColor, size: 24),
                 ),
                 const Icon(
                   Icons.chevron_right_rounded,
@@ -602,11 +602,11 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  width: 30,
-                  height: 30,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: iconBgColor,
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(13),
                     border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
                   ),
                   alignment: Alignment.center,
@@ -681,15 +681,15 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 46,
+              height: 46,
               decoration: BoxDecoration(
                 color: iconBgColor,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(13),
                 border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
               ),
               alignment: Alignment.center,
-              child: Icon(icon, color: iconColor, size: 20),
+              child: Icon(icon, color: iconColor, size: 26),
             ),
             const SizedBox(width: 8),
             Expanded(

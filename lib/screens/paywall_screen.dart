@@ -76,15 +76,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
     return p?.price ?? fallback;
   }
 
-  String _subtitleForTier(String tier, String fallback) {
-    final p = _iap.productForTier(tier);
-    if (p == null) return fallback;
-    if (tier == 'annual_pro') {
-      return '${p.price} per year · billed yearly';
-    }
-    return '${p.price} per month · billed monthly';
-  }
-
   void _dismissWithoutPurchase() {
     Navigator.pushAndRemoveUntil(
       context,
@@ -345,55 +336,72 @@ class _PaywallScreenState extends State<PaywallScreen> {
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   color: Colors.white,
-                                  fontSize: 36,
+                                  fontSize: 40,
                                   fontWeight: FontWeight.w900,
-                                  letterSpacing: -1.0,
-                                  height: 1.15,
+                                  letterSpacing: -1.2,
+                                  height: 1.12,
                                 ),
                                 children: [
-                                  TextSpan(text: 'Keep improving\n'),
+                                  TextSpan(text: 'Be a more\n'),
                                   TextSpan(
-                                    text: 'every day.',
+                                    text: 'confident you.',
                                     style: TextStyle(color: Color(0xFF4E75FF)),
                                   ),
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 24),
-                            _buildFeatureRow(
-                              icon: Icons.article_outlined,
-                              title: 'New prompts every day',
-                              subtitle:
-                                  'Matched to your goals and challenges',
-                            ),
                             const SizedBox(height: 14),
-                            _buildFeatureRow(
-                              icon: Icons.chat_bubble_outline_rounded,
-                              title: 'Specific feedback after every answer',
-                              subtitle:
-                                  "Understand what's working and how to improve",
+                            const Text(
+                              'Unlock your personalised plan and keep making real progress.',
+                              style: TextStyle(
+                                color: Color(0xFF9AA3BD),
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w500,
+                                height: 1.35,
+                              ),
                             ),
-                            const SizedBox(height: 14),
-                            _buildFeatureRow(
-                              icon: Icons.tune_rounded,
-                              title: 'A plan that adapts each week',
-                              subtitle: 'Personalised to your progress',
+                            const SizedBox(height: 30),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: _buildFeatureTile(
+                                    icon: Icons.bar_chart_rounded,
+                                    iconColor: const Color(0xFF3B82F6),
+                                    bgColor: const Color(0xFF111A33),
+                                    label: 'Daily\npractice',
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildFeatureTile(
+                                    icon: Icons.psychology_rounded,
+                                    iconColor: const Color(0xFFA78BFA),
+                                    bgColor: const Color(0xFF1B1733),
+                                    label: 'Personalised\nfeedback',
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildFeatureTile(
+                                    icon: Icons.track_changes_rounded,
+                                    iconColor: const Color(0xFF34D399),
+                                    bgColor: const Color(0xFF0E2320),
+                                    label: 'Real\nprogress',
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _buildFeatureTile(
+                                    icon: Icons.local_fire_department_rounded,
+                                    iconColor: const Color(0xFFFB923C),
+                                    bgColor: const Color(0xFF241A12),
+                                    label: 'Build\nconfidence',
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 14),
-                            _buildFeatureRow(
-                              icon: Icons.bar_chart_rounded,
-                              title: 'More exercises, every level',
-                              subtitle:
-                                  'From everyday conversations to high-stakes moments',
-                            ),
-                            const SizedBox(height: 14),
-                            _buildFeatureRow(
-                              icon: Icons.track_changes_rounded,
-                              title: 'Progress tracking and streaks',
-                              subtitle:
-                                  'Stay consistent and see real improvement',
-                            ),
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 30),
                             if (_loadingProducts)
                               const Padding(
                                 padding: EdgeInsets.only(bottom: 12),
@@ -406,13 +414,10 @@ class _PaywallScreenState extends State<PaywallScreen> {
                             _buildPlanCard(
                               id: 'annual_pro',
                               title: 'Yearly',
-                              subtitle: _subtitleForTier(
-                                'annual_pro',
-                                '£69.99 per year · billed yearly',
-                              ),
+                              subtitle: '£0.19 per day · billed yearly',
                               priceText: _priceForTier(
                                 'annual_pro',
-                                '£69.99/yr',
+                                '£69.99',
                               ),
                               badgeText: 'BEST VALUE',
                               isSelected: _selectedTier == 'annual_pro',
@@ -421,13 +426,10 @@ class _PaywallScreenState extends State<PaywallScreen> {
                             _buildPlanCard(
                               id: 'monthly_pro',
                               title: 'Monthly',
-                              subtitle: _subtitleForTier(
-                                'monthly_pro',
-                                '£9.99 per month · billed monthly',
-                              ),
+                              subtitle: '£0.33 per day · billed monthly',
                               priceText: _priceForTier(
                                 'monthly_pro',
-                                '£9.99/mo',
+                                '£9.99',
                               ),
                               isSelected: _selectedTier == 'monthly_pro',
                             ),
@@ -485,7 +487,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                                 ] else ...[
                                   const Spacer(),
                                   const Text(
-                                    'Continue to Pro',
+                                    'Unlock Hakkiri Pro',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
@@ -505,7 +507,18 @@ class _PaywallScreenState extends State<PaywallScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 14),
+                    const SizedBox(height: 12),
+                    const Center(
+                      child: Text(
+                        'Cancel anytime',
+                        style: TextStyle(
+                          color: Color(0xFF9AA3BD),
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -514,7 +527,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                           '  ·  ',
                           style: TextStyle(
                             color: Color(0xFF6B7280),
-                            fontSize: 12,
+                            fontSize: 11,
                           ),
                         ),
                         _buildFooterLink(
@@ -525,7 +538,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                           '  ·  ',
                           style: TextStyle(
                             color: Color(0xFF6B7280),
-                            fontSize: 12,
+                            fontSize: 11,
                           ),
                         ),
                         _buildFooterLink(
@@ -545,47 +558,37 @@ class _PaywallScreenState extends State<PaywallScreen> {
     );
   }
 
-  Widget _buildFeatureRow({
+  Widget _buildFeatureTile({
     required IconData icon,
-    required String title,
-    required String subtitle,
+    required Color iconColor,
+    required Color bgColor,
+    required String label,
   }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: 60,
+          height: 60,
           decoration: BoxDecoration(
-            color: const Color(0xFF161928),
-            borderRadius: BorderRadius.circular(12),
+            color: bgColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.06),
+              width: 1.0,
+            ),
           ),
           alignment: Alignment.center,
-          child: Icon(icon, color: const Color(0xFF8B95B8), size: 20),
+          child: Icon(icon, color: iconColor, size: 30),
         ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  color: Color(0xFF8B92A8),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
+        const SizedBox(height: 10),
+        Text(
+          label,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            height: 1.2,
           ),
         ),
       ],
@@ -691,9 +694,16 @@ class _PaywallScreenState extends State<PaywallScreen> {
               priceText,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
               ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFF8B92A8),
+              size: 22,
             ),
           ],
         ),
