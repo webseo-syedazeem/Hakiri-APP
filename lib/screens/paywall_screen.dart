@@ -315,7 +315,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    Expanded(
+                    Flexible(
                       child: SingleChildScrollView(
                         physics: const BouncingScrollPhysics(),
                         child: Column(

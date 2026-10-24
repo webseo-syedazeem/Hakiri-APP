@@ -507,7 +507,7 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        height: 126,
+        height: 134,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -581,7 +581,7 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        height: 126,
+        height: 134,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
