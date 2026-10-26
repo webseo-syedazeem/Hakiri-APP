@@ -133,7 +133,7 @@ class _LandingScreenState extends State<LandingScreen>
 
   String get _primaryCtaLabel {
     if (_currentPage == _sectionLabels.length - 1 && !widget.postSignup) {
-      return 'Create account';
+      return 'Start assessment';
     }
     return _sectionLabels[_currentPage];
   }
@@ -467,10 +467,10 @@ class _LandingScreenState extends State<LandingScreen>
                 ),
               ),
 
-              // Subtitle: Exercises. AI feedback. Data insights.
+              // Subtitle: Exercises. Personalised feedback. Data insights.
               const Center(
                 child: Text(
-                  'Exercises. AI feedback. Data insights.',
+                  'Exercises. Personalised feedback. Data insights.',
                   style: TextStyle(
                     color: Color(0xFF475569),
                     fontSize: 14.5,
@@ -770,7 +770,11 @@ class _LandingScreenState extends State<LandingScreen>
                           );
                         }
                       },
-                      child: Container(
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 460),
+                        child: Container(
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -795,18 +799,53 @@ class _LandingScreenState extends State<LandingScreen>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Badge: 01 • 07
-                                  Text(
-                                    ex['tag']!,
-                                    style: const TextStyle(
-                                      fontFamily: 'Inter',
-                                      color: Color(0xFF2563EB),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      letterSpacing: 0.6,
-                                    ),
+                                  // Badge: 01 • 07  +  duration pill
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        ex['tag']!,
+                                        style: const TextStyle(
+                                          fontFamily: 'Inter',
+                                          color: Color(0xFF2563EB),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 0.6,
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 5),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFEFF6FF),
+                                          borderRadius:
+                                              BorderRadius.circular(20),
+                                        ),
+                                        child: const Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.schedule_rounded,
+                                                size: 13,
+                                                color: Color(0xFF2563EB)),
+                                            SizedBox(width: 4),
+                                            Text(
+                                              '~2 min',
+                                              style: TextStyle(
+                                                fontFamily: 'Inter',
+                                                color: Color(0xFF2563EB),
+                                                fontSize: 11.5,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 4),
+                                  const SizedBox(height: 6),
 
                                   // Title
                                   Text(
@@ -864,14 +903,19 @@ class _LandingScreenState extends State<LandingScreen>
                                       child: illChild,
                                     );
                                   },
-                                  child: Padding(
-                                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 0),
-                                    child: SizedBox(
-                                      width: double.infinity,
-                                      child: ExerciseIllustration(
-                                        type: ex['type']!,
-                                        fit: BoxFit.contain,
-                                        alignment: Alignment.bottomCenter,
+                                  child: Transform.scale(
+                                    scale: 1.14,
+                                    alignment: Alignment.bottomCenter,
+                                    child: Padding(
+                                      padding:
+                                          const EdgeInsets.fromLTRB(4, 0, 4, 0),
+                                      child: SizedBox(
+                                        width: double.infinity,
+                                        child: ExerciseIllustration(
+                                          type: ex['type']!,
+                                          fit: BoxFit.contain,
+                                          alignment: Alignment.bottomCenter,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -880,6 +924,8 @@ class _LandingScreenState extends State<LandingScreen>
                             ),
                           ],
                         ),
+                      ),
+                      ),
                       ),
                     ),
                   ),
@@ -1953,7 +1999,7 @@ class _LandingScreenState extends State<LandingScreen>
                     Icon(Icons.auto_awesome_rounded, color: Color(0xFF16A34A), size: 13),
                     SizedBox(width: 4),
                     Text(
-                      'AI-powered',
+                      'Personalised',
                       style: TextStyle(
                         color: Color(0xFF16A34A),
                         fontSize: 11,

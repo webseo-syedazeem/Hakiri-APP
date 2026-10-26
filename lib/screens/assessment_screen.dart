@@ -506,15 +506,16 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                       ),
                     ],
                   ),
-                  Text(
-                    step['stepNum'] as String,
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
+                  if (step['isIntro'] != true)
+                    Text(
+                      step['stepNum'] as String,
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                      ),
                     ),
-                  ),
                 ],
               ),
               const SizedBox(height: 8),

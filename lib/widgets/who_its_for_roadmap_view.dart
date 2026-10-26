@@ -10,7 +10,7 @@ class WhoItsForRoadmapView extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth = constraints.maxWidth;
-        final cardWidth = (availableWidth * 0.76).clamp(240.0, 290.0);
+        final cardWidth = (availableWidth * 0.82).clamp(265.0, 320.0);
 
         return Stack(
           alignment: Alignment.center,
@@ -46,7 +46,7 @@ class WhoItsForRoadmapView extends StatelessWidget {
             // 5. The 3 Connected Cards
             SizedBox(
               width: double.infinity,
-              height: 330,
+              height: 360,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -57,7 +57,7 @@ class WhoItsForRoadmapView extends StatelessWidget {
                       width: cardWidth,
                       stepNumber: '01',
                       title: 'Meetings',
-                      subtitle: 'Capture key points and\naction items.',
+                      subtitle: 'Make your point clearly\nand handle questions.',
                       illustration: _buildMeetingsIllustration(),
                     ),
                   ),
@@ -69,7 +69,7 @@ class WhoItsForRoadmapView extends StatelessWidget {
                       width: cardWidth,
                       stepNumber: '02',
                       title: 'Interviews',
-                      subtitle: 'Answer with clarity and\nstructure.',
+                      subtitle: 'Structure your answers and\nspeak with confidence.',
                       illustration: _buildInterviewsIllustration(),
                     ),
                   ),
@@ -81,7 +81,7 @@ class WhoItsForRoadmapView extends StatelessWidget {
                       width: cardWidth,
                       stepNumber: '03',
                       title: 'Everyday conversations',
-                      subtitle: 'Stay clear,\nfeel calm.',
+                      subtitle: 'Say what you mean\nwithout overthinking.',
                       illustration: _buildEverydayIllustration(),
                     ),
                   ),
@@ -103,7 +103,7 @@ class WhoItsForRoadmapView extends StatelessWidget {
   }) {
     return Container(
       width: width,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -149,21 +149,21 @@ class WhoItsForRoadmapView extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     fontFamily: 'Inter',
-                    fontSize: 14.5,
+                    fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF0F172A),
                     height: 1.15,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const SizedBox(height: 4),
                 Text(
                   subtitle,
                   style: const TextStyle(
                     fontFamily: 'Inter',
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w500,
                     color: Color(0xFF64748B),
-                    height: 1.25,
+                    height: 1.3,
                   ),
                 ),
               ],

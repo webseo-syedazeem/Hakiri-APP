@@ -228,25 +228,6 @@ class _SplashScreenState extends State<SplashScreen>
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.high,
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Go blank less. Land the point.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 15.5,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.white.withValues(alpha: 0.95),
-                            letterSpacing: -0.2,
-                            shadows: const [
-                              Shadow(
-                                color: Color(0x800044D6),
-                                blurRadius: 16,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                        ),
                       ],
                     ),
                   ),

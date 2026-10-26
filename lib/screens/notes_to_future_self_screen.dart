@@ -154,34 +154,33 @@ class _NotesToFutureSelfScreenState extends State<NotesToFutureSelfScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Note Squircle Icon Badge (clean crisp neutral, no yellowish tint)
+                        // Note Squircle Icon Badge (orange, matching the design)
                         Container(
-                          width: 44,
-                          height: 44,
+                          width: 56,
+                          height: 56,
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+                            color: const Color(0xFFFEF0DD),
+                            borderRadius: BorderRadius.circular(16),
                           ),
                           alignment: Alignment.center,
                           child: const Icon(
                             Icons.edit_note_rounded,
-                            color: Color(0xFF2563EB),
-                            size: 26,
+                            color: Color(0xFFF59E0B),
+                            size: 34,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
 
                         // Large Headline
                         const Text(
                           'Notes to Future Self',
                           style: TextStyle(
                             fontFamily: 'Inter',
-                            fontSize: 30,
+                            fontSize: 34,
                             fontWeight: FontWeight.w900,
                             color: Color(0xFF0F172A),
-                            letterSpacing: -0.8,
-                            height: 1.15,
+                            letterSpacing: -0.9,
+                            height: 1.12,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -353,10 +352,10 @@ class _NotesToFutureSelfScreenState extends State<NotesToFutureSelfScreen> {
                                     },
                                     child: AnimatedContainer(
                                       duration: const Duration(milliseconds: 180),
-                                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
+                                      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
                                       decoration: BoxDecoration(
                                         color: isSelected ? const Color(0xFFEFF6FF) : bg,
-                                        borderRadius: BorderRadius.circular(10),
+                                        borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
                                           color: isSelected
                                               ? const Color(0xFF2563EB)
@@ -376,13 +375,13 @@ class _NotesToFutureSelfScreenState extends State<NotesToFutureSelfScreen> {
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Icon(icon, size: 15, color: color),
-                                          const SizedBox(width: 5),
+                                          Icon(icon, size: 20, color: color),
+                                          const SizedBox(width: 8),
                                           Text(
                                             label,
                                             style: TextStyle(
                                               fontFamily: 'Inter',
-                                              fontSize: 11.5,
+                                              fontSize: 13,
                                               fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                                               color: const Color(0xFF0F172A),
                                             ),
