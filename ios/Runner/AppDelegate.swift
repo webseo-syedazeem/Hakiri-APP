@@ -5,6 +5,7 @@ import UIKit
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var liveVoicePlugin: LiveVoicePlugin?
   private var karaokeTtsPlugin: KaraokeTtsPlugin?
+  private var drillRecorderPlugin: DrillRecorderPlugin?
 
   override func application(
     _ application: UIApplication,
@@ -41,6 +42,9 @@ import UIKit
     }
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "KaraokeTtsPlugin") {
       karaokeTtsPlugin = KaraokeTtsPlugin(messenger: registrar.messenger())
+    }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "DrillRecorderPlugin") {
+      drillRecorderPlugin = DrillRecorderPlugin(messenger: registrar.messenger())
     }
   }
 }

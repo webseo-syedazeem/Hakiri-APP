@@ -5,6 +5,7 @@ import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/week_calendar_strip.dart';
+import 'activity_detail_screen.dart';
 import 'paywall_screen.dart';
 
 class PersonalizedPlanScreen extends StatefulWidget {
@@ -16,6 +17,7 @@ class PersonalizedPlanScreen extends StatefulWidget {
 
 class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
   int _selectedDay = 0; // Monday 1
+  bool _startingTrial = false;
 
   static const _drillNames = {
     'think_fast': 'Think Fast',
@@ -37,17 +39,59 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
     'debate_me': 'Stay clear and steady when challenged.',
   };
 
+  Future<void> _openDrillDetail(
+    AppStateProvider state,
+    String activitySlug,
+  ) async {
+    if (_startingTrial || state.isLoggedIn) return;
+    if (state.guestTrialUsed) {
+      await _goToPaywall(state);
+      return;
+    }
+    setState(() => _startingTrial = true);
+    try {
+      state.ensureActivitySelected(activitySlug);
+      if (!mounted) return;
+      // Plan → activity detail (same as Home) → one free Begin → IAP.
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ActivityDetailScreen(activitySlug: activitySlug),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _startingTrial = false);
+    }
+  }
+
+  Future<void> _goToPaywall(AppStateProvider state) async {
+    if (!state.isLoggedIn) {
+      await state.markGuestReachedPaywall();
+    }
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PaywallScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
     final plan = state.personalizedPlan;
     final drills = plan?.initialDrills ?? ['think_fast', 'cut_it_in_half', 'debate_me'];
 
-    final primarySlug = drills.isNotEmpty ? drills[0] : 'think_fast';
-    final primaryTitle = _drillNames[primarySlug] ?? 'Think Fast';
-    final primarySub = _drillSubtitles[primarySlug] ?? 'Three quick reps to think, then speak.';
+    // Guest: one free try on any listed drill (same detail screens as Home).
+    final primarySlug = 'think_fast';
+    final primaryTitle = _drillNames[primarySlug]!;
+    final trialUsed = !state.isLoggedIn && state.guestTrialUsed;
 
-    final otherSlugs = drills.length > 1 ? drills.sublist(1) : <String>['cut_it_in_half', 'debate_me'];
+    final otherSlugs = drills
+        .where((s) => s != 'think_fast')
+        .toList();
+    final focusOthers = otherSlugs.isNotEmpty
+        ? otherSlugs
+        : <String>['cut_it_in_half', 'debate_me'];
 
     final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
     final safeBottom = MediaQuery.paddingOf(context).bottom;
@@ -154,12 +198,16 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                             const SizedBox(width: 12),
                             _buildFocusCard(
                               tag: 'FOCUS 2',
-                              title: otherSlugs.isNotEmpty ? (_drillNames[otherSlugs[0]] ?? 'Practice') : 'Cut it in Half',
+                              title: focusOthers.isNotEmpty
+                                  ? (_drillNames[focusOthers[0]] ?? 'Practice')
+                                  : 'Cut it in Half',
                             ),
                             const SizedBox(width: 12),
                             _buildFocusCard(
                               tag: 'FOCUS 3',
-                              title: otherSlugs.length > 1 ? (_drillNames[otherSlugs[1]] ?? 'Debate Me') : 'Debate Me',
+                              title: focusOthers.length > 1
+                                  ? (_drillNames[focusOthers[1]] ?? 'Debate Me')
+                                  : 'Debate Me',
                             ),
                           ],
                         ),
@@ -173,83 +221,105 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Today's Featured Drill Card (Dark Navy Card with Blue Play Button)
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF141522),
+                      // Guest: one free try (any drill). Then IAP.
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: state.isLoggedIn
+                              ? null
+                              : () => _openDrillDetail(state, primarySlug),
                           borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.10),
-                              blurRadius: 16,
-                              offset: const Offset(0, 6),
+                          child: Ink(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF141522),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.10),
+                                  blurRadius: 16,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'TODAY  ·  60 SEC  ·  1 OF ${drills.length + 1}',
-                                    style: const TextStyle(
-                                      color: Color(0xFFA3A6B8),
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 1.2,
-                                    ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        trialUsed
+                                            ? 'FREE TRY USED'
+                                            : 'FREE TRY  ·  ONCE  ·  ANY DRILL',
+                                        style: const TextStyle(
+                                          color: Color(0xFFA3A6B8),
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: 1.2,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        primaryTitle,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        trialUsed
+                                            ? 'Subscribe to practise again — this try isn’t saved.'
+                                            : 'Try one drill free. Fresh question from Hakkiri.',
+                                        style: const TextStyle(
+                                          color: Color(0xFF8E91A6),
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    primaryTitle,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                    ),
+                                ),
+                                Container(
+                                  width: 48,
+                                  height: 48,
+                                  decoration: BoxDecoration(
+                                    color: trialUsed
+                                        ? const Color(0xFF475569)
+                                        : AppColors.royalBlue,
+                                    borderRadius: BorderRadius.circular(14),
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    primarySub,
-                                    style: const TextStyle(
-                                      color: Color(0xFF8E91A6),
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w500,
-                                    ),
+                                  child: Icon(
+                                    trialUsed
+                                        ? Icons.lock_outline_rounded
+                                        : Icons.play_arrow_rounded,
+                                    color: Colors.white,
+                                    size: 26,
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: AppColors.royalBlue,
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              child: const Icon(
-                                Icons.play_arrow_rounded,
-                                color: Colors.white,
-                                size: 26,
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
 
-                      // Upcoming Drills List with chevron >
-                      for (int i = 0; i < otherSlugs.length; i++) ...[
+                      // Other drills — same detail screens as Home; one shared trial.
+                      for (int i = 0; i < focusOthers.length; i++) ...[
                         _buildDrillItem(
                           '0${i + 2}',
-                          _drillNames[otherSlugs[i]] ?? otherSlugs[i],
-                          _drillSubtitles[otherSlugs[i]] ?? 'Targeted daily practice',
+                          _drillNames[focusOthers[i]] ?? focusOthers[i],
+                          _drillSubtitles[focusOthers[i]] ??
+                              'Targeted daily practice',
+                          onTap: state.isLoggedIn
+                              ? null
+                              : () => _openDrillDetail(state, focusOthers[i]),
                         ),
-                        if (i < otherSlugs.length - 1)
+                        if (i < focusOthers.length - 1)
                           const Divider(height: 24, color: Color(0xFFEAE9E2)),
                       ],
                       const SizedBox(height: 24),
@@ -258,15 +328,9 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                 ),
               ),
 
-              // Bottom Continue Action Button
               ActionPillButton(
-                label: 'Continue',
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const PaywallScreen()),
-                  );
-                },
+                label: state.isLoggedIn ? 'Continue' : 'Unlock Hakkiri Pro',
+                onTap: () => _goToPaywall(state),
               ),
             ],
           ),
@@ -321,8 +385,13 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
     );
   }
 
-  Widget _buildDrillItem(String num, String title, String subtitle) {
-    return Row(
+  Widget _buildDrillItem(
+    String num,
+    String title,
+    String subtitle, {
+    VoidCallback? onTap,
+  }) {
+    final row = Row(
       children: [
         Container(
           width: 28,
@@ -372,6 +441,18 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
           size: 22,
         ),
       ],
+    );
+    if (onTap == null) return row;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: row,
+        ),
+      ),
     );
   }
 }

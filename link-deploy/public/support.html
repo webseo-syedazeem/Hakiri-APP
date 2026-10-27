@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hakkiri Support & Help Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563EB;
+      --primary-dark: #1D4ED8;
+      --primary-light: #60A5FA;
+      --bg: #0B0F19;
+      --card-bg: #131B2E;
+      --text: #F8FAFC;
+      --muted: #94A3B8;
+      --border: #1E293B;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 0;
+    }
+    .header {
+      background: radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.22), transparent 75%), linear-gradient(180deg, #101935 0%, var(--bg) 100%);
+      padding: 44px 20px 32px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      display: inline-block;
+      width: 68px;
+      height: 68px;
+      background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+      border-radius: 20px;
+      line-height: 68px;
+      font-size: 32px;
+      font-weight: 900;
+      color: white;
+      margin-bottom: 16px;
+      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
+    }
+    .header h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+    .header p {
+      color: var(--muted);
+      font-size: 15px;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+    .container {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 30px 20px 60px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+      margin-bottom: 24px;
+    }
+    .card h2 {
+      font-size: 19px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card h2::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 18px;
+      background: var(--primary);
+      border-radius: 2px;
+    }
+    .faq-item {
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .faq-item:last-child { border-bottom: none; }
+    .faq-q {
+      font-weight: 700;
+      font-size: 15.5px;
+      margin-bottom: 6px;
+      color: #FFF;
+    }
+    .faq-a {
+      color: var(--muted);
+      font-size: 14.5px;
+      line-height: 1.6;
+    }
+    .contact-btn {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 15px;
+      padding: 14px 28px;
+      border-radius: 14px;
+      margin-top: 14px;
+      transition: background 0.2s;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+    }
+    .contact-btn:hover { background: var(--primary-dark); }
+    .footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 40px;
+    }
+    .footer a { color: var(--primary-light); text-decoration: none; margin: 0 8px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">H</div>
+    <h1>Hakkiri Support &amp; Help Center</h1>
+    <p>Need guidance with your communication drills, voice coach, or subscription? We are here to help.</p>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h2>Frequently Asked Questions</h2>
+      
+      <div class="faq-item">
+        <div class="faq-q">How does Hakkiri train impromptu communication?</div>
+        <div class="faq-a">Hakkiri provides fast, targeted voice drills (Think Fast, Storytelling Gym, Debate Me, Cut It in Half) that present surprise questions or challenging pushbacks. You have a few seconds to organize your thoughts, record your response, and receive instant AI analysis on clarity, conciseness, pacing, and filler words.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">Are my voice recordings private and secure?</div>
+        <div class="faq-a">Yes. Your audio recordings are strictly confidential. The microphone is only active while you are holding or tapping the record button. Recordings are never broadcast publicly and are never used to train public foundational AI models.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">How does the AI Voice Coach work?</div>
+        <div class="faq-a">You can select a specialized voice coach personality (e.g. Socratic, Direct Executive, Empathetic). During drills like Debate Me, the coach listens to your response and provides live, spoken audio pushback so you learn to think under pressure.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">How do I manage or cancel my subscription?</div>
+        <div class="faq-a">Subscriptions are processed through the official app store. On iOS, open device Settings &rarr; Apple Account &rarr; Subscriptions &rarr; Hakkiri. On Android, open the Google Play Store &rarr; Profile &rarr; Payments &amp; Subscriptions. You can cancel anytime.</div>
+      </div>
+
+      <div class="faq-item">
+        <div class="faq-q">How do I permanently delete my account and data?</div>
+        <div class="faq-a">Open Hakkiri &rarr; go to the <strong>Profile</strong> tab &rarr; scroll to the bottom &rarr; tap <strong>Delete Account</strong>. Confirming will erase your account and all voice recordings immediately. You can also view details at <a href="/delete-account" style="color: var(--primary-light);">/delete-account</a>.</div>
+      </div>
+    </div>
+
+    <div class="card" style="text-align: center;">
+      <h2>Contact Support</h2>
+      <p style="color: var(--muted); margin-bottom: 12px;">Have questions, feature requests, or need technical assistance with your exercises? Email our dedicated support team directly:</p>
+      <a href="mailto:hakkiriadmin@gmail.com" class="contact-btn">&#128231; Email Support: hakkiriadmin@gmail.com</a>
+      <p style="color: var(--muted); font-size: 13px; margin-top: 14px;">Response time: Usually within 24 hours</p>
+    </div>
+
+    <div class="footer">
+      <p>&copy; 2026 Hakkiri. All rights reserved.</p>
+      <p style="margin-top: 6px;">
+        <a href="/privacy">Privacy Policy</a> &bull; 
+        <a href="/delete-account">Delete Account</a> &bull;
+        <a href="/marketing">About Hakkiri</a>
+      </p>
+    </div>
+  </div>
+</body>
+</html>

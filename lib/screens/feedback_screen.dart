@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -6,11 +7,11 @@ import '../models/session_model.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/coach_play_button.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
-import '../widgets/session_recording_play_button.dart';
 import 'conversation_chat_screen.dart';
 import 'debate_me_screen.dart';
 import 'home_screen.dart';
 import 'live_conversation_screen.dart';
+import 'paywall_screen.dart';
 import 'recording_screen.dart';
 import 'targeted_retry_screen.dart';
 
@@ -21,11 +22,26 @@ class FeedbackScreen extends StatelessWidget {
   final PracticeSessionRecord? session;
   final bool fromHistory;
 
+  /// Guest Think Fast free try — after feedback, back/next go to IAP.
+  final bool isGuestTrial;
+
   const FeedbackScreen({
     super.key,
     this.session,
     this.fromHistory = false,
+    this.isGuestTrial = false,
   });
+
+  Future<void> _exitGuestTrialToPaywall(BuildContext context) async {
+    final state = Provider.of<AppStateProvider>(context, listen: false);
+    await state.markGuestReachedPaywall();
+    if (!context.mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const PaywallScreen()),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +61,14 @@ class FeedbackScreen extends StatelessWidget {
             'SESSION')
         .toUpperCase();
 
-    return Scaffold(
+    return PopScope(
+      canPop: !isGuestTrial,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && isGuestTrial) {
+          unawaited(_exitGuestTrialToPaywall(context));
+        }
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFFBFBF9),
       body: SafeArea(
         child: Column(
@@ -57,7 +80,13 @@ class FeedbackScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () {
+                      if (isGuestTrial) {
+                        unawaited(_exitGuestTrialToPaywall(context));
+                        return;
+                      }
+                      Navigator.pop(context);
+                    },
                     child: const Icon(
                       Icons.chevron_left_rounded,
                       color: Color(0xFF0F172A),
@@ -74,7 +103,7 @@ class FeedbackScreen extends StatelessWidget {
                       letterSpacing: 1.6,
                     ),
                   ),
-                  if (activeSession != null)
+                  if (activeSession != null && !isGuestTrial)
                     GestureDetector(
                       onTap: () => _confirmDeleteSession(context, state, activeSession),
                       child: Container(
@@ -206,6 +235,10 @@ class FeedbackScreen extends StatelessWidget {
                         child: InkWell(
                           borderRadius: BorderRadius.circular(28),
                           onTap: () {
+                            if (isGuestTrial) {
+                              unawaited(_exitGuestTrialToPaywall(context));
+                              return;
+                            }
                             final slug = activeSession?.activitySlug ?? '';
                             if (slug.isNotEmpty) {
                               state.selectActivity(slug);
@@ -268,6 +301,10 @@ class FeedbackScreen extends StatelessWidget {
                         child: InkWell(
                           borderRadius: BorderRadius.circular(28),
                           onTap: () {
+                            if (isGuestTrial) {
+                              unawaited(_exitGuestTrialToPaywall(context));
+                              return;
+                            }
                             if (fromHistory) {
                               Navigator.pop(context);
                               return;
@@ -337,6 +374,7 @@ class FeedbackScreen extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -978,9 +1016,14 @@ class FeedbackScreen extends StatelessWidget {
   Widget _buildWhatWorkedWellCard(EvaluationFeedback? feedback) {
     final score = feedback?.overallScore ?? 0;
     final isWeak = score > 0 && score <= 2;
-    final strength = feedback?.oneStrength.trim().isNotEmpty == true
-        ? feedback!.oneStrength
-        : 'Complete a drill to unlock a personalised strength note.';
+    // Weak takes: show the fix. Strong takes: show what worked.
+    final body = isWeak
+        ? (feedback?.oneSpecificImprovement.trim().isNotEmpty == true
+            ? feedback!.oneSpecificImprovement
+            : 'Answer the prompt out loud with a clear point, then one reason.')
+        : (feedback?.oneStrength.trim().isNotEmpty == true
+            ? feedback!.oneStrength
+            : 'Complete a drill to unlock a personalised strength note.');
     final label = isWeak ? 'WHAT TO FIX' : 'WHAT WORKED WELL';
     final bg = isWeak ? const Color(0xFFFFF7ED) : const Color(0xFFECFDF5);
     final border = isWeak ? const Color(0xFFFED7AA) : const Color(0xFFA7F3D0);
@@ -1030,7 +1073,7 @@ class FeedbackScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  strength,
+                  body,
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 13,
@@ -1045,6 +1088,15 @@ class FeedbackScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static bool _isEmptySpeechPlaceholder(String raw) {
+    final t = raw.trim().toLowerCase();
+    if (t.isEmpty) return true;
+    return (t.contains('empty') && t.contains('usable speech')) ||
+        t.contains('no clear speech') ||
+        t == '(no speech)' ||
+        t.startsWith('(empty');
   }
 
   /// SUGGESTED ANSWER — clean exemplar + separate "you said" highlight.
@@ -1064,16 +1116,23 @@ class FeedbackScreen extends StatelessWidget {
         ? _conversationTurnsForDisplay(session)
         : const <ConversationTurn>[];
     final transcript = session?.transcript.trim() ?? '';
-    final youSaid = (!isDebate && transcript.isNotEmpty)
+    final rawYouSaid = (!isDebate && transcript.isNotEmpty)
         ? transcript
         : (phrase.isNotEmpty ? phrase : '');
+    final noSpeech = _isEmptySpeechPlaceholder(rawYouSaid) ||
+        (transcript.isEmpty && _isEmptySpeechPlaceholder(phrase));
+    final youSaid = noSpeech
+        ? 'No clear speech was captured this take.'
+        : rawYouSaid;
     final critique = feedback?.highlightedPhrase.critique.trim() ?? '';
     final score = feedback?.overallScore ?? 0;
     final intro = feedback == null
         ? 'Finish a practice take to unlock a coached rewrite.'
-        : score <= 2
-            ? 'Here is a strong model answer for this prompt:'
-            : 'Here\'s a more refined version you can aim for:';
+        : noSpeech
+            ? 'Speak a full answer next time. Meanwhile, here is a strong model answer:'
+            : score <= 2
+                ? 'Here is a strong model answer for this prompt:'
+                : 'Here\'s a more refined version you can aim for:';
 
     return Container(
       width: double.infinity,
@@ -1125,16 +1184,6 @@ class FeedbackScreen extends StatelessWidget {
               _buildDebateYouSaidPill(debateTurns)
             else if (youSaid.isNotEmpty)
               _buildPeachHighlightPill(youSaid),
-            // Other drills: play the user's recording under YOU SAID.
-            // Debate Me: opening/rebuttal players are hidden.
-            if (!isDebate && session != null) ...[
-              const SizedBox(height: 10),
-              SessionRecordingPlayButton(
-                sessionId: session.id,
-                audioPath: session.localAudioPath,
-                size: 34,
-              ),
-            ],
           ],
           const SizedBox(height: 14),
           Container(

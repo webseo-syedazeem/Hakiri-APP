@@ -74,23 +74,34 @@ class _SignupScreenState extends State<SignupScreen> {
 
     setState(() => _isSubmitting = true);
     try {
+      final state = context.read<AppStateProvider>();
+      late final bool syncedPending;
       await HakkiriLoadingOverlay.run(
         context,
         message: 'Getting your information…',
         detail: 'Creating your Hakkiri account.',
-        action: () => context.read<AppStateProvider>().registerAccount(
-              name: name,
-              email: email,
-              password: password,
-            ),
+        action: () async {
+          await state.registerAccount(
+            name: name,
+            email: email,
+            password: password,
+          );
+          syncedPending = await state.syncPendingAssessmentIfNeeded();
+        },
       );
       if (!mounted) return;
-      // Funnel: Get started → onboarding → Signup → Assessment → Home
+      // Guest already did assessment (+ maybe IAP) → home or locked. Else assessment.
+      final Widget next;
+      if (syncedPending) {
+        next = state.isSubscribed
+            ? const HomeScreen()
+            : const LockedProfileScreen();
+      } else {
+        next = const AssessmentScreen();
+      }
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (_) => const AssessmentScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => next),
         (route) => false,
       );
     } on HakkiriApiException catch (e) {
@@ -108,12 +119,25 @@ class _SignupScreenState extends State<SignupScreen> {
     try {
       final state = context.read<AppStateProvider>();
       late final Map<String, dynamic> data;
+      late final bool syncedPending;
       await HakkiriLoadingOverlay.run(
         context,
         message: 'Getting your information…',
         detail: 'Signing you in with Google.',
         action: () async {
           data = await state.continueWithGoogle();
+          final created = data['created'] == true;
+          final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
+          final needsOnboarding = data.containsKey('needs_onboarding')
+              ? data['needs_onboarding'] == true
+              : (created || profile['onboarding_complete'] != true);
+          if (state.hasPendingLocalAssessment &&
+              (created || needsOnboarding)) {
+            syncedPending = await state.syncPendingAssessmentIfNeeded();
+          } else {
+            syncedPending = false;
+            state.hasPendingLocalAssessment = false;
+          }
         },
       );
       if (!mounted) return;
@@ -124,7 +148,11 @@ class _SignupScreenState extends State<SignupScreen> {
           ? data['needs_onboarding'] == true
           : (created || profile['onboarding_complete'] != true);
       final Widget next;
-      if (needsOnboarding) {
+      if (syncedPending) {
+        next = state.isSubscribed
+            ? const HomeScreen()
+            : const LockedProfileScreen();
+      } else if (needsOnboarding) {
         next = const AssessmentScreen();
       } else if (!state.isSubscribed) {
         next = const LockedProfileScreen();
@@ -158,12 +186,25 @@ class _SignupScreenState extends State<SignupScreen> {
     try {
       final state = context.read<AppStateProvider>();
       late final Map<String, dynamic> data;
+      late final bool syncedPending;
       await HakkiriLoadingOverlay.run(
         context,
         message: 'Getting your information…',
         detail: 'Signing you in with Apple.',
         action: () async {
           data = await state.continueWithApple();
+          final created = data['created'] == true;
+          final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
+          final needsOnboarding = data.containsKey('needs_onboarding')
+              ? data['needs_onboarding'] == true
+              : (created || profile['onboarding_complete'] != true);
+          if (state.hasPendingLocalAssessment &&
+              (created || needsOnboarding)) {
+            syncedPending = await state.syncPendingAssessmentIfNeeded();
+          } else {
+            syncedPending = false;
+            state.hasPendingLocalAssessment = false;
+          }
         },
       );
       if (!mounted) return;
@@ -173,7 +214,11 @@ class _SignupScreenState extends State<SignupScreen> {
           ? data['needs_onboarding'] == true
           : (created || profile['onboarding_complete'] != true);
       final Widget next;
-      if (needsOnboarding) {
+      if (syncedPending) {
+        next = state.isSubscribed
+            ? const HomeScreen()
+            : const LockedProfileScreen();
+      } else if (needsOnboarding) {
         next = const AssessmentScreen();
       } else if (!state.isSubscribed) {
         next = const LockedProfileScreen();

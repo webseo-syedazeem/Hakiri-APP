@@ -2,7 +2,7 @@ name: hakkiri_app
 description: "Hakkiri - Daily Communication Gym for Real-Life Professional Agility"
 publish_to: 'none'
 
-version: 1.0.4+4
+version: 1.0.5+5
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -40,6 +40,13 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+
+# path_provider_foundation 2.6.0 uses FFI/objective_c that fails to load on
+# iOS (simulator + some device builds) → getTemporaryDirectory throws →
+# Think Fast saves no audio → feedback shows "no response". 2.5.1 uses
+# method channels and is stable. See flutter/flutter#186794.
+dependency_overrides:
+  path_provider_foundation: 2.5.1
 
 flutter:
   uses-material-design: true

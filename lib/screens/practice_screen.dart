@@ -29,19 +29,14 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
 
   void _openActivity(AppStateProvider state, String slug) {
     state.selectActivity(slug);
-    if (slug == 'debate_me') {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const DebateMeScreen()),
-      );
-    } else {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ActivityDetailScreen(activitySlug: slug),
-        ),
-      );
-    }
+    // Always open detail first so Begin loads the matching drill prompt
+    // (skipping detail for Debate Me used to leave a stale Think Fast topic).
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ActivityDetailScreen(activitySlug: slug),
+      ),
+    );
   }
 
   @override
@@ -177,50 +172,40 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                   subtitle: 'Stay clear, calm and confident in the moment.',
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildVerticalCard(
-                        iconWidget: const Icon(
-                          Icons.bolt_rounded,
-                          color: Color(0xFF2563EB),
-                          size: 24,
-                        ),
-                        iconBgColor: const Color(0xFFEFF6FF),
-                        title: 'Think Fast',
-                        description: 'Think clearly\nunder pressure',
-                        onTap: () => _openActivity(state, 'think_fast'),
-                      ),
+                _buildActivityRow([
+                  _ActivityItem(
+                    iconWidget: const Icon(
+                      Icons.bolt_rounded,
+                      color: Color(0xFF2563EB),
+                      size: 24,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildVerticalCard(
-                        iconWidget: const Icon(
-                          Icons.chat_bubble_outline_rounded,
-                          color: Color(0xFF2563EB),
-                          size: 24,
-                        ),
-                        iconBgColor: const Color(0xFFEFF6FF),
-                        title: 'Debate Me',
-                        description: 'Build and defend\nyour ideas',
-                        onTap: () => _openActivity(state, 'debate_me'),
-                      ),
+                    iconBgColor: const Color(0xFFEFF6FF),
+                    title: 'Think Fast',
+                    description: 'Think clearly under pressure',
+                    onTap: () => _openActivity(state, 'think_fast'),
+                  ),
+                  _ActivityItem(
+                    iconWidget: const Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      color: Color(0xFF2563EB),
+                      size: 24,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildVerticalCard(
-                        iconWidget: const ConnectTheDotsIcon(
-                          color: Color(0xFF9333EA),
-                          size: 24,
-                        ),
-                        iconBgColor: const Color(0xFFF5F3FF),
-                        title: 'Connect the Dots',
-                        description: 'Find the big picture\nand make links',
-                        onTap: () => _openActivity(state, 'connect_the_dots'),
-                      ),
+                    iconBgColor: const Color(0xFFEFF6FF),
+                    title: 'Debate Me',
+                    description: 'Build and defend your ideas',
+                    onTap: () => _openActivity(state, 'debate_me'),
+                  ),
+                  _ActivityItem(
+                    iconWidget: const ConnectTheDotsIcon(
+                      color: Color(0xFF9333EA),
+                      size: 24,
                     ),
-                  ],
-                ),
+                    iconBgColor: const Color(0xFFF5F3FF),
+                    title: 'Connect the Dots',
+                    description: 'Find the big picture and make links',
+                    onTap: () => _openActivity(state, 'connect_the_dots'),
+                  ),
+                ]),
                 const SizedBox(height: 24),
 
                 // Category 2: Be clear & concise
@@ -229,31 +214,30 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                   subtitle: 'Get to the point and make your message land.',
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildHorizontalCard(
-                        icon: Icons.content_cut_rounded,
-                        iconColor: const Color(0xFFD97706),
-                        iconBgColor: const Color(0xFFF8FAFC),
-                        title: 'Cut it in Half',
-                        description: 'Get to the point faster',
-                        onTap: () => _openActivity(state, 'cut_it_in_half'),
-                      ),
+                _buildActivityRow([
+                  _ActivityItem(
+                    iconWidget: const Icon(
+                      Icons.content_cut_rounded,
+                      color: Color(0xFFD97706),
+                      size: 24,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildHorizontalCard(
-                        icon: Icons.timer_outlined,
-                        iconColor: const Color(0xFFEA580C),
-                        iconBgColor: const Color(0xFFFEE2E2),
-                        title: 'One Minute Expert',
-                        description: 'Explain complex ideas simply',
-                        onTap: () => _openActivity(state, 'one_minute_expert'),
-                      ),
+                    iconBgColor: const Color(0xFFF8FAFC),
+                    title: 'Cut it in Half',
+                    description: 'Get to the point faster',
+                    onTap: () => _openActivity(state, 'cut_it_in_half'),
+                  ),
+                  _ActivityItem(
+                    iconWidget: const Icon(
+                      Icons.timer_outlined,
+                      color: Color(0xFFEA580C),
+                      size: 24,
                     ),
-                  ],
-                ),
+                    iconBgColor: const Color(0xFFFEE2E2),
+                    title: 'One Minute Expert',
+                    description: 'Explain complex ideas simply',
+                    onTap: () => _openActivity(state, 'one_minute_expert'),
+                  ),
+                ]),
                 const SizedBox(height: 24),
 
                 // Category 3: Engage people
@@ -262,31 +246,30 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                   subtitle: 'Make your ideas more engaging and memorable.',
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildHorizontalCard(
-                        icon: Icons.menu_book_rounded,
-                        iconColor: const Color(0xFF9333EA),
-                        iconBgColor: const Color(0xFFF3E8FF),
-                        title: 'Storytelling Gym',
-                        description: 'Make your answers more engaging',
-                        onTap: () => _openActivity(state, 'storytelling_gym'),
-                      ),
+                _buildActivityRow([
+                  _ActivityItem(
+                    iconWidget: const Icon(
+                      Icons.menu_book_rounded,
+                      color: Color(0xFF9333EA),
+                      size: 24,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildHorizontalCard(
-                        icon: Icons.campaign_outlined,
-                        iconColor: const Color(0xFFF97316),
-                        iconBgColor: const Color(0xFFF8FAFC),
-                        title: 'Explain It Simply',
-                        description: 'Make complex ideas easy to understand',
-                        onTap: () => _openActivity(state, 'explain_it_simply'),
-                      ),
+                    iconBgColor: const Color(0xFFF3E8FF),
+                    title: 'Storytelling Gym',
+                    description: 'Make your answers more engaging',
+                    onTap: () => _openActivity(state, 'storytelling_gym'),
+                  ),
+                  _ActivityItem(
+                    iconWidget: const Icon(
+                      Icons.campaign_outlined,
+                      color: Color(0xFFF97316),
+                      size: 24,
                     ),
-                  ],
-                ),
+                    iconBgColor: const Color(0xFFF8FAFC),
+                    title: 'Explain It Simply',
+                    description: 'Make complex ideas easy to understand',
+                    onTap: () => _openActivity(state, 'explain_it_simply'),
+                  ),
+                ]),
                 const SizedBox(height: 24),
 
                 // Category 4: Reflect and grow
@@ -570,19 +553,33 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
     );
   }
 
-  Widget _buildVerticalCard({
-    required Widget iconWidget,
-    required Color iconBgColor,
-    required String title,
-    required String description,
-    required VoidCallback onTap,
-  }) {
+  /// Shared row for all practice categories — same card size in every section.
+  /// Always uses 3 equal slots so 2-card rows match the width of 3-card rows.
+  Widget _buildActivityRow(List<_ActivityItem> items) {
+    const slots = 3;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < slots; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(
+            child: i < items.length
+                ? _buildActivityCard(items[i])
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// One activity card style for Think / Clear / Engage (fixed height, 2-line title).
+  Widget _buildActivityCard(_ActivityItem item) {
     return InkWell(
-      onTap: onTap,
+      onTap: item.onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        height: 134,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        height: _activityCardHeight,
+        padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
@@ -605,12 +602,15 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: iconBgColor,
+                    color: item.iconBgColor,
                     borderRadius: BorderRadius.circular(13),
-                    border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+                    border: Border.all(
+                      color: const Color(0xFFE2E8F0),
+                      width: 1.0,
+                    ),
                   ),
                   alignment: Alignment.center,
-                  child: iconWidget,
+                  child: item.iconWidget,
                 ),
                 const Icon(
                   Icons.chevron_right_rounded,
@@ -619,32 +619,34 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(
-                title,
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  color: Color(0xFF0F172A),
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w800,
-                ),
-                maxLines: 1,
-              ),
-            ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 10),
             Text(
-              description,
+              item.title,
               style: const TextStyle(
                 fontFamily: 'Inter',
-                color: Color(0xFF64748B),
-                fontSize: 10,
-                height: 1.15,
+                color: Color(0xFF0F172A),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                height: 1.2,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
+              softWrap: true,
+            ),
+            const SizedBox(height: 4),
+            Expanded(
+              child: Text(
+                item.description,
+                style: const TextStyle(
+                  fontFamily: 'Inter',
+                  color: Color(0xFF64748B),
+                  fontSize: 10.5,
+                  height: 1.25,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                softWrap: true,
+              ),
             ),
           ],
         ),
@@ -652,85 +654,21 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
     );
   }
 
-  Widget _buildHorizontalCard({
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBgColor,
-    required String title,
-    required String description,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        height: 74,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFF1F5F9), width: 1.0),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0F172A).withValues(alpha: 0.02),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 46,
-              height: 46,
-              decoration: BoxDecoration(
-                color: iconBgColor,
-                borderRadius: BorderRadius.circular(13),
-                border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
-              ),
-              alignment: Alignment.center,
-              child: Icon(icon, color: iconColor, size: 26),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      color: Color(0xFF0F172A),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      color: Color(0xFF64748B),
-                      fontSize: 10,
-                      height: 1.15,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 16,
-              color: Color(0xFF94A3B8),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  static const double _activityCardHeight = 148;
+}
+
+class _ActivityItem {
+  final Widget iconWidget;
+  final Color iconBgColor;
+  final String title;
+  final String description;
+  final VoidCallback onTap;
+
+  const _ActivityItem({
+    required this.iconWidget,
+    required this.iconBgColor,
+    required this.title,
+    required this.description,
+    required this.onTap,
+  });
 }

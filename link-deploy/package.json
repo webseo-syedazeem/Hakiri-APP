@@ -1,0 +1,9 @@
+{
+  "name": "hakkiri-links",
+  "version": "1.0.0",
+  "description": "Hakkiri Support, Marketing, Privacy and Account Deletion web pages",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

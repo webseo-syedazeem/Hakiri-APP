@@ -39,20 +39,18 @@ class HomeScreenContent extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Use streak freeze?'),
-        content: Text(
-          state.streakFreezeCount == 1
-              ? 'This uses your last freeze to protect your streak after a missed day. Skill scores stay the same.'
-              : 'This uses 1 of ${state.streakFreezeCount} freezes to protect your streak after a missed day. Skill scores stay the same.',
+        title: const Text('Use a streak freeze?'),
+        content: const Text(
+          'You missed a day. Use your last available freeze to keep your streak going.\n\nYour skill scores and progress won’t be affected.',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+            child: const Text('Not now'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Apply freeze'),
+            child: const Text('Use freeze'),
           ),
         ],
       ),
@@ -455,7 +453,9 @@ class HomeScreenContent extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const ActivityDetailScreen(),
+                      builder: (_) => ActivityDetailScreen(
+                        activitySlug: nextActivity.slug,
+                      ),
                     ),
                   );
                 },
@@ -620,7 +620,7 @@ class HomeScreenContent extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const ActivityDetailScreen(),
+                        builder: (_) => ActivityDetailScreen(activitySlug: slug),
                       ),
                     );
                   },

@@ -55,7 +55,13 @@ function geminiStatus() {
     flash_fallbacks: flashModelCandidates(),
     live_ready: isGeminiConfigured(),
     analysis_ready: isGeminiConfigured(),
-    note: "Key stays on the server. Live uses ephemeral tokens. Drill scoring uses Flash with model fallbacks.",
+    coach_tts: isElevenLabsConfigured()
+      ? "elevenlabs"
+      : isGeminiConfigured()
+        ? "gemini"
+        : "none",
+    elevenlabs_configured: isElevenLabsConfigured(),
+    note: "Key stays on the server. Live uses ephemeral tokens. Drill scoring uses Flash with model fallbacks. Coach TTS prefers ElevenLabs.",
   };
 }
 
@@ -141,10 +147,16 @@ function normalizeFeedback(parsed, {
         Math.round((executive + clarity + impact + engagement) / 4)
       );
 
-  const snippet =
-    words.length === 0
-      ? "(no clear speech captured)"
-      : `...${words.slice(0, 12).join(" ")}${words.length > 12 ? "…" : ""}...`;
+  const emptySpeech = words.length < 8;
+  const rawPhrase = String(highlightIn.phrase || "").trim();
+  const phraseLooksEmpty =
+    !rawPhrase ||
+    /empty|no clear speech|usable speech/i.test(rawPhrase);
+  const snippet = emptySpeech
+    ? "No clear speech was captured this take."
+    : phraseLooksEmpty
+      ? `...${words.slice(0, 12).join(" ")}${words.length > 12 ? "…" : ""}...`
+      : rawPhrase;
 
   return {
     overall_score: overall,
@@ -179,25 +191,55 @@ function normalizeFeedback(parsed, {
       heaviest_key: scored.heaviest_key,
     },
     one_strength: String(parsed?.one_strength || "").trim() ||
-      (words.length < 12
-        ? "Mic captured speech — now turn it into a real answer to the prompt."
+      (emptySpeech
+        ? "Recording started — next, speak a full answer to the prompt."
         : "You got words on record under time pressure."),
     one_specific_improvement: String(parsed?.one_specific_improvement || "").trim() ||
-      "Lead with the conclusion in the first sentence, then add one concrete reason.",
+      (emptySpeech
+        ? "Speak your answer out loud for most of the minute: open with the point, then one reason."
+        : "Lead with the conclusion in the first sentence, then add one concrete reason."),
     highlighted_phrase: {
       timestamp_range: String(highlightIn.timestamp_range || "00:05 - 00:15"),
-      phrase: String(highlightIn.phrase || snippet),
+      phrase: snippet,
       critique: String(highlightIn.critique || "").trim() ||
-        (words.length < 12
-          ? "Too little speech to show executive presence — answer the prompt fully."
+        (emptySpeech
+          ? "We could not hear a usable answer. Hold the phone closer and speak clearly next time."
           : "Tighten the opening so the decision lands first."),
     },
     retry_instruction: String(parsed?.retry_instruction || "").trim() ||
       "Open with your bottom-line answer in under 5 seconds, then support it with one example.",
-    exemplar_response: String(parsed?.exemplar_response || exemplarFallback || "").trim(),
+    exemplar_response: trimExemplarResponse(
+      String(parsed?.exemplar_response || exemplarFallback || "").trim(),
+      activitySlug
+    ),
     is_coached_retry: Boolean(isRetry),
     withhold_judgement: Boolean(scored.withhold_judgement),
   };
+}
+
+/** Keep suggested answers readable — short drills must not become essays. */
+function trimExemplarResponse(text, activitySlug) {
+  const clean = String(text || "").trim();
+  if (!clean) return clean;
+  const slug = String(activitySlug || "");
+  const shortDrill =
+    slug === "explain_it_simply" ||
+    slug === "think_fast" ||
+    slug === "cut_it_in_half";
+  const maxWords = shortDrill ? 65 : 130;
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length <= maxWords) return clean;
+  // Prefer ending on a sentence boundary within the cap.
+  let cut = words.slice(0, maxWords).join(" ");
+  const lastStop = Math.max(
+    cut.lastIndexOf("."),
+    cut.lastIndexOf("!"),
+    cut.lastIndexOf("?")
+  );
+  if (lastStop > cut.length * 0.55) {
+    cut = cut.slice(0, lastStop + 1);
+  }
+  return cut.trim();
 }
 
 /**
@@ -404,14 +446,32 @@ async function analyzeSpeechWithGemini({
         critique: "string",
       },
       retry_instruction: "string — one specific retry action",
-      exemplar_response: "improved version of the user's own answer",
+      exemplar_response:
+        "spoken model answer for this prompt at the user's difficulty — keep length per rules below",
     }),
   ].join("\n");
+
+  const level = String(difficulty || "intermediary").toLowerCase();
+  const shortDrill =
+    slug === "explain_it_simply" ||
+    slug === "think_fast" ||
+    slug === "cut_it_in_half";
+  const levelExemplarGuide = shortDrill
+    ? level === "beginner" || level === "b"
+      ? "SHORT drill exemplar: 2–3 plain spoken sentences. Aim ~35–55 words. One analogy max. Stop early."
+      : level === "professional" || level === "pro" || level === "p"
+        ? "SHORT drill exemplar: 3 crisp spoken sentences. Aim ~45–65 words. Hook + analogy + close. No essay."
+        : "SHORT drill exemplar: 3 spoken sentences. Aim ~40–60 words. Analogy first, then why it matters. Keep it tight."
+    : level === "beginner" || level === "b"
+      ? "BEGINNER exemplar: plain words, clear definition, 1–2 simple points, friendly close. Aim ~70–90 spoken words."
+      : level === "professional" || level === "pro" || level === "p"
+        ? "PROFESSIONAL exemplar: bold hook, thesis, one insight or analogy, punchy close. Aim ~90–120 spoken words."
+        : "INTERMEDIARY exemplar: why it matters, two clear points, one takeaway. Aim ~80–100 spoken words.";
 
   // Cap exemplar tokens — long catalog exemplars slow the scoring call.
   const exemplarShort = String(exemplarResponse || "")
     .trim()
-    .slice(0, 280);
+    .slice(0, shortDrill ? 420 : 700);
   const promptShort = String(promptText || "(missing)").trim().slice(0, 500);
 
   const user = [
@@ -419,7 +479,7 @@ async function analyzeSpeechWithGemini({
     `Difficulty: ${difficulty || "intermediary"}`,
     `Prompt / question: ${promptShort}`,
     `Objective: ${String(objective || "(none)").trim().slice(0, 180)}`,
-    `Catalog exemplar (optional): ${exemplarShort || "(none)"}`,
+    `Catalog exemplar (preferred length/tone — stay close to this brevity): ${exemplarShort || "(none)"}`,
     `Duration spoken (seconds): ${Number(durationSeconds) || 0}`,
     `Coached retry: ${isRetry ? "yes" : "no"}`,
     `Score these activity measures (1-5 or null). Weights are applied server-side — you only rate:`,
@@ -430,6 +490,14 @@ async function analyzeSpeechWithGemini({
     "For Think Fast: structure = clear point order; latency = time-to-main-point / stalls; fillers = um/uh/so density.",
     "highlighted_phrase.phrase MUST quote words that appear in the transcript (or note empty).",
     "Choose one improvement: the lowest measure the user can fix on a retry. Make retry_instruction one specific action.",
+    "exemplar_response rules:",
+    shortDrill
+      ? "- Keep it SHORT and speakable. Prefer the catalog exemplar length. Do NOT write a long paragraph."
+      : "- Write a spoken model answer the user could say aloud for this drill (not an essay).",
+    "- Match the Difficulty level exactly. " + levelExemplarGuide,
+    "- Prefer improving the user's own ideas/words when the transcript is usable; otherwise upgrade the catalog exemplar lightly.",
+    "- No bullet lists, no 'Point 1:' labels, no markdown — natural spoken sentences only.",
+    "- Never invent facts the prompt does not support.",
   ].join("\n");
 
   const { parsed, model } = await geminiGenerateJsonWithFallback({
@@ -695,22 +763,181 @@ async function generateDebatePushback({
   return { model, transcript: transcriptOut, pushback };
 }
 
+// Flash-first for lower latency on suggested-answer playback.
 const TTS_MODEL_FALLBACKS = [
   "gemini-2.5-flash-preview-tts",
-  "gemini-2.5-pro-preview-tts",
   "gemini-3.1-flash-tts-preview",
+  "gemini-2.5-pro-preview-tts",
 ];
 
+/**
+ * Gemini prebuilt voices — pick warm/soft/friendly ones so suggested
+ * answers feel human (not firm/robotic "Kore").
+ * See: Sulafat Warm, Vindemiatrix Gentle, Achernar Soft, Achird Friendly…
+ */
 const COACH_VOICE_MAP = {
-  sarah: "Kore",
-  david: "Charon",
-  elena: "Aoede",
-  marcus: "Fenrir",
-  alex: "Puck",
-  female: "Kore",
-  male: "Charon",
-  non_binary: "Puck",
+  sarah: "Sulafat", // Warm — default female coach
+  elena: "Vindemiatrix", // Gentle
+  alex: "Achernar", // Soft
+  david: "Schedar", // Even / steady male
+  marcus: "Achird", // Friendly punch
+  female: "Sulafat",
+  male: "Schedar",
+  non_binary: "Callirrhoe", // Easy-going
 };
+
+/** Short turn-level style — keeps delivery conversational, not announcer-like. */
+const COACH_STYLE_MAP = {
+  sarah: "warm, calm, natural conversational coach — human, not robotic",
+  elena: "gentle, encouraging, natural conversational — soft human warmth",
+  alex: "soft, clear, modern conversational — relaxed human tone",
+  david: "steady, calm, natural conversational — grounded human presence",
+  marcus: "friendly, clear, natural conversational — energetic but human",
+  female: "warm, calm, natural conversational coach — human, not robotic",
+  male: "steady, calm, natural conversational — grounded human presence",
+  non_binary: "easy-going, clear, natural conversational — human tone",
+};
+
+/**
+ * ElevenLabs public voice IDs — natural coaching voices (override via env).
+ * Sarah/Elena default to warm female coaches so suggested answers feel human.
+ */
+const ELEVENLABS_VOICE_DEFAULTS = {
+  sarah: "pFZP5JQG7iQjIQuC4Bku", // Lily — warm British, natural coach
+  elena: "XrExE9yKIg1WjnnlVkGX", // Matilda — warm & expressive
+  alex: "21m00Tcm4TlvDq8ikWAM", // Rachel — clear modern female
+  david: "onwK4e9ZLuTAKqWW03F9", // Daniel — deep British authority
+  marcus: "iP95p4xoKVk53GoZ742B", // Chris — casual punchy male
+  female: "pFZP5JQG7iQjIQuC4Bku",
+  male: "onwK4e9ZLuTAKqWW03F9",
+  non_binary: "21m00Tcm4TlvDq8ikWAM",
+};
+
+function elevenLabsApiKey() {
+  return String(process.env.ELEVENLABS_API_KEY || "").trim();
+}
+
+function isElevenLabsConfigured() {
+  return elevenLabsApiKey().length > 0;
+}
+
+function isCoachTtsConfigured() {
+  return isElevenLabsConfigured() || isGeminiConfigured();
+}
+
+function elevenLabsModelId() {
+  return (
+    String(process.env.ELEVENLABS_MODEL_ID || "eleven_multilingual_v2").trim() ||
+    "eleven_multilingual_v2"
+  );
+}
+
+function elevenLabsVoiceId(voiceProfile) {
+  const key = String(voiceProfile || "sarah").trim().toLowerCase();
+  const envKey = `ELEVENLABS_VOICE_${key.toUpperCase()}`;
+  const fromEnv = String(process.env[envKey] || "").trim();
+  if (fromEnv) return fromEnv;
+  return ELEVENLABS_VOICE_DEFAULTS[key] || ELEVENLABS_VOICE_DEFAULTS.sarah;
+}
+
+/**
+ * ElevenLabs text-to-speech → MP3 + estimated word timings for karaoke.
+ */
+async function synthesizeWithElevenLabs({
+  text,
+  voiceProfile = "sarah",
+  rate = 1,
+} = {}) {
+  const key = elevenLabsApiKey();
+  if (!key) {
+    const err = new Error("ELEVENLABS_API_KEY is not configured on the server.");
+    err.statusCode = 503;
+    throw err;
+  }
+
+  const clean = String(text || "").trim().slice(0, 2500);
+  if (!clean) {
+    const err = new Error("Text is required for coach speech.");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const voiceId = elevenLabsVoiceId(voiceProfile);
+  const modelId = elevenLabsModelId();
+  // Slightly lower stability = more human variation; keep similarity high.
+  const stability = Number(rate) < 0.95 ? 0.42 : Number(rate) > 1.05 ? 0.38 : 0.4;
+  const url = `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(
+    voiceId
+  )}?output_format=mp3_44100_128`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 45_000);
+  let response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "audio/mpeg",
+        "xi-api-key": key,
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        text: clean,
+        model_id: modelId,
+        voice_settings: {
+          stability,
+          similarity_boost: 0.78,
+          style: 0.22,
+          use_speaker_boost: true,
+        },
+      }),
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+
+  if (!response.ok) {
+    const errBody = await response.text().catch(() => "");
+    let message = `ElevenLabs TTS failed (${response.status}).`;
+    try {
+      const parsed = JSON.parse(errBody);
+      message =
+        parsed?.detail?.message ||
+        parsed?.detail?.status ||
+        parsed?.message ||
+        message;
+    } catch (_) {
+      if (errBody) message = errBody.slice(0, 240);
+    }
+    const err = new Error(message);
+    err.statusCode = response.status >= 400 ? response.status : 502;
+    throw err;
+  }
+
+  const buf = Buffer.from(await response.arrayBuffer());
+  if (!buf.length || buf.length < 64) {
+    const err = new Error("ElevenLabs returned empty audio.");
+    err.statusCode = 502;
+    throw err;
+  }
+
+  // ~128 kbps MP3 → ~16_000 bytes/sec
+  const durationMs = Math.max(400, Math.round((buf.length / 16000) * 1000));
+  const words = wordTimingsFromText(clean, durationMs);
+
+  return {
+    model: modelId,
+    voice: voiceId,
+    provider: "elevenlabs",
+    mime_type: "audio/mpeg",
+    audio_base64: buf.toString("base64"),
+    duration_ms: durationMs,
+    sample_rate: 44100,
+    text: clean,
+    words,
+  };
+}
 
 function pcm16ToWavBase64(pcmBase64, sampleRate = 24000, numChannels = 1) {
   const pcm = Buffer.from(String(pcmBase64 || "").replace(/\s/g, ""), "base64");
@@ -766,21 +993,14 @@ function wordTimingsFromText(text, durationMs) {
 }
 
 /**
- * Gemini TTS → WAV + word timings locked to the same audio the app plays.
- * Perfect karaoke: highlight follows playback position of this clip.
+ * Coach TTS → audio + word timings locked to playback.
+ * Prefers ElevenLabs (human voices); falls back to Gemini TTS.
  */
 async function synthesizeCoachSpeech({
   text,
   voiceProfile = "sarah",
   rate = 1,
 } = {}) {
-  const key = geminiApiKey();
-  if (!key) {
-    const err = new Error("GEMINI_API_KEY is not configured on the server.");
-    err.statusCode = 503;
-    throw err;
-  }
-
   const clean = String(text || "").trim().slice(0, 2500);
   if (!clean) {
     const err = new Error("Text is required for coach speech.");
@@ -788,15 +1008,43 @@ async function synthesizeCoachSpeech({
     throw err;
   }
 
+  if (isElevenLabsConfigured()) {
+    try {
+      return await synthesizeWithElevenLabs({
+        text: clean,
+        voiceProfile,
+        rate,
+      });
+    } catch (err) {
+      // Fall through to Gemini if ElevenLabs fails and Gemini is available.
+      if (!isGeminiConfigured()) throw err;
+      console.warn(
+        "ElevenLabs coach-speak failed, falling back to Gemini:",
+        err.message
+      );
+    }
+  }
+
+  const key = geminiApiKey();
+  if (!key) {
+    const err = new Error(
+      "Coach speech is not configured. Set GEMINI_API_KEY on the server."
+    );
+    err.statusCode = 503;
+    throw err;
+  }
+
   const voiceKey = String(voiceProfile || "sarah").trim().toLowerCase();
-  const voiceName = COACH_VOICE_MAP[voiceKey] || "Kore";
-  // Mild rate hint in the prompt (Gemini TTS has no numeric rate).
+  const voiceName = COACH_VOICE_MAP[voiceKey] || "Sulafat";
+  const styleHint =
+    COACH_STYLE_MAP[voiceKey] || COACH_STYLE_MAP.sarah;
   const paceHint =
     Number(rate) < 0.95
-      ? "Speak clearly at a calm, slightly slow pace. "
+      ? "speaking slowly and calmly"
       : Number(rate) > 1.05
-        ? "Speak clearly at a natural brisk pace. "
-        : "Speak clearly at a natural pace. ";
+        ? "speaking at a natural brisk pace"
+        : "speaking at a natural everyday pace";
+  const deliveryStyle = `${styleHint}; ${paceHint}; slight natural pauses at commas`;
 
   let lastErr;
   for (const model of TTS_MODEL_FALLBACKS) {
@@ -804,43 +1052,48 @@ async function synthesizeCoachSpeech({
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
         model
       )}:generateContent?key=${encodeURIComponent(key)}`;
+
+      // Single request (no dual speech_metadata retry) — faster first byte.
+      const body = {
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text:
+                  `Speak like a real human speaking coach — ${deliveryStyle}. ` +
+                  `Do not sound like a robot or announcer. ` +
+                  `Read the following text aloud exactly, with no extra words:\n\n` +
+                  clean,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: {
+              prebuiltVoiceConfig: { voiceName },
+            },
+          },
+        },
+      };
+
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 45_000);
+      const timer = setTimeout(() => controller.abort(), 28_000);
       let response;
       try {
         response = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           signal: controller.signal,
-          body: JSON.stringify({
-            contents: [
-              {
-                role: "user",
-                parts: [
-                  {
-                    text:
-                      paceHint +
-                      "Read the following text aloud exactly, with no extra words:\n\n" +
-                      clean,
-                  },
-                ],
-              },
-            ],
-            generationConfig: {
-              responseModalities: ["AUDIO"],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName },
-                },
-              },
-            },
-          }),
+          body: JSON.stringify(body),
         });
       } finally {
         clearTimeout(timer);
       }
-
       const data = await response.json().catch(() => ({}));
+
       if (!response.ok) {
         const err = new Error(
           data?.error?.message || `Gemini TTS failed (${model}).`
@@ -896,6 +1149,7 @@ async function synthesizeCoachSpeech({
       return {
         model,
         voice: voiceName,
+        provider: "gemini",
         mime_type: "audio/wav",
         audio_base64: wavBase64,
         duration_ms: durationMs,
@@ -913,6 +1167,8 @@ async function synthesizeCoachSpeech({
 module.exports = {
   geminiApiKey,
   isGeminiConfigured,
+  isElevenLabsConfigured,
+  isCoachTtsConfigured,
   geminiStatus,
   liveModel,
   flashModel,

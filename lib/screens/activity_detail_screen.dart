@@ -5,8 +5,10 @@ import '../core/services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/blue_accent_rays.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import 'debate_me_screen.dart';
+import 'paywall_screen.dart';
 import 'recording_screen.dart';
 
 /// Activity detail screen rendered pixel-perfect matching Image 2 ("Think Fast.")
@@ -230,23 +232,108 @@ class ActivityDetailScreen extends StatelessWidget {
                           app.ensureActivitySelected(slug);
                           app.syncDifficultyForActivity(slug);
 
-                          if (app.isLoggedIn) {
-                            await HakkiriLoadingOverlay.run(
+                          // Guest funnel: one free try on any drill → then IAP.
+                          if (!app.isLoggedIn) {
+                            if (app.guestTrialUsed) {
+                              AppSnackBar.showInfo(
+                                context,
+                                'Free try used. Subscribe to keep practising.',
+                              );
+                              await app.markGuestReachedPaywall();
+                              if (!context.mounted) return;
+                              nav.push(
+                                MaterialPageRoute(
+                                  builder: (_) => const PaywallScreen(),
+                                ),
+                              );
+                              return;
+                            }
+                            final ok = await HakkiriLoadingOverlay.run(
                               context,
                               message: isDebateMe
                                   ? 'Setting up your debate…'
                                   : 'Getting your question…',
                               detail: isDebateMe
-                                  ? 'Loading a workplace topic for opening + pushback.'
-                                  : 'Picking a fresh prompt for this drill.',
-                              action: () => app.fetchNextPromptFromApi(
-                                excludeCurrent: true,
+                                  ? 'Loading a fresh workplace topic from Hakkiri.'
+                                  : 'Picking a fresh prompt from Hakkiri.',
+                              action: () => app.prepareGuestTrial(slug),
+                            );
+                            if (!context.mounted) return;
+                            if (ok != true || !app.promptMatchesActivity(slug)) {
+                              if (ok == true && !app.promptMatchesActivity(slug)) {
+                                AppSnackBar.showInfo(
+                                  context,
+                                  'Could not load the right question for this drill. Try again.',
+                                );
+                                return;
+                              }
+                              await app.markGuestReachedPaywall();
+                              if (!context.mounted) return;
+                              nav.push(
+                                MaterialPageRoute(
+                                  builder: (_) => const PaywallScreen(),
+                                ),
+                              );
+                              return;
+                            }
+                            if (isDebateMe) {
+                              final topic =
+                                  app.selectedPrompt?.promptText.trim();
+                              nav.push(
+                                MaterialPageRoute(
+                                  builder: (_) => DebateMeScreen(
+                                    topic: (topic != null && topic.isNotEmpty)
+                                        ? topic
+                                        : null,
+                                    startAtPrompt: true,
+                                    isGuestTrial: true,
+                                  ),
+                                ),
+                              );
+                              return;
+                            }
+                            nav.push(
+                              MaterialPageRoute(
+                                builder: (_) => const RecordingScreen(
+                                  promptAlreadyLoaded: true,
+                                  isGuestTrial: true,
+                                ),
                               ),
                             );
-                          } else if (!isDebateMe) {
-                            app.setDifficulty(app.levelForActivity(slug));
+                            return;
                           }
+
+                          await HakkiriLoadingOverlay.run(
+                            context,
+                            message: isDebateMe
+                                ? 'Setting up your debate…'
+                                : 'Getting your question…',
+                            detail: isDebateMe
+                                ? 'Loading a workplace topic for opening + pushback.'
+                                : 'Picking a fresh prompt for this drill.',
+                            action: () async {
+                              app.ensureActivitySelected(slug);
+                              await app.fetchNextPromptFromApi(
+                                excludeCurrent: true,
+                              );
+                              // Retry once if a stale Think Fast (etc.) prompt stuck.
+                              if (!app.promptMatchesActivity(slug)) {
+                                app.ensureActivitySelected(slug);
+                                await app.fetchNextPromptFromApi(
+                                  excludeCurrent: false,
+                                );
+                              }
+                            },
+                          );
                           if (!context.mounted) return;
+
+                          if (!app.promptMatchesActivity(slug)) {
+                            AppSnackBar.showInfo(
+                              context,
+                              'Could not load a ${spec.title.replaceAll('.', '')} question. Try again.',
+                            );
+                            return;
+                          }
 
                           if (isDebateMe) {
                             final topic =
@@ -339,7 +426,7 @@ class ActivityDetailScreen extends StatelessWidget {
                       icon: s.icon,
                       title: s.title,
                       subtitle: s.sub,
-                      width: steps.length == 3 ? 90 : 70,
+                      width: steps.length == 3 ? 100 : 78,
                     ),
                 ],
               ),
@@ -383,21 +470,23 @@ class ActivityDetailScreen extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 11.5,
+              fontSize: 12.5,
               fontWeight: FontWeight.w800,
               color: Color(0xFF0F172A),
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
             subtitle,
             textAlign: TextAlign.center,
+            maxLines: 3,
+            softWrap: true,
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 10,
+              fontSize: 11.5,
               fontWeight: FontWeight.w500,
               color: Color(0xFF64748B),
-              height: 1.25,
+              height: 1.3,
             ),
           ),
         ],

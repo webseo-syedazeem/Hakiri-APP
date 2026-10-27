@@ -1,5 +1,5 @@
 const express = require("express");
-const { verifyJWT } = require("../middleware/authMiddleware");
+const { verifyJWT, optionalJWT } = require("../middleware/authMiddleware");
 const auth = require("../controllers/authController");
 const profile = require("../controllers/profileController");
 const catalog = require("../controllers/catalogController");
@@ -19,6 +19,7 @@ router.post("/auth/login", auth.login);
 router.post("/auth/google", auth.googleAuth);
 router.post("/auth/apple", auth.appleAuth);
 router.get("/auth/me", verifyJWT, auth.me);
+router.delete("/auth/delete-account", verifyJWT, auth.deleteAccount);
 router.get("/bootstrap", verifyJWT, bootstrap.bootstrap);
 router.post("/coaching/decide", verifyJWT, coaching.decide);
 router.put("/coaching/level", verifyJWT, coaching.setLevel);
@@ -28,7 +29,8 @@ router.get("/ai/status", ai.status);
 router.post("/ai/live-token", verifyJWT, ai.liveToken);
 router.post("/ai/analyze-speech", verifyJWT, ai.analyzeSpeech);
 router.post("/ai/debate-pushback", verifyJWT, ai.debatePushback);
-router.post("/ai/coach-speak", verifyJWT, ai.coachSpeak);
+// Optional auth: guests still hear human coach voice on suggested answers.
+router.post("/ai/coach-speak", optionalJWT, ai.coachSpeak);
 
 // FCM device token (app start / after login). No Cloud Functions.
 router.post("/device-token", verifyJWT, push.registerToken);
@@ -42,6 +44,7 @@ router.get("/scoring-principles", profile.principles);
 router.post("/assessment", verifyJWT, profile.submitAssessment);
 router.get("/profile", verifyJWT, profile.getProfile);
 router.put("/profile", verifyJWT, profile.updateProfile);
+router.delete("/profile", verifyJWT, auth.deleteAccount);
 router.get("/plan", verifyJWT, profile.getPlan);
 router.put("/plan", verifyJWT, profile.updatePlan);
 router.get("/settings", verifyJWT, profile.getSettings);
@@ -50,7 +53,7 @@ router.put("/settings", verifyJWT, profile.updateSettings);
 router.get("/activities", catalog.listActivities);
 router.get("/activities/:slug", catalog.getActivity);
 router.get("/prompts", catalog.listPrompts);
-router.get("/prompts/next", verifyJWT, catalog.nextPrompt);
+router.get("/prompts/next", optionalJWT, catalog.nextPrompt);
 router.get("/prompts/:id", catalog.getPrompt);
 router.get("/daily-anchor", verifyJWT, catalog.dailyAnchor);
 

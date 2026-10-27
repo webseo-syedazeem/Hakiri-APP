@@ -34,6 +34,7 @@ class ProfileScreenContent extends StatefulWidget {
 
 class _ProfileScreenContentState extends State<ProfileScreenContent> {
   bool _loggingOut = false;
+  bool _deletingAccount = false;
   bool _reminderSaving = false;
 
   Future<void> _openProfileEditor() async {
@@ -99,7 +100,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
       'Email: ${state.email}\n'
       'App: Hakkiri Gym v1.0.0\n',
     );
-    final emailUri = Uri.parse('mailto:support@hakkiri.com?subject=$subject&body=$body');
+    final emailUri = Uri.parse('mailto:hakkiriadmin@gmail.com?subject=$subject&body=$body');
 
     try {
       final launched = await launchUrl(
@@ -174,7 +175,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                   SizedBox(width: 12),
                   Expanded(
                     child: SelectableText(
-                      'support@hakkiri.com',
+                      'hakkiriadmin@gmail.com',
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 14,
@@ -198,11 +199,11 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 onPressed: () {
-                  Clipboard.setData(const ClipboardData(text: 'support@hakkiri.com'));
+                  Clipboard.setData(const ClipboardData(text: 'hakkiriadmin@gmail.com'));
                   Navigator.pop(ctx);
                   AppSnackBar.showSuccess(
                     context,
-                    'Support email copied to clipboard! (support@hakkiri.com)',
+                    'Support email copied to clipboard! (hakkiriadmin@gmail.com)',
                   );
                 },
                 icon: const Icon(Icons.copy_rounded, size: 18),
@@ -250,6 +251,69 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
       );
     } finally {
       if (mounted) setState(() => _loggingOut = false);
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    if (_deletingAccount) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text(
+          'Delete Account?',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        content: const Text(
+          'Are you sure you want to permanently delete your account? All your practice sessions, voice recordings, streaks, and personal data will be erased immediately. This action cannot be undone.',
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            height: 1.45,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFDC2626),
+            ),
+            child: const Text(
+              'Delete Forever',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w800,
+                color: Color(0xFFDC2626),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deletingAccount = true);
+    try {
+      await context.read<AppStateProvider>().deleteAccount();
+      if (!mounted) return;
+      AppSnackBar.showSuccess(context, 'Your account has been permanently deleted.');
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LandingScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (mounted) {
+        AppSnackBar.showError(context, e.toString());
+      }
+    } finally {
+      if (mounted) setState(() => _deletingAccount = false);
     }
   }
 
@@ -659,7 +723,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
               width: double.infinity,
               height: 52,
               child: OutlinedButton.icon(
-                onPressed: _loggingOut ? null : _logout,
+                onPressed: (_loggingOut || _deletingAccount) ? null : _logout,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFDC2626),
                   side: const BorderSide(color: Color(0xFFFECACA), width: 1.2),
@@ -678,7 +742,29 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                 ),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 12),
+
+            // Delete Account
+            Center(
+              child: TextButton.icon(
+                onPressed: (_loggingOut || _deletingAccount) ? null : _deleteAccount,
+                icon: const Icon(
+                  Icons.delete_outline_rounded,
+                  size: 18,
+                  color: Color(0xFFEF4444),
+                ),
+                label: Text(
+                  _deletingAccount ? 'Deleting account…' : 'Delete Account',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFEF4444),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
           ],
         ),
       ),

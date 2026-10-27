@@ -5,9 +5,9 @@ const ACTIVITIES = [
     isMvp: true,
     tagline: "Instant cognitive agility under time pressure",
     description:
-      "A random question flashes on screen. After 3 seconds the app records for 60 seconds while you think on the spot.",
+      "A random question flashes on screen. After 5 seconds the app records for 60 seconds while you think on the spot.",
     cognitiveMechanism: "Rapid lexical retrieval and on-the-spot framing under stress",
-    prepDurationSeconds: 3,
+    prepDurationSeconds: 5,
     defaultDurationSeconds: 60,
     benefits: [
       "High cognitive agility under stress",
@@ -352,7 +352,7 @@ function p(entry) {
     tags: [],
     industries: ["general"],
     durationSeconds: 60,
-    prepSeconds: 3,
+    prepSeconds: 5,
     learnMoreUrl: null,
     learnMoreLabel: null,
     ...entry,
@@ -370,7 +370,7 @@ const PROMPTS = [
     exemplarResponse:
       "Ban standing video calls on Fridays. People need one quiet day to finish work. Keep a single optional call for anything that truly cannot wait until Monday.",
     tags: ["workplace"],
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_b_one_skill",
@@ -381,7 +381,7 @@ const PROMPTS = [
     objective: "Start speaking within a few seconds and give one reason.",
     exemplarResponse:
       "I would choose clear speaking. It is the skill that makes every other skill usable in a meeting, a pitch, and a hard conversation.",
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_b_startup_or_giant",
@@ -392,7 +392,7 @@ const PROMPTS = [
     objective: "Pick a side and give two short reasons.",
     exemplarResponse:
       "Start at the small company. You see the whole business, you get responsibility early, and you learn faster than you would in a narrow first role.",
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_b_habit",
@@ -403,7 +403,7 @@ const PROMPTS = [
     objective: "Name one habit and say why it works.",
     exemplarResponse:
       "Write the single outcome for the day before you open messages. It stops the inbox from choosing your work.",
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_i_missed_deadline",
@@ -417,7 +417,7 @@ const PROMPTS = [
       "We missed Friday's delivery. The handoff inside our team was unclear, and that is on me. The revised delivery is Thursday at 2pm, and I will send a daily status until then.",
     tags: ["client"],
     industries: ["general", "corporate_finance", "tech_product", "sales_marketing"],
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_i_unexpected_question",
@@ -429,7 +429,7 @@ const PROMPTS = [
     objective: "Buy a clean second, frame what you know, and commit to a follow-up.",
     exemplarResponse:
       "Good question. I do not have the exact number here. What I can say is the trend is up this month. I will confirm the figure and send it to the group within the hour.",
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_i_bad_news",
@@ -441,7 +441,7 @@ const PROMPTS = [
     objective: "Lead with the bottom line, then the cause and the recovery plan.",
     exemplarResponse:
       "We will miss this month's target by about 12%. The main driver was a delayed vendor handoff. Here is the recovery: we resequence two items and I will update you Friday with a revised forecast.",
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_i_interview_strength",
@@ -453,7 +453,7 @@ const PROMPTS = [
     objective: "One strength, one proof, no laundry list.",
     exemplarResponse:
       "My strength is turning messy updates into decisions. Last quarter I cut our weekly status from 40 minutes to a five-minute brief with three asks, and approvals moved the same day.",
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_i_colleague_disagrees",
@@ -464,7 +464,7 @@ const PROMPTS = [
     objective: "Acknowledge the point, then restate your recommendation.",
     exemplarResponse:
       "You are right that the timeline is tight. I still recommend we ship the smaller version on Friday, because waiting for the full scope misses the client's window.",
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_i_no_budget",
@@ -476,7 +476,7 @@ const PROMPTS = [
     objective: "Ask for a smaller yes instead of arguing with the no.",
     exemplarResponse:
       "I understand the budget is closed. Could we approve one course this quarter and review a second one after the half-year numbers?",
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_i_roi",
@@ -489,7 +489,7 @@ const PROMPTS = [
       "ROI asks a simple question: for every pound we put in, how many pounds come back? If we spend 10 and get 15, the return is worth doing.",
     learnMoreUrl: "https://www.investopedia.com/terms/r/returnoninvestment.asp",
     learnMoreLabel: "Read a plain definition of ROI",
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_p_platform_down",
@@ -503,7 +503,7 @@ const PROMPTS = [
       "The platform is down worldwide as of 14:10 UTC. Customers cannot sign in. Engineering is rolling DNS back now. Next update is in 15 minutes. Social replies are pointing people to the status page.",
     industries: ["tech_product", "corporate_finance"],
     tags: ["crisis"],
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_p_ai_advantage",
@@ -515,7 +515,7 @@ const PROMPTS = [
     exemplarResponse:
       "The model is no longer the advantage. Our advantage is the client data we already hold and the people who know how to apply it in their industry. We sell that judgement, not the raw tool.",
     industries: ["tech_product", "corporate_finance", "sales_marketing"],
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_p_speed_vs_data",
@@ -526,7 +526,7 @@ const PROMPTS = [
     objective: "Take a position and name the risk you accept.",
     exemplarResponse:
       "Moving too slowly is more dangerous when the market is shifting. I would move with flawed data on a small bet, and I would not bet the company until the numbers settle.",
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_p_cheaper_competitor",
@@ -540,7 +540,7 @@ const PROMPTS = [
       "We are not losing because we cost more. We are losing the deals where we talk about price first. Open with the outcome we deliver, then show why the cheaper option costs more later.",
     industries: ["sales_marketing"],
     tags: ["sales"],
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_i_healthcare_handoff",
@@ -554,7 +554,7 @@ const PROMPTS = [
       "Before we move on, I want to confirm the allergy note from the last shift. I will add it to the chart now so the next person has it.",
     industries: ["healthcare_edu"],
     tags: ["healthcare"],
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_b_healthcare_patient",
@@ -566,7 +566,7 @@ const PROMPTS = [
     exemplarResponse:
       "Your doctor changed the dose because the last result was higher than we want. You start the new tablet tomorrow morning. If you feel dizzy, call the ward number on this card.",
     industries: ["healthcare_edu"],
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
   p({
     code: "tf_p_sales_hallway",
@@ -578,7 +578,7 @@ const PROMPTS = [
     exemplarResponse:
       "Teams like yours lose about a week each quarter rewriting proposals. We cut that rewrite in half for a similar sales team. Can I have 15 minutes Thursday to show you the before and after?",
     industries: ["sales_marketing"],
-    prepSeconds: 3,
+    prepSeconds: 5,
   }),
 
   p({
@@ -634,9 +634,10 @@ const PROMPTS = [
     promptText: "Explain why someone can make a full-time living on TikTok or YouTube.",
     objective: "Speak for the full minute without running out of things to say.",
     exemplarResponse:
-      "People pay attention, and attention can be sold. A creator who holds an audience every day can earn from ads, sponsors, and their own product. The job is showing up often enough that the audience stays.",
+      "Someone can make a full-time living on TikTok or YouTube because attention has value. First, a creator builds an audience by posting regularly. Brands and platforms pay for that attention through ads and sponsorships. Second, many creators sell their own products — courses, merch, memberships — once people already trust them. The job is not one viral video. It is showing up often enough that the audience stays, and turning that attention into income.",
     learnMoreUrl: "https://en.wikipedia.org/wiki/Creator_economy",
     learnMoreLabel: "Creator economy, in brief",
+    industries: ["sales_marketing", "tech_product"],
     prepSeconds: 5,
   }),
   p({
@@ -647,7 +648,8 @@ const PROMPTS = [
     promptText: "Explain the number one benefit of working from home versus a physical office.",
     objective: "Stay talking until the minute is nearly done.",
     exemplarResponse:
-      "The biggest benefit is uninterrupted focus. The commute disappears, and so do a lot of drive-by interruptions. That time goes back into the actual work.",
+      "The number one benefit of working from home is uninterrupted focus. In an office, people stop by your desk, meetings stack up, and the commute eats the start and end of the day. At home, that noise drops. You get longer stretches of deep work, and the hours you used to spend travelling go back into the actual job. For many roles, that focus is the real productivity gain — not the pyjamas.",
+    industries: ["tech_product", "sales_marketing", "corporate_finance"],
     prepSeconds: 5,
   }),
   p({
@@ -658,7 +660,8 @@ const PROMPTS = [
     promptText: "Explain why people are willing to pay £5 for a premium coffee instead of making it at home.",
     objective: "Keep going for 60 seconds with a simple structure.",
     exemplarResponse:
-      "They are not only buying coffee. They are buying a pause, a place, and a small ritual. Five pounds is the price of leaving the house and starting the day in public.",
+      "People pay five pounds for premium coffee because they are not only buying a drink. First, they are buying a pause — a small break before work or between meetings. Second, they are buying a place and a ritual: leaving the house, standing in a queue, starting the day in public. Home coffee is cheaper, but it does not give that reset. So the price is really for the experience around the cup, not just the caffeine.",
+    industries: ["sales_marketing"],
     prepSeconds: 5,
   }),
   p({
@@ -669,7 +672,8 @@ const PROMPTS = [
     promptText: "Explain why consistency matters more than intensity when starting a new workout routine.",
     objective: "Fill the minute with one idea, repeated clearly.",
     exemplarResponse:
-      "A hard workout you quit beats nothing only once. A moderate session you repeat becomes the habit. Consistency is what makes the body change.",
+      "Consistency matters more than intensity because the body changes from what you repeat, not from what you try once. A brutal workout you quit after a week leaves almost nothing behind. A moderate session you do three times a week becomes a habit, and the habit is what builds strength and fitness. When you start, the goal is not to impress yourself on day one. It is to still be training next month. Show up often, keep it doable, and intensity can grow later.",
+    industries: ["healthcare_edu", "sales_marketing"],
     prepSeconds: 5,
   }),
   p({
@@ -680,7 +684,7 @@ const PROMPTS = [
     promptText: "Explain the difference between automation, which replaces tasks, and augmentation, which helps humans.",
     objective: "Use two clear buckets.",
     exemplarResponse:
-      "Automation takes a task off a person's plate, like sorting invoices. Augmentation stays beside the person, like a tool that drafts options a doctor still chooses from. One removes work. The other improves the human decision.",
+      "Here is the difference that matters at work today. Automation takes a task off a person's plate — like software that sorts invoices so nobody types them by hand. Augmentation stays beside the person — like a tool that drafts options a doctor still chooses from. One removes work. The other improves the human decision. If you confuse them, you either fire the wrong people or you expect software to own judgment it should not own. So ask: are we replacing the task, or are we making the human better at it?",
     industries: ["tech_product", "general"],
     learnMoreUrl: "https://en.wikipedia.org/wiki/Intelligence_amplification",
     learnMoreLabel: "Augmentation versus replacement",
@@ -694,9 +698,11 @@ const PROMPTS = [
     promptText: "Explain what psychological safety means in a team and why it prevents project failures.",
     objective: "Define it, then give two reasons it matters.",
     exemplarResponse:
-      "Psychological safety means people can say 'this will fail' without being punished. Projects fail in silence. When bad news arrives early, the team can still change course.",
+      "Psychological safety means people can say 'this will fail' or 'I do not understand' without being punished for it. It matters for two reasons. First, projects fail in silence — the risk was known, but nobody dared to speak. Second, when bad news arrives early, the team can still change course, cut scope, or ask for help. A team that only hears good news is not healthy; it is blind. So psychological safety is not about being soft. It is about catching problems while there is still time to fix them.",
     learnMoreUrl: "https://en.wikipedia.org/wiki/Psychological_safety",
     learnMoreLabel: "What psychological safety means",
+    // People / product leadership — not Corporate & Finance catalog.
+    industries: ["tech_product", "sales_marketing"],
     prepSeconds: 5,
   }),
   p({
@@ -707,7 +713,7 @@ const PROMPTS = [
     promptText: "Explain product-market fit to a non-technical stakeholder.",
     objective: "Two points and a takeaway, no jargon pile-up.",
     exemplarResponse:
-      "Product-market fit means the people you built it for keep coming back without being pushed. If you have to beg them to care, you do not have it yet.",
+      "Product-market fit means the people you built for keep coming back without being pushed. Why that matters today: until you have it, ads and sales mostly buy noise, not loyalty. Two simple checks. First, do customers return on their own and tell others, or do you chase them every week with discounts and reminders? Second, if you raise the price a little, do they stay — or vanish? If you still have to beg them to care, you do not have fit yet. You have a product looking for a market. The takeaway for any stakeholder: prove pull before you scale push. Talk to the few who already need this, tighten the offer until they pull, then spend to grow. Fit first. Scale second.",
     learnMoreUrl: "https://en.wikipedia.org/wiki/Product-market_fit",
     learnMoreLabel: "Product-market fit",
     industries: ["tech_product", "sales_marketing"],
@@ -718,11 +724,59 @@ const PROMPTS = [
     activitySlug: "one_minute_expert",
     difficulty: "intermediary",
     title: "The wrong metric",
-    promptText: "Explain why tracking the wrong data metric can actively ruin a business strategy.",
+    promptText: "Explain why tracking the wrong KPI can ruin a finance or ops strategy.",
     objective: "One example, two points.",
     exemplarResponse:
-      "If a hospital tracks speed of discharge and ignores readmission, people get sent home too early. The number looks good while the outcome gets worse. The metric you reward is the behaviour you get.",
-    industries: ["corporate_finance", "healthcare_edu"],
+      "Tracking the wrong KPI can ruin a strategy because the metric you reward is the behaviour you get. Take a simple example: a team only tracks cost cuts and ignores cash conversion. The P&L looks tidy while working capital blows up — stock rises, customers pay late, and cash quietly disappears. Two points. First, a good-looking number can hide a broken process. Second, people will game whatever you put on the dashboard. So pick the outcome you actually want — cash, quality, retention — then pick the number that forces that behaviour. Wrong scoreboard, wrong game.",
+    industries: ["corporate_finance"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "ome_b_ebitda",
+    activitySlug: "one_minute_expert",
+    difficulty: "beginner",
+    title: "EBITDA in plain English",
+    promptText: "Explain what EBITDA means to a smart colleague who is not in finance.",
+    objective: "One clear definition, then why leaders still look at it.",
+    exemplarResponse:
+      "EBITDA is a rough view of operating profit before interest, tax, and the accounting for assets wearing out. In plain English: how is the core business performing before financing and tax choices cloud the picture? Leaders still look at it for two reasons. First, it helps compare companies or years without those extras in the way. Second, it is a common language with investors and boards. It is not cash in the bank, and it is not the whole story — but it is a fast way to ask: is the underlying business healthy?",
+    industries: ["corporate_finance"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "ome_b_runway",
+    activitySlug: "one_minute_expert",
+    difficulty: "beginner",
+    title: "Cash runway",
+    promptText: "Explain what cash runway means and why a CFO watches it weekly.",
+    objective: "Define it, then give one risk if you ignore it.",
+    exemplarResponse:
+      "Cash runway is how many months you can keep operating with the cash you have at today's burn rate. If you have six months of cash and you spend the same each month, your runway is six months. CFOs watch it weekly because a surprise spike in hiring, ads, or suppliers can cut months off the plan before the next board meeting notices. Ignore runway and you can look busy and growing while quietly running out of time to raise money or cut costs. So runway is not a finance curiosity — it is the survival clock.",
+    industries: ["corporate_finance"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "ome_i_working_capital",
+    activitySlug: "one_minute_expert",
+    difficulty: "intermediary",
+    title: "Working capital",
+    promptText: "Explain working capital to a non-finance stakeholder and why it can kill a profitable company.",
+    objective: "Define it, then one concrete risk.",
+    exemplarResponse:
+      "Working capital is the cash tied up in day-to-day operations — stock on shelves, invoices customers have not paid yet, and bills you still owe suppliers. Why it matters: a company can show profit on paper and still run out of cash. Imagine sales look strong, but customers pay in sixty days while suppliers demand payment in fourteen. Profit is booked; cash is gone. That gap is how profitable companies die. So when someone says 'we are making money,' also ask: when does the cash actually arrive, and can we fund the wait?",
+    industries: ["corporate_finance"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "ome_i_capex_opex",
+    activitySlug: "one_minute_expert",
+    difficulty: "intermediary",
+    title: "CapEx versus OpEx",
+    promptText: "Explain the difference between CapEx and OpEx as if you are briefing a budget owner.",
+    objective: "Two buckets, one decision implication.",
+    exemplarResponse:
+      "Think of two budget buckets. CapEx is money spent to buy or build an asset that lasts years — systems, equipment, office fit-out. OpEx is the ongoing cost of running the business this year — salaries, software subscriptions, marketing. Why the split matters for a budget owner: CapEx usually hits the balance sheet and is spread over time; OpEx hits this year's P&L and can make the year look worse even when the investment is right. Before you approve spend, ask which bucket it sits in, and what story that creates for finance and the board. Same pound, different reporting — and different decision pressure.",
+    industries: ["corporate_finance"],
     prepSeconds: 5,
   }),
   p({
@@ -733,7 +787,7 @@ const PROMPTS = [
     promptText: "Explain how human focus has become a valuable economic commodity. Open with a bold claim.",
     objective: "Executive thesis, then a punchy close before 60 seconds.",
     exemplarResponse:
-      "Attention is the product. The apps are just the mines. Whoever holds someone's focus can sell that focus, and most companies are now competing for the same scarce minutes.",
+      "Attention is the product. The apps are just the mines. Whoever holds someone's focus can sell that focus — to advertisers, to platforms, to their own upsell. That is why human attention became an economic commodity: minutes are scarce, and every company is competing for the same scarce minutes. Think of a city with one busy street corner; every shop wants the town crier pointing at them. The systemic point is simple: product quality still matters, but distribution now means winning focus first. Close with this: if you cannot hold attention, you cannot sell anything else.",
     prepSeconds: 5,
   }),
   p({
@@ -744,7 +798,7 @@ const PROMPTS = [
     promptText: "Explain why supply chains are shifting away from global efficiency toward local resilience.",
     objective: "A thesis, a systemic point, and a close.",
     exemplarResponse:
-      "Cheap and far used to win. One blocked port proved that cheap and far can also stop the business. Companies are now paying more to source closer, because a late product costs more than a higher unit price.",
+      "Cheap and far used to win. One blocked port proved that cheap and far can also stop the business overnight. That is why supply chains are shifting from pure global efficiency toward local resilience. The systemic point: a late product often costs more than a higher unit price — lost sales, idle factories, angry customers, and emergency air freight. So companies are paying more to source closer, hold buffer stock, and dual-source critical parts. Efficiency optimised for peacetime. Resilience is the insurance premium for a brittle world. Close: the winning chain is not the cheapest — it is the one that still delivers when the map breaks.",
     industries: ["corporate_finance", "tech_product"],
     prepSeconds: 5,
   }),
@@ -756,7 +810,7 @@ const PROMPTS = [
     promptText: "Explain why giving a customer more options can decrease sales conversion.",
     objective: "Bold open, one mechanism, a close.",
     exemplarResponse:
-      "More options feel helpful and often freeze the buyer. When every choice looks reasonable, choosing feels risky, so people leave. A shorter menu makes the next step obvious.",
+      "More options feel helpful and often freeze the buyer. That is the paradox of choice: adding choices can decrease conversion. The mechanism is simple. When every option looks reasonable, choosing feels risky — people fear picking wrong, so they delay or leave. Cognitive load rises; the next step stops being obvious. A shorter menu, a recommended default, or a guided path reduces that fear and makes action easy. Analogy: a restaurant with three clear dishes sells faster than one with forty near-identical plates. Close: if you want more sales, do not only add options — remove the ones that create hesitation.",
     industries: ["sales_marketing"],
     learnMoreUrl: "https://en.wikipedia.org/wiki/The_Paradox_of_Choice",
     learnMoreLabel: "Paradox of choice",
@@ -770,7 +824,7 @@ const PROMPTS = [
     promptText: "Explain why massive, well-funded companies often get disrupted by tiny, cash-poor startups.",
     objective: "Reframe the topic as an executive thesis.",
     exemplarResponse:
-      "The large company is protecting a machine that already prints money. The small company has nothing to protect, so it can change the offer every week. Funding does not beat a shorter decision.",
+      "Massive, well-funded companies get disrupted because they are protecting a machine that already prints money. Every change threatens today's revenue, today's margins, today's org chart. The tiny startup has nothing to protect, so it can change the offer every week and learn in public. Funding does not beat a shorter decision cycle. The systemic point: incumbents optimise for continuity; disruptors optimise for learning speed. Cash buys time, but it also buys bureaucracy. Close with this: the giant dies slowly when 'we cannot risk the core' becomes the loudest voice in the room — and the startup wins by shipping while that meeting is still booking.",
     industries: ["corporate_finance", "tech_product"],
     prepSeconds: 5,
   }),
@@ -838,6 +892,97 @@ const PROMPTS = [
     prepSeconds: 10,
   }),
   p({
+    code: "eis_i_cloud_parent",
+    activitySlug: "explain_it_simply",
+    difficulty: "intermediary",
+    title: "The cloud to a parent",
+    promptText:
+      "Explain 'the cloud' to a parent who thinks it means their photos are floating in the sky.",
+    objective: "Friendly analogy. No jargon pile-up.",
+    exemplarResponse:
+      "The cloud is just someone else's computer, kept safe in a big building. When you save a photo there, it lives on that computer so you can open it from your phone or laptop. It is storage with a login, not weather.",
+    industries: ["tech_product", "general"],
+    prepSeconds: 10,
+  }),
+  p({
+    code: "eis_i_api_waiter",
+    activitySlug: "explain_it_simply",
+    difficulty: "intermediary",
+    title: "APIs to a restaurant manager",
+    promptText:
+      "Explain what an API is to a restaurant manager who has never written code.",
+    objective: "Use the restaurant as the picture.",
+    exemplarResponse:
+      "An API is the waiter between the kitchen and the dining room. Guests do not walk into the kitchen; they ask through the waiter, get a clear answer, and the kitchen stays organised. Software apps talk to each other the same way.",
+    industries: ["tech_product", "general"],
+    prepSeconds: 10,
+  }),
+  p({
+    code: "eis_i_brand_neighbour",
+    activitySlug: "explain_it_simply",
+    difficulty: "intermediary",
+    title: "Brand to a neighbour",
+    promptText:
+      "Explain what a brand is to a neighbour who thinks it only means a logo on a bag.",
+    objective: "Simple, human, one clear takeaway.",
+    exemplarResponse:
+      "A brand is the promise people remember when they hear your name. The logo is just the badge. If every visit feels reliable and a bit special, that feeling is the brand — and it is why they come back.",
+    industries: ["sales_marketing", "general"],
+    prepSeconds: 10,
+  }),
+  p({
+    code: "eis_i_cashflow_friend",
+    activitySlug: "explain_it_simply",
+    difficulty: "intermediary",
+    title: "Cash flow to a friend",
+    promptText:
+      "Explain cash flow to a friend who runs a small shop and mixes up profit with money in the till.",
+    objective: "One analogy, then why it can sink a busy shop.",
+    exemplarResponse:
+      "Profit is the score on paper. Cash flow is whether the till has money today. You can look profitable and still run dry if customers pay late while you pay suppliers now. Watch the till, not only the score.",
+    industries: ["corporate_finance", "general"],
+    prepSeconds: 10,
+  }),
+  p({
+    code: "eis_i_vaccine_uncle",
+    activitySlug: "explain_it_simply",
+    difficulty: "intermediary",
+    title: "Vaccines to an uncle",
+    promptText:
+      "Explain how a vaccine works to an uncle who is curious but nervous about 'putting something in his body'.",
+    objective: "Calm, clear, no scare tactics.",
+    exemplarResponse:
+      "A vaccine is a practice round for your immune system. It shows a safe copy of the threat so your body learns the shape. Later, if the real thing shows up, your body already knows how to fight it faster.",
+    industries: ["healthcare_edu", "general"],
+    prepSeconds: 10,
+  }),
+  p({
+    code: "eis_i_funnel_coach",
+    activitySlug: "explain_it_simply",
+    difficulty: "intermediary",
+    title: "Sales funnel to a sports coach",
+    promptText:
+      "Explain a sales funnel to a youth sports coach who only knows try-outs and match day.",
+    objective: "Map it to their season language.",
+    exemplarResponse:
+      "A sales funnel is like your season path: many kids hear about the club, fewer come to try-outs, fewer still make the squad, and a small group play match day. Each step narrows. Marketing fills the top; closing is match day.",
+    industries: ["sales_marketing", "general"],
+    prepSeconds: 10,
+  }),
+  p({
+    code: "eis_i_margin_baker",
+    activitySlug: "explain_it_simply",
+    difficulty: "intermediary",
+    title: "Gross margin to a baker",
+    promptText:
+      "Explain gross margin to a baker who knows flour costs but not finance words.",
+    objective: "Kitchen maths, not spreadsheet talk.",
+    exemplarResponse:
+      "Gross margin is what is left from the loaf price after you pay for flour, butter, and packaging — before rent and wages. If that slice is too thin, no amount of busy weekends will save the shop.",
+    industries: ["corporate_finance", "sales_marketing", "general"],
+    prepSeconds: 10,
+  }),
+  p({
     code: "eis_p_quantum",
     activitySlug: "explain_it_simply",
     difficulty: "professional",
@@ -863,6 +1008,69 @@ const PROMPTS = [
     learnMoreUrl: "https://en.wikipedia.org/wiki/Machine_learning",
     learnMoreLabel: "Machine learning, the idea",
     industries: ["tech_product", "healthcare_edu"],
+    prepSeconds: 10,
+  }),
+  p({
+    code: "eis_p_irr_board",
+    activitySlug: "explain_it_simply",
+    difficulty: "professional",
+    title: "IRR to a non-finance board member",
+    promptText:
+      "Explain internal rate of return (IRR) to a board member who is strong on the business but not on finance jargon.",
+    objective: "Plain language, one decision they can take from it.",
+    exemplarResponse:
+      "IRR is the growth rate that makes an investment's cash in and cash out balance. If two projects need the same money, the higher IRR is usually the better use of cash — unless the risk or timing is worse.",
+    industries: ["corporate_finance"],
+    prepSeconds: 10,
+  }),
+  p({
+    code: "eis_p_latency_ops",
+    activitySlug: "explain_it_simply",
+    difficulty: "professional",
+    title: "Latency to an ops lead",
+    promptText:
+      "Explain latency to an operations lead who keeps asking why the app 'feels slow' even when servers are up.",
+    objective: "Business impact in the first sentence.",
+    exemplarResponse:
+      "Latency is the wait between tap and result. Uptime means the system is alive; latency means it is useful. A shop that is open but makes every customer queue for thirty seconds still loses sales.",
+    industries: ["tech_product", "corporate_finance", "general"],
+    prepSeconds: 10,
+  }),
+  p({
+    code: "eis_p_nps_ward",
+    activitySlug: "explain_it_simply",
+    difficulty: "professional",
+    title: "NPS to a ward manager",
+    promptText:
+      "Explain Net Promoter Score to a hospital ward manager who is tired of survey jargon.",
+    objective: "Make it operational, not corporate.",
+    exemplarResponse:
+      "NPS asks one thing: would you recommend us? Promoters pull others in; detractors warn them away. For a ward, it is a simple pulse on whether patients leave telling a good story or a warning.",
+    industries: ["healthcare_edu", "general"],
+    prepSeconds: 10,
+  }),
+  p({
+    code: "eis_b_wifi_grandma",
+    activitySlug: "explain_it_simply",
+    difficulty: "beginner",
+    title: "Wi‑Fi to a grandparent",
+    promptText:
+      "Explain Wi‑Fi to a grandparent who keeps asking why the internet works in the garden but not in the bathroom.",
+    objective: "Warm and simple. One picture.",
+    exemplarResponse:
+      "Wi‑Fi is an invisible radio signal from a small box in your house. Walls and distance weaken it, so the garden might catch it while the bathroom does not. It is not magic — it is a signal with a limited reach.",
+    prepSeconds: 10,
+  }),
+  p({
+    code: "eis_b_password_teen",
+    activitySlug: "explain_it_simply",
+    difficulty: "beginner",
+    title: "Strong passwords to a teen",
+    promptText:
+      "Explain why a strong password matters to a teenager who uses the same word for every app.",
+    objective: "One clear risk, no lecture tone.",
+    exemplarResponse:
+      "If one site gets hacked and you reused the same password, thieves can walk into your email and games too. A unique password is a different key for every door — so one broken lock does not open the whole house.",
     prepSeconds: 10,
   }),
 
@@ -954,6 +1162,19 @@ const PROMPTS = [
     exemplarResponse:
       "In chess, the danger is not the next move. It is the move that move allows. AI ethics is the same board: a harmless feature can set up a later harm, so you judge the position, not only the piece you just played.",
     industries: ["tech_product"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "ctd_p_interest_rates",
+    activitySlug: "connect_the_dots",
+    difficulty: "professional",
+    title: "Interest rates and hiring freezes",
+    promptText: "Connect rising interest rates with a company-wide hiring freeze.",
+    secondaryText: "Concept A: Rising interest rates. Concept B: A hiring freeze.",
+    objective: "Make the cash / cost link explicit by mid-answer.",
+    exemplarResponse:
+      "When money gets more expensive, debt and growth plans both cost more. A hiring freeze is the same pressure inside the firm: you protect cash now so the balance sheet can live with a higher cost of capital.",
+    industries: ["corporate_finance"],
     prepSeconds: 5,
   }),
   p({

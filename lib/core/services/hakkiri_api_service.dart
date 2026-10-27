@@ -323,6 +323,11 @@ class HakkiriApiService {
   Future<Map<String, dynamic>> deleteSession(String sessionId) =>
       _delete('/sessions/$sessionId', auth: true);
 
+  Future<void> deleteAccount() async {
+    await _delete('/auth/delete-account', auth: true);
+    await clearSession();
+  }
+
   Future<Map<String, dynamic>> dailyAnchor() => _get('/daily-anchor', auth: true);
 
   Future<Map<String, dynamic>> challenges() => _get('/challenges', auth: true);
@@ -400,7 +405,8 @@ class HakkiriApiService {
         'focus_area': focusArea,
       });
 
-  /// Gemini TTS: WAV + word timings for lockstep karaoke highlight.
+  /// Coach / suggested-answer TTS (ElevenLabs preferred on server).
+  /// Guests may call without auth so trial feedback still gets a human voice.
   Future<Map<String, dynamic>> coachSpeak({
     required String text,
     String voiceProfile = 'sarah',
@@ -408,7 +414,7 @@ class HakkiriApiService {
   }) =>
       _post(
         '/ai/coach-speak',
-        auth: true,
+        auth: isLoggedIn,
         body: {
           'text': text,
           'voice_profile': voiceProfile,
@@ -432,11 +438,13 @@ class HakkiriApiService {
       _delete('/device-token', auth: true);
 
   /// Next catalog prompt for an activity (server-chosen question).
+  /// Guests may call without auth — server rotates from the same Mongo catalog.
   Future<Map<String, dynamic>> nextPrompt({
     required String activitySlug,
     String? difficulty,
     String? careerType,
     String? excludePromptId,
+    bool requireAuth = true,
   }) {
     final q = <String, String>{
       'activity': activitySlug,
@@ -448,6 +456,6 @@ class HakkiriApiService {
     final query = q.entries
         .map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
         .join('&');
-    return _get('/prompts/next?$query', auth: true);
+    return _get('/prompts/next?$query', auth: requireAuth && isLoggedIn);
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,8 +11,27 @@ class SessionAudioStore {
 
   static const _prefPrefix = 'hakkiri_session_audio_';
 
+  /// Prefer path_provider; fall back to [Directory.systemTemp] if the iOS
+  /// FFI path_provider_foundation loader fails (DOBJC_initializeApi).
+  Future<Directory> _safeTempDir() async {
+    try {
+      return await getTemporaryDirectory();
+    } catch (e, st) {
+      debugPrint('[SessionAudioStore] getTemporaryDirectory failed: $e\n$st');
+      return Directory.systemTemp;
+    }
+  }
+
   Future<Directory> _dir() async {
-    final root = await getApplicationDocumentsDirectory();
+    Directory root;
+    try {
+      root = await getApplicationDocumentsDirectory();
+    } catch (e, st) {
+      debugPrint(
+        '[SessionAudioStore] getApplicationDocumentsDirectory failed: $e\n$st',
+      );
+      root = Directory.systemTemp;
+    }
     final dir = Directory('${root.path}/session_audio');
     if (!await dir.exists()) {
       await dir.create(recursive: true);
@@ -20,7 +40,10 @@ class SessionAudioStore {
   }
 
   Future<String> startTempPath() async {
-    final dir = await getTemporaryDirectory();
+    final dir = await _safeTempDir();
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
     return '${dir.path}/hakkiri_rec_${DateTime.now().millisecondsSinceEpoch}.m4a';
   }
 

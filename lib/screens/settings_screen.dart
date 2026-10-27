@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_strings.dart';
 import '../core/services/analytics_service.dart';
@@ -8,12 +9,24 @@ import '../widgets/hakkiri_logo.dart';
 import 'how_hakkiri_works_screen.dart';
 import 'main_tab_scaffold.dart';
 import 'paywall_screen.dart';
-import 'privacy_permissions_screen.dart';
 import 'practice_context_screen.dart';
 import 'profile_section_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
+
+  static const _privacyUrl = 'https://hakkiriapp.vercel.app/privacy';
+
+  Future<void> _openPrivacyLink() async {
+    final uri = Uri.parse(_privacyUrl);
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched) {
+      await launchUrl(uri, mode: LaunchMode.platformDefault);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -178,12 +191,7 @@ class SettingsScreen extends StatelessWidget {
                 title: 'Privacy & Permissions',
                 value: 'Manage your data',
                 icon: Icons.lock_outline_rounded,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const PrivacyPermissionsScreen()),
-                  );
-                },
+                onTap: _openPrivacyLink,
               ),
 
               const SizedBox(height: 32),

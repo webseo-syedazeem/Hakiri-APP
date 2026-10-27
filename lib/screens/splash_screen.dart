@@ -10,6 +10,10 @@ import 'assessment_screen.dart';
 import 'home_screen.dart';
 import 'landing_screen.dart';
 import 'locked_profile_screen.dart';
+import 'guest_auth_screen.dart';
+import 'paywall_screen.dart';
+import 'personalized_plan_screen.dart';
+import 'signup_screen.dart';
 
 /// Splash: cosmic canvas + logo, then auto-route.
 /// Logged-out users land on LandingScreen (Get started).
@@ -120,6 +124,16 @@ class _SplashScreenState extends State<SplashScreen>
       next = const LockedProfileScreen();
     } else if (state.isLoggedIn && !state.isOnboarded) {
       next = const AssessmentScreen();
+    } else if (!state.isLoggedIn &&
+        state.guestFunnelStage == AppStateProvider.guestStageAwaitingAccount) {
+      // Left IAP — directly go to Signup.
+      next = const SignupScreen();
+    } else if (!state.isLoggedIn &&
+        state.guestFunnelStage == AppStateProvider.guestStageAwaitingIap) {
+      // After free trial or Continue → always IAP. Else plan (one Think Fast try).
+      next = (state.guestPaywallReached || state.guestTrialUsed)
+          ? const PaywallScreen()
+          : const PersonalizedPlanScreen();
     } else {
       next = const LandingScreen();
     }
@@ -219,16 +233,11 @@ class _SplashScreenState extends State<SplashScreen>
                         child: Opacity(opacity: glowAlpha, child: child),
                       );
                     },
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Image.asset(
-                          'assets/images/splash_glowing_logo_hi.png',
-                          width: 215,
-                          fit: BoxFit.contain,
-                          filterQuality: FilterQuality.high,
-                        ),
-                      ],
+                    child: Image.asset(
+                      'assets/images/splash_glowing_logo_hi.png',
+                      width: 215,
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
                     ),
                   ),
                   const Spacer(flex: 4),

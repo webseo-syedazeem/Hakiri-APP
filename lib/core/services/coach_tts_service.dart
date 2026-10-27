@@ -33,6 +33,10 @@ class CoachTtsService {
   Completer<void>? _playDone;
   int _speakGen = 0;
 
+  /// In-memory clip cache so replay / second tap is instant.
+  final Map<String, _CachedCoachClip> _clipCache = {};
+  final Set<String> _prefetchInFlight = {};
+
   bool get isSpeaking => _speaking;
   String get activeCoachId => _activeCoachId;
 
@@ -376,20 +380,128 @@ class CoachTtsService {
     await speak(sample, voiceProfile: norm);
   }
 
-  Future<void> speak(String text, {required String voiceProfile}) async {
+  String _cacheKey(String text, String voiceProfile) =>
+      '${normalizeCoachId(voiceProfile)}::${text.trim()}';
+
+  /// Fetch + cache coach audio without playing (speeds up first tap).
+  Future<void> prefetch(String text, {required String voiceProfile}) async {
+    final clean = text.trim();
+    if (clean.isEmpty) return;
+    final norm = normalizeCoachId(voiceProfile);
+    final key = _cacheKey(clean, norm);
+    if (_clipCache.containsKey(key) || _prefetchInFlight.contains(key)) return;
+    _prefetchInFlight.add(key);
+    try {
+      final apiRate = (_defaultRateFor(norm) / 0.46).clamp(0.85, 1.15);
+      final data = await HakkiriApiService.instance.coachSpeak(
+        text: clean,
+        voiceProfile: norm,
+        rate: apiRate,
+      );
+      final clip = _clipFromApiData(data, clean);
+      if (clip != null) {
+        _clipCache[key] = clip;
+        _trimCache();
+      }
+    } catch (e) {
+      debugPrint('Coach TTS prefetch failed: $e');
+    } finally {
+      _prefetchInFlight.remove(key);
+    }
+  }
+
+  void _trimCache() {
+    while (_clipCache.length > 8) {
+      _clipCache.remove(_clipCache.keys.first);
+    }
+  }
+
+  _CachedCoachClip? _clipFromApiData(Map<String, dynamic> data, String clean) {
+    final b64 = (data['audio_base64'] ?? data['audioBase64'] ?? '')
+        .toString()
+        .replaceAll(RegExp(r'\s'), '');
+    if (b64.length < 64) return null;
+    final mime =
+        (data['mime_type'] ?? data['mimeType'] ?? 'audio/wav').toString();
+    final ext = mime.contains('mpeg') || mime.contains('mp3')
+        ? 'mp3'
+        : mime.contains('wav')
+            ? 'wav'
+            : 'mp3';
+    final durationMs = (data['duration_ms'] is num)
+        ? (data['duration_ms'] as num).round()
+        : 8000;
+    final words =
+        clean.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final timings = <({int startMs, int endMs, String word})>[];
+    final rawWords = data['words'];
+    if (rawWords is List) {
+      for (final item in rawWords) {
+        if (item is! Map) continue;
+        final m = item.map((k, v) => MapEntry('$k', v));
+        timings.add((
+          startMs: (m['start_ms'] is num)
+              ? (m['start_ms'] as num).round()
+              : int.tryParse('${m['start_ms']}') ?? 0,
+          endMs: (m['end_ms'] is num)
+              ? (m['end_ms'] as num).round()
+              : int.tryParse('${m['end_ms']}') ?? 0,
+          word: '${m['word'] ?? ''}',
+        ));
+      }
+    }
+    if (timings.isEmpty && words.isNotEmpty) {
+      final slice = durationMs / words.length;
+      for (var i = 0; i < words.length; i++) {
+        timings.add((
+          startMs: (i * slice).round(),
+          endMs: ((i + 1) * slice).round(),
+          word: words[i],
+        ));
+      }
+    }
+    return _CachedCoachClip(
+      bytes: base64Decode(b64),
+      ext: ext,
+      durationMs: durationMs,
+      timings: timings,
+    );
+  }
+
+  Future<void> speak(
+    String text, {
+    required String voiceProfile,
+    VoidCallback? onPlaybackStarted,
+  }) async {
     final clean = text.trim();
     if (clean.isEmpty) return;
     if (_speaking) await stop();
 
-    await _ensureReady();
-    await _applyVoiceProfile(voiceProfile);
+    final norm = normalizeCoachId(voiceProfile);
+    final gen = ++_speakGen;
     _speaking = true;
     try {
+      // Prefer ElevenLabs / Gemini coach-speak so suggested answers sound human.
+      final usedApi = await _speakViaApi(
+        clean: clean,
+        words: clean.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList(),
+        voiceProfile: norm,
+        flutterRate: _defaultRateFor(norm),
+        gen: gen,
+        paintTo: (_) {},
+        onPlaybackStarted: onPlaybackStarted,
+      );
+      if (gen != _speakGen) return;
+      if (usedApi) return;
+
+      onPlaybackStarted?.call();
+      await _ensureReady();
+      await _applyVoiceProfile(norm);
       await _tts.speak(clean);
     } catch (e) {
       debugPrint('CoachTtsService speak error: $e');
     } finally {
-      _speaking = false;
+      if (gen == _speakGen) _speaking = false;
     }
   }
 
@@ -441,14 +553,15 @@ class CoachTtsService {
 
     _speaking = true;
 
-    // 1) Gemini TTS — same WAV the user hears + word timings from duration.
-    final usedApi = await _speakViaGeminiApi(
+    // 1) ElevenLabs / Gemini — same audio the user hears + word timings.
+    final usedApi = await _speakViaApi(
       clean: clean,
       words: words,
       voiceProfile: norm,
       flutterRate: rate,
       gen: gen,
       paintTo: paintTo,
+      onPlaybackStarted: null,
     );
     if (gen != _speakGen) return;
     if (usedApi) {
@@ -603,68 +716,42 @@ class CoachTtsService {
     }
   }
 
-  /// Returns true if Gemini audio played successfully.
-  Future<bool> _speakViaGeminiApi({
+  /// Returns true if ElevenLabs / Gemini coach audio played successfully.
+  Future<bool> _speakViaApi({
     required String clean,
     required List<String> words,
     required String voiceProfile,
     required double flutterRate,
     required int gen,
     required void Function(int count) paintTo,
+    VoidCallback? onPlaybackStarted,
   }) async {
     try {
-      // Map flutter_tts-ish rate (~0.46) → API pace hint (~1.0).
-      final apiRate = (flutterRate / 0.46).clamp(0.85, 1.15);
-
-      final data = await HakkiriApiService.instance.coachSpeak(
-        text: clean,
-        voiceProfile: voiceProfile,
-        rate: apiRate,
-      );
-      if (gen != _speakGen) return true;
-
-      final b64 = (data['audio_base64'] ?? data['audioBase64'] ?? '')
-          .toString()
-          .replaceAll(RegExp(r'\s'), '');
-      if (b64.length < 64) return false;
-
-      final rawWords = data['words'];
-      final timings = <({int startMs, int endMs, String word})>[];
-      if (rawWords is List) {
-        for (final item in rawWords) {
-          if (item is! Map) continue;
-          final m = item.map((k, v) => MapEntry('$k', v));
-          timings.add((
-            startMs: (m['start_ms'] is num)
-                ? (m['start_ms'] as num).round()
-                : int.tryParse('${m['start_ms']}') ?? 0,
-            endMs: (m['end_ms'] is num)
-                ? (m['end_ms'] as num).round()
-                : int.tryParse('${m['end_ms']}') ?? 0,
-            word: '${m['word'] ?? ''}',
-          ));
-        }
-      }
-      if (timings.isEmpty && words.isNotEmpty) {
-        final dur = (data['duration_ms'] is num)
-            ? (data['duration_ms'] as num).round()
-            : 2000;
-        final slice = dur / words.length;
-        for (var i = 0; i < words.length; i++) {
-          timings.add((
-            startMs: (i * slice).round(),
-            endMs: ((i + 1) * slice).round(),
-            word: words[i],
-          ));
-        }
+      final cacheKey = _cacheKey(clean, voiceProfile);
+      var clip = _clipCache[cacheKey];
+      if (clip == null) {
+        // Map flutter_tts-ish rate (~0.46) → API pace hint (~1.0).
+        final apiRate = (flutterRate / 0.46).clamp(0.85, 1.15);
+        final data = await HakkiriApiService.instance.coachSpeak(
+          text: clean,
+          voiceProfile: voiceProfile,
+          rate: apiRate,
+        );
+        if (gen != _speakGen) return true;
+        clip = _clipFromApiData(data, clean);
+        if (clip == null) return false;
+        _clipCache[cacheKey] = clip;
+        _trimCache();
+      } else if (gen != _speakGen) {
+        return true;
       }
 
-      final bytes = base64Decode(b64);
+      final timings = clip.timings;
       final dir = await getTemporaryDirectory();
       final file = File(
-        '${dir.path}/coach_tts_${DateTime.now().millisecondsSinceEpoch}.wav',
+        '${dir.path}/coach_tts_${DateTime.now().millisecondsSinceEpoch}.${clip.ext}',
       );
-      await file.writeAsBytes(bytes, flush: true);
+      await file.writeAsBytes(clip.bytes, flush: true);
       if (gen != _speakGen) {
         try {
           await file.delete();
@@ -727,16 +814,12 @@ class CoachTtsService {
       });
 
       paintTo(1);
+      onPlaybackStarted?.call();
       await _player.play(DeviceFileSource(file.path));
 
       // Wait until playback ends (or stop() cancels).
       await done.future.timeout(
-        Duration(
-          milliseconds: ((data['duration_ms'] is num)
-                      ? (data['duration_ms'] as num).round()
-                      : 8000) +
-                  4000,
-        ),
+        Duration(milliseconds: clip.durationMs + 4000),
         onTimeout: () {},
       );
 
@@ -750,7 +833,7 @@ class CoachTtsService {
         await for (final entity in tmp.list()) {
           if (entity is File &&
               entity.path.contains('coach_tts_') &&
-              entity.path.endsWith('.wav')) {
+              (entity.path.endsWith('.wav') || entity.path.endsWith('.mp3'))) {
             final age = DateTime.now().difference(await entity.lastModified());
             if (age.inMinutes > 10) {
               await entity.delete();
@@ -761,7 +844,7 @@ class CoachTtsService {
 
       return true;
     } catch (e) {
-      debugPrint('Gemini coach-speak failed, falling back: $e');
+      debugPrint('Coach-speak API failed, falling back: $e');
       await _tearDownPlayerSubs();
       try {
         await _player.stop();
@@ -823,4 +906,18 @@ class CoachTtsService {
     } catch (_) {}
     _speaking = false;
   }
+}
+
+class _CachedCoachClip {
+  final List<int> bytes;
+  final String ext;
+  final int durationMs;
+  final List<({int startMs, int endMs, String word})> timings;
+
+  _CachedCoachClip({
+    required this.bytes,
+    required this.ext,
+    required this.durationMs,
+    required this.timings,
+  });
 }

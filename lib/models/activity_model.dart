@@ -30,7 +30,7 @@ class ActivityModel {
         tagline: json['tagline'] ?? '',
         description: json['description'] ?? '',
         cognitiveMechanism: json['cognitive_mechanism'] ?? '',
-        prepDurationSeconds: json['prep_duration_seconds'] ?? 3,
+        prepDurationSeconds: json['prep_duration_seconds'] ?? 5,
         defaultDurationSeconds: json['default_duration_seconds'] ?? 60,
         benefits: List<String>.from(json['benefits'] ?? []),
         successMeasures: List<String>.from(json['success_measures'] ?? []),
@@ -47,6 +47,7 @@ class PromptModel {
   final String objective;
   final String exemplarResponse;
   final List<String> tags;
+  final List<String> industries;
   final int durationSeconds;
   final int prepSeconds;
 
@@ -60,9 +61,25 @@ class PromptModel {
     required this.objective,
     required this.exemplarResponse,
     required this.tags,
+    this.industries = const ['general'],
     required this.durationSeconds,
     required this.prepSeconds,
   });
+
+  bool get isGeneralIndustry {
+    if (industries.isEmpty) return true;
+    return industries.contains('general');
+  }
+
+  bool matchesCareer(String? career) {
+    if (career == null ||
+        career.isEmpty ||
+        career == 'general' ||
+        career == 'other') {
+      return isGeneralIndustry;
+    }
+    return industries.contains(career) || tags.contains(career);
+  }
 
   factory PromptModel.fromJson(Map<String, dynamic> json) => PromptModel(
         id: json['id'] ?? '',
@@ -74,7 +91,10 @@ class PromptModel {
         objective: json['objective'] ?? '',
         exemplarResponse: json['exemplar_response'] ?? '',
         tags: List<String>.from(json['tags'] ?? []),
+        industries: List<String>.from(
+          json['industries'] ?? const ['general'],
+        ),
         durationSeconds: json['duration_seconds'] ?? 60,
-        prepSeconds: json['prep_seconds'] ?? 3,
+        prepSeconds: json['prep_seconds'] ?? 5,
       );
 }

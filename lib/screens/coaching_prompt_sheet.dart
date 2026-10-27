@@ -93,19 +93,10 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
               padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
               child: Row(
                 children: [
+                  // Horizontal lockup already includes the wordmark — no extra text.
                   const HakkiriLogo(
                     variant: HakkiriLogoVariant.compactMark,
-                    size: 22,
-                  ),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Hakkiri',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                    ),
+                    size: 28,
                   ),
                   const Spacer(),
                   IconButton(
@@ -511,40 +502,51 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
           ),
         ],
         const SizedBox(height: 12),
-        Row(
-          children: [
-            for (var i = 0; i < wins.length; i++)
-              Expanded(
-                child: Container(
-                  margin: EdgeInsets.only(right: i == wins.length - 1 ? 0 : 8),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: colors[i % colors.length],
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${wins[i]['label']}',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF475569),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var i = 0; i < wins.length; i++)
+                Expanded(
+                  child: Container(
+                    margin: EdgeInsets.only(right: i == wins.length - 1 ? 0 : 8),
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+                    constraints: const BoxConstraints(minHeight: 88),
+                    decoration: BoxDecoration(
+                      color: colors[i % colors.length],
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${wins[i]['label']}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF475569),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${wins[i]['value']}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
+                        const Spacer(),
+                        Text(
+                          '${wins[i]['value']}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            height: 1.25,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0F172A),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
         if (p['distance_label'] != null) ...[
           const SizedBox(height: 16),

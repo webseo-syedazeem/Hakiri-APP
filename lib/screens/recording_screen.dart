@@ -2,17 +2,23 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import '../core/services/analytics_service.dart';
+import '../core/services/ios_drill_recorder.dart';
 import '../core/services/session_audio_store.dart';
 import '../providers/app_state_provider.dart';
+import '../widgets/action_pill_button.dart';
+import '../widgets/app_snackbar.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/mic_reactive_waveform.dart';
 import '../widgets/shimmer_loading.dart';
 import 'feedback_screen.dart';
+import 'paywall_screen.dart';
 
 enum ExerciseStage {
   wordByWordReveal, // Step 1 (doc_images/img_0.png)
@@ -28,7 +34,14 @@ class RecordingScreen extends StatefulWidget {
   /// When true (Begin exercise already fetched), skip a second API call + shimmer.
   final bool promptAlreadyLoaded;
 
-  const RecordingScreen({super.key, this.promptAlreadyLoaded = false});
+  /// Guest plan free try — score + feedback locally, then IAP on leave.
+  final bool isGuestTrial;
+
+  const RecordingScreen({
+    super.key,
+    this.promptAlreadyLoaded = false,
+    this.isGuestTrial = false,
+  });
 
   @override
   State<RecordingScreen> createState() => _RecordingScreenState();
@@ -74,8 +87,9 @@ class _RecordingScreenState extends State<RecordingScreen>
   DateTime? _lastSpeechResumeAt;
   DateTime? _lastMicLevelAt;
   double _idlePhase = 0;
+  /// True once amplitude rises above idle noise — proves mic actually heard audio.
+  bool _heardRealAudio = false;
 
-  // ignore: unused_element
   String get _liveTranscript =>
       '$_committedTranscript $_partialTranscript'.trim();
 
@@ -124,7 +138,18 @@ class _RecordingScreenState extends State<RecordingScreen>
 
   void _applyPromptAndStart(AppStateProvider state) {
     final activity = state.selectedActivity;
-    final prompt = state.selectedPrompt;
+    var prompt = state.selectedPrompt;
+    // Never speak a Think Fast question inside One Minute Expert / etc.
+    if (prompt != null &&
+        activity != null &&
+        AppStateProvider.normalizeActivitySlug(prompt.activitySlug) !=
+            activity.slug) {
+      debugPrint(
+        '[Recording] prompt/activity mismatch '
+        '(${prompt.activitySlug} vs ${activity.slug}) — clearing',
+      );
+      prompt = null;
+    }
 
     _speakingTotalSeconds =
         prompt?.durationSeconds ?? activity?.defaultDurationSeconds ?? 60;
@@ -132,6 +157,15 @@ class _RecordingScreenState extends State<RecordingScreen>
         prompt?.prepSeconds ?? activity?.prepDurationSeconds ?? 5;
     if (_speakingTotalSeconds < 10) _speakingTotalSeconds = 10;
     if (_prepTotalSeconds < 1) _prepTotalSeconds = 1;
+    // Product copy: Think Fast + One Minute Expert use a 5s think window.
+    // Old API/DB defaults of 3s must not win over the activity setting.
+    final slug = activity?.slug ?? '';
+    if ((slug == 'think_fast' || slug == 'one_minute_expert') &&
+        _prepTotalSeconds < 5) {
+      _prepTotalSeconds =
+          activity?.prepDurationSeconds ?? 5;
+      if (_prepTotalSeconds < 5) _prepTotalSeconds = 5;
+    }
 
     _speakingSecondsRemaining = _speakingTotalSeconds;
     _prepSecondsRemaining = _prepTotalSeconds;
@@ -219,6 +253,23 @@ class _RecordingScreenState extends State<RecordingScreen>
     });
   }
 
+  /// Skip remaining prep time and start the speak/record phase immediately.
+  void _skipPrepToRecording() {
+    if (_stage == ExerciseStage.recordingScreen) return;
+    _wordRevealTimer?.cancel();
+    _prepCountdownTimer?.cancel();
+    try {
+      _prepArcController.stop();
+    } catch (_) {}
+    if (_stage == ExerciseStage.wordByWordReveal) {
+      setState(() {
+        _revealedWordCount = _words.length;
+        _promptSpeaking = false;
+      });
+    }
+    _startRecording();
+  }
+
   // -------------------------------------------------------------
   // PHASE 3: RECORDING SCREEN (activity speak seconds)
   // -------------------------------------------------------------
@@ -228,11 +279,12 @@ class _RecordingScreenState extends State<RecordingScreen>
       _speakingSecondsRemaining = _speakingTotalSeconds;
       _committedTranscript = '';
       _partialTranscript = '';
+      _heardRealAudio = false;
     });
 
     // ONE mic owner only: file recorder.
-    // Dual capture (record + speech_to_text) causes on/off thrash — never both.
-    // Transcript comes from Gemini after upload of this local m4a (playback works too).
+    // Never run speech_to_text in parallel — on iOS it steals the session after
+    // a few words, so Gemini / YOU SAID only get "I would like to…".
     _startIdleWave();
     unawaited(_startContinuousRecorder());
 
@@ -245,6 +297,53 @@ class _RecordingScreenState extends State<RecordingScreen>
         unawaited(_finishSession());
       }
     });
+  }
+
+  /// iOS: coach TTS / feedback playback can leave AVAudioSession on
+  /// `.playback`, so the next Think Fast capture writes silence.
+  Future<void> _prepareMicAudioSession() async {
+    if (!Platform.isIOS) return;
+    try {
+      await AudioPlayer.global.setAudioContext(
+        AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playAndRecord,
+            options: const {
+              AVAudioSessionOptions.defaultToSpeaker,
+              AVAudioSessionOptions.allowBluetooth,
+              AVAudioSessionOptions.mixWithOthers,
+            },
+          ),
+          android: const AudioContextAndroid(
+            isSpeakerphoneOn: true,
+            stayAwake: false,
+            contentType: AndroidContentType.speech,
+            usageType: AndroidUsageType.voiceCommunication,
+            audioFocus: AndroidAudioFocus.gain,
+          ),
+        ),
+      );
+    } catch (e) {
+      debugPrint('[Recording] prepare mic session failed: $e');
+    }
+  }
+
+  RecordConfig _recordConfig() {
+    // Keep payloads under API limits (~60s). On iOS omit bitRate (AAC + forced
+    // low bitRate has produced silent files); 16 kHz mono stays speech-sized.
+    if (Platform.isIOS) {
+      return const RecordConfig(
+        encoder: AudioEncoder.aacLc,
+        numChannels: 1,
+        sampleRate: 16000,
+      );
+    }
+    return const RecordConfig(
+      encoder: AudioEncoder.aacLc,
+      bitRate: 64000,
+      sampleRate: 16000,
+      numChannels: 1,
+    );
   }
 
   /// Gentle pulse so the UI stays "alive" even in silence (timer still running).
@@ -263,8 +362,7 @@ class _RecordingScreenState extends State<RecordingScreen>
     });
   }
 
-  /// Soft STT recovery only — rare restarts, never start a second mic/file recorder.
-  // ignore: unused_element
+  /// Soft STT recovery only — rare restarts, never start a second file recorder.
   void _startSoftSpeechWatchdog() {
     _speechSoftWatchdog?.cancel();
     _speechSoftWatchdog = Timer.periodic(const Duration(seconds: 5), (_) {
@@ -275,33 +373,108 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   Future<void> _startContinuousRecorder() async {
+    // iOS: native AVAudioRecorder — Flutter `record` often writes silent m4a.
+    if (Platform.isIOS) {
+      await _startIosNativeRecorder();
+      return;
+    }
     try {
-      if (!await _audioRecorder.hasPermission()) return;
+      await _prepareMicAudioSession();
+      if (!await _audioRecorder.hasPermission()) {
+        debugPrint('[Recording] mic permission denied');
+        if (mounted) {
+          AppSnackBar.showInfo(
+            context,
+            'Microphone permission is required to score your answer.',
+          );
+        }
+        return;
+      }
       _audioTempPath = await SessionAudioStore.instance.startTempPath();
-      // Speech-optimised AAC keeps analyze payloads under the API body limit.
       await _audioRecorder.start(
-        const RecordConfig(
-          encoder: AudioEncoder.aacLc,
-          bitRate: 64000,
-          sampleRate: 16000,
-          numChannels: 1,
-        ),
+        _recordConfig(),
         path: _audioTempPath!,
       );
+      final live = await _audioRecorder.isRecording();
+      if (!live) {
+        throw StateError('Recorder started but isRecording() is false');
+      }
       _fileRecorderActive = true;
       await _ampSub?.cancel();
       _ampSub = _audioRecorder
           .onAmplitudeChanged(const Duration(milliseconds: 55))
           .listen((amp) {
-        // Current is typically ~-60 (quiet) to 0 (loud).
         final raw = ((amp.current + 50) / 50).clamp(0.0, 1.0);
         final level = math.pow(raw, 0.72).toDouble().clamp(0.08, 1.0);
+        if (amp.current > -35) {
+          _heardRealAudio = true;
+        }
         _micLevel.value = level;
         _lastMicLevelAt = DateTime.now();
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[Recording] file recorder failed: $e\n$st');
       _audioTempPath = null;
       _fileRecorderActive = false;
+      try {
+        await _prepareMicAudioSession();
+        final fallback =
+            '${Directory.systemTemp.path}/hakkiri_rec_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        await _audioRecorder.start(
+          _recordConfig(),
+          path: fallback,
+        );
+        _audioTempPath = fallback;
+        _fileRecorderActive = true;
+        await _ampSub?.cancel();
+        _ampSub = _audioRecorder
+            .onAmplitudeChanged(const Duration(milliseconds: 55))
+            .listen((amp) {
+          final raw = ((amp.current + 50) / 50).clamp(0.0, 1.0);
+          final level = math.pow(raw, 0.72).toDouble().clamp(0.08, 1.0);
+          if (amp.current > -35) _heardRealAudio = true;
+          _micLevel.value = level;
+          _lastMicLevelAt = DateTime.now();
+        });
+      } catch (e2, st2) {
+        debugPrint('[Recording] fallback recorder failed: $e2\n$st2');
+      }
+    }
+  }
+
+  Future<void> _startIosNativeRecorder() async {
+    try {
+      final granted = await IosDrillRecorder.instance.hasPermission();
+      if (!granted) {
+        debugPrint('[Recording] iOS native mic permission denied');
+        if (mounted) {
+          AppSnackBar.showInfo(
+            context,
+            'Microphone permission is required to score your answer.',
+          );
+        }
+        return;
+      }
+      final path = await IosDrillRecorder.instance.start(
+        onAmplitude: (level) {
+          if (level > 0.22) _heardRealAudio = true;
+          _micLevel.value = level;
+          _lastMicLevelAt = DateTime.now();
+        },
+      );
+      _audioTempPath = path;
+      _fileRecorderActive = true;
+      debugPrint('[Recording] iOS native recorder started → $path');
+    } catch (e, st) {
+      debugPrint('[Recording] iOS native recorder failed: $e\n$st');
+      _audioTempPath = null;
+      _fileRecorderActive = false;
+      if (mounted) {
+        AppSnackBar.showInfo(
+          context,
+          'Could not start microphone. Check Settings → Hakkiri → Microphone.',
+        );
+      }
     }
   }
 
@@ -309,6 +482,16 @@ class _RecordingScreenState extends State<RecordingScreen>
     await _ampSub?.cancel();
     _ampSub = null;
     _fileRecorderActive = false;
+    if (Platform.isIOS) {
+      final stopped = await IosDrillRecorder.instance.stop();
+      debugPrint(
+        '[Recording] iOS native stop path=${stopped.path} bytes=${stopped.bytes}',
+      );
+      if (stopped.path != null && stopped.path!.isNotEmpty) {
+        _audioTempPath = stopped.path;
+      }
+      return _audioTempPath;
+    }
     try {
       if (await _audioRecorder.isRecording()) {
         final path = await _audioRecorder.stop();
@@ -318,16 +501,21 @@ class _RecordingScreenState extends State<RecordingScreen>
     return _audioTempPath;
   }
 
-  // ignore: unused_element
   Future<void> _startSpeechCapture() async {
     try {
+      // Give the file recorder a beat to own the session first on iOS.
+      if (Platform.isIOS) {
+        await Future<void>.delayed(const Duration(milliseconds: 400));
+      }
       _speechReady = await _speech.initialize(
-        onError: (_) {},
-        onStatus: (_) {},
+        onError: (e) => debugPrint('[Recording] STT error: $e'),
+        onStatus: (s) => debugPrint('[Recording] STT status: $s'),
       );
       if (!_speechReady || !mounted) return;
+      _startSoftSpeechWatchdog();
       await _resumeSpeechCapture();
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Recording] STT init failed: $e');
       _speechReady = false;
     }
   }
@@ -393,6 +581,27 @@ class _RecordingScreenState extends State<RecordingScreen>
     }
   }
 
+  Future<void> _exitGuestTrialToPaywall() async {
+    final state = Provider.of<AppStateProvider>(context, listen: false);
+    await state.markGuestReachedPaywall();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const PaywallScreen()),
+      (route) => false,
+    );
+  }
+
+  Future<void> _onBack() async {
+    if (widget.isGuestTrial) {
+      await _stopContinuousRecorder();
+      if (!mounted) return;
+      await _exitGuestTrialToPaywall();
+      return;
+    }
+    Navigator.pop(context);
+  }
+
   Future<void> _finishSession() async {
     if (_finishing) return;
     _finishing = true;
@@ -403,18 +612,33 @@ class _RecordingScreenState extends State<RecordingScreen>
     _speechSoftWatchdog?.cancel();
     _idleWaveTimer?.cancel();
 
+    try {
+      await _speech.stop();
+    } catch (_) {}
+
     final audioPath = await _stopContinuousRecorder();
 
     final spoken = (_speakingTotalSeconds - _speakingSecondsRemaining)
         .clamp(1, _speakingTotalSeconds);
 
     String? audioBase64;
+    var audioBytes = 0;
     if (audioPath != null && audioPath.isNotEmpty) {
       try {
         final bytes = await File(audioPath).readAsBytes();
-        // ~2.5MB raw keeps the analyze payload under Vercel body limits.
-        if (bytes.isNotEmpty && bytes.length <= 2 * 1024 * 1024) {
+        audioBytes = bytes.length;
+        // Tiny iOS files are usually silent/corrupt headers only.
+        final minBytes = Platform.isIOS ? 2500 : 400;
+        // Allow larger clips so a full 60s answer is never dropped (which
+        // previously forced a 2–3 word STT stub into YOU SAID).
+        final maxBytes = 4 * 1024 * 1024;
+        if (bytes.length >= minBytes && bytes.length <= maxBytes) {
           audioBase64 = base64Encode(bytes);
+        } else {
+          debugPrint(
+            '[Recording] audio file unusable '
+            '(${bytes.length} bytes, heard=$_heardRealAudio)',
+          );
         }
       } catch (_) {}
     }
@@ -423,19 +647,38 @@ class _RecordingScreenState extends State<RecordingScreen>
 
     final state = Provider.of<AppStateProvider>(context, listen: false);
     final hasClip = audioBase64 != null && audioBase64.isNotEmpty;
+    // Always let Gemini transcribe the full m4a when we have one.
+    // Do NOT pass partial on-device STT — that was truncating YOU SAID.
+    final transcriptForScore = '';
+
+    if (!hasClip && mounted) {
+      AppSnackBar.showInfo(
+        context,
+        Platform.isIOS
+            ? 'No usable audio on this device. On Simulator the mic is often silent — try a real iPhone, or check Mic permission.'
+            : 'No usable audio was captured. Check microphone permission and try again.',
+      );
+    }
+
+    debugPrint(
+      '[Recording] finish bytes=$audioBytes heard=$_heardRealAudio '
+      'hasClip=$hasClip',
+    );
 
     await HakkiriLoadingOverlay.run(
       context,
-      message: hasClip ? 'Transcribing your answer…' : 'Scoring your answer…',
+      message: hasClip
+          ? 'Transcribing your answer…'
+          : 'Scoring your answer…',
       detail: hasClip
           ? 'Saving playback and scoring structure, pace, and fillers.'
           : 'Matching your answer to the prompt — almost there.',
       action: () => state.evaluateCurrentSession(
-        transcript: '',
+        transcript: transcriptForScore,
         durationSeconds: spoken,
         conversationMode: 'single',
-        localAudioTempPath: audioPath,
-        audioBase64: audioBase64,
+        localAudioTempPath: hasClip ? audioPath : null,
+        audioBase64: widget.isGuestTrial ? null : audioBase64,
         audioMimeType: 'audio/mp4',
       ),
     );
@@ -443,7 +686,9 @@ class _RecordingScreenState extends State<RecordingScreen>
     if (!mounted) return;
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const FeedbackScreen()),
+      MaterialPageRoute(
+        builder: (_) => FeedbackScreen(isGuestTrial: widget.isGuestTrial),
+      ),
     );
   }
 
@@ -466,21 +711,32 @@ class _RecordingScreenState extends State<RecordingScreen>
 
   @override
   Widget build(BuildContext context) {
+    Widget body;
     if (!_promptReady) {
       final state = Provider.of<AppStateProvider>(context, listen: false);
-      return QuestionLoadingShimmer(
+      body = QuestionLoadingShimmer(
         activityName: state.selectedActivity?.name,
-        onBack: () => Navigator.maybePop(context),
+        onBack: () => unawaited(_onBack()),
       );
+    } else {
+      switch (_stage) {
+        case ExerciseStage.wordByWordReveal:
+          body = _buildWordByWordRevealScreen();
+        case ExerciseStage.countdown5s:
+          body = _buildCountdown5sScreen();
+        case ExerciseStage.recordingScreen:
+          body = _buildRecordingScreen();
+      }
     }
-    switch (_stage) {
-      case ExerciseStage.wordByWordReveal:
-        return _buildWordByWordRevealScreen();
-      case ExerciseStage.countdown5s:
-        return _buildCountdown5sScreen();
-      case ExerciseStage.recordingScreen:
-        return _buildRecordingScreen();
-    }
+    return PopScope(
+      canPop: !widget.isGuestTrial,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && widget.isGuestTrial) {
+          unawaited(_onBack());
+        }
+      },
+      child: body,
+    );
   }
 
   // =============================================================
@@ -547,7 +803,7 @@ class _RecordingScreenState extends State<RecordingScreen>
             children: [
               // Back Button
               GestureDetector(
-                onTap: () => Navigator.pop(context),
+                onTap: () => unawaited(_onBack()),
                 child: const Padding(
                   padding: EdgeInsets.symmetric(vertical: 4),
                   child: Icon(
@@ -612,6 +868,11 @@ class _RecordingScreenState extends State<RecordingScreen>
                   ),
                 ),
               ),
+              ActionPillButton(
+                label: 'Skip to recording',
+                onTap: _skipPrepToRecording,
+              ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -633,7 +894,7 @@ class _RecordingScreenState extends State<RecordingScreen>
             children: [
               // Back Button
               GestureDetector(
-                onTap: () => Navigator.pop(context),
+                onTap: () => unawaited(_onBack()),
                 child: const Icon(
                   Icons.chevron_left_rounded,
                   color: Color(0xFF0F172A),
@@ -648,7 +909,7 @@ class _RecordingScreenState extends State<RecordingScreen>
               // Live prompt from API/local — highlight the closing phrase
               _buildPromptHeadlineRichText(),
 
-              // Center Circular 5s Countdown Timer
+              // Center Circular prep countdown
               Expanded(
                 child: Center(
                   child: SizedBox(
@@ -695,6 +956,11 @@ class _RecordingScreenState extends State<RecordingScreen>
                   ),
                 ),
               ),
+              ActionPillButton(
+                label: 'Stop clock · Start recording',
+                onTap: _skipPrepToRecording,
+              ),
+              const SizedBox(height: 8),
             ],
           ),
         ),
@@ -709,6 +975,7 @@ class _RecordingScreenState extends State<RecordingScreen>
     final m = _speakingSecondsRemaining ~/ 60;
     final s = _speakingSecondsRemaining % 60;
     final timeFormatted = '$m:${s < 10 ? '0' : ''}$s';
+    final activityTitle = _activityTagParts().$2;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B101D),
@@ -718,7 +985,7 @@ class _RecordingScreenState extends State<RecordingScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top Bar with centered THINK FIRST & horizontal progress
+              // Top bar: back + selected drill name (not hardcoded Think Fast)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -726,21 +993,26 @@ class _RecordingScreenState extends State<RecordingScreen>
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                        onTap: () => unawaited(_onBack()),
                         child: const Icon(
                           Icons.chevron_left_rounded,
                           color: Colors.white,
                           size: 28,
                         ),
                       ),
-                      const Text(
-                        'THINK FIRST',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          color: Color(0xFFA0A3B5),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.6,
+                      Flexible(
+                        child: Text(
+                          activityTitle,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            color: Color(0xFFA0A3B5),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.6,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 28), // balance chevron

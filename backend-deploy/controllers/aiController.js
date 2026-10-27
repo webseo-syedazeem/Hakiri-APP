@@ -5,6 +5,7 @@ const {
   geminiStatus,
   createLiveSessionToken,
   isGeminiConfigured,
+  isCoachTtsConfigured,
   analyzeSpeechWithGemini,
   generateDebatePushback,
   synthesizeCoachSpeech,
@@ -179,7 +180,7 @@ const debatePushback = async (req, res) => {
  */
 const coachSpeak = async (req, res) => {
   try {
-    if (!isGeminiConfigured()) {
+    if (!isCoachTtsConfigured()) {
       return error(
         res,
         "Coach speech is not configured. Set GEMINI_API_KEY on the server.",

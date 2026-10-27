@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/assessment_model.dart';
 import '../models/activity_model.dart';
@@ -65,6 +67,26 @@ class AppStateProvider extends ChangeNotifier {
   // Assessment State
   final AssessmentAnswers answers = AssessmentAnswers();
   PersonalizedPlanModel? personalizedPlan;
+  /// Guest finished assessment before Create account — sync after signup.
+  bool hasPendingLocalAssessment = false;
+
+  /// Guest funnel (no login yet):
+  /// - [guestStageAwaitingIap] → plan (trial) or paywall after trial/Continue
+  /// - [guestStageAwaitingAccount] → splash opens Create account (after plan purchase)
+  static const guestStageAwaitingIap = 'awaiting_iap';
+  static const guestStageAwaitingAccount = 'awaiting_account';
+  static const _guestFunnelStageKey = 'hakkiri_guest_funnel_stage';
+  static const _guestAssessmentKey = 'hakkiri_guest_assessment';
+  static const _guestTierKey = 'hakkiri_guest_pending_tier';
+  static const _guestTrialUsedKey = 'hakkiri_guest_trial_used';
+  static const _guestPaywallReachedKey = 'hakkiri_guest_paywall_reached';
+
+  String guestFunnelStage = '';
+  String? pendingGuestTier;
+  /// One free Think Fast try on the plan screen — not saved.
+  bool guestTrialUsed = false;
+  /// After trial back/finish or Continue → always resume at IAP.
+  bool guestPaywallReached = false;
 
   // Subscription State
   String subscriptionTier = 'free_trial';
@@ -343,14 +365,13 @@ class AppStateProvider extends ChangeNotifier {
   String get todayPlanPhase =>
       (todayPlan['phase'] ?? 'core').toString();
 
-  bool get isCorePlanComplete {
-    final fromApi = (todayPlan['core_completed'] as num?)?.round();
-    if (fromApi != null) return fromApi >= 3;
-    return completedTodayDrills() >= 3;
-  }
+  bool get isCorePlanComplete => completedTodayDrills() >= 3;
 
   bool get isFullPlanComplete {
-    if (todayPlanPhase == 'complete') return true;
+    if (todayPlanPhase == 'complete' &&
+        completedTotalActivitiesToday() >= totalTodayActivitiesCount()) {
+      return true;
+    }
     return completedTotalActivitiesToday() >= totalTodayActivitiesCount();
   }
 
@@ -379,19 +400,30 @@ class AppStateProvider extends ChangeNotifier {
     return null;
   }
 
-  int completedTodayDrills() {
-    final fromApi = (todayPlan['core_completed'] as num?)?.round();
-    if (fromApi != null) return fromApi.clamp(0, 3);
+  /// Local count from sessions already on device (immediate after a take).
+  int _localCompletedTodayDrills() {
     final today = DateTime.now();
-    final core = todayDrillSlugs.take(3).toSet();
-    final done = sessionHistory.where((s) {
-      return s.timestamp.year == today.year &&
-          s.timestamp.month == today.month &&
-          s.timestamp.day == today.day &&
-          core.contains(s.activitySlug) &&
-          !s.feedback.isCoachedRetry;
-    }).map((s) => s.activitySlug).toSet();
-    return done.length;
+    final core = todayDrillSlugs.take(3).map(normalizeActivitySlug).toSet();
+    final done = <String>{};
+    for (final s in sessionHistory) {
+      if (s.feedback.isCoachedRetry) continue;
+      if (s.timestamp.year != today.year ||
+          s.timestamp.month != today.month ||
+          s.timestamp.day != today.day) {
+        continue;
+      }
+      final slug = normalizeActivitySlug(s.activitySlug);
+      if (core.contains(slug)) done.add(slug);
+    }
+    return done.length.clamp(0, 3);
+  }
+
+  int completedTodayDrills() {
+    final local = _localCompletedTodayDrills();
+    final fromApi = (todayPlan['core_completed'] as num?)?.round();
+    // Never let a stale plan block unlock after the 3rd checkmark lands.
+    if (fromApi == null) return local;
+    return (fromApi > local ? fromApi : local).clamp(0, 3);
   }
 
   int totalTodayActivitiesCount() {
@@ -402,10 +434,8 @@ class AppStateProvider extends ChangeNotifier {
     return 3;
   }
 
-  int completedTotalActivitiesToday() {
-    final fromApi = (todayPlan['completed_total'] as num?)?.round();
-    if (fromApi != null) return fromApi;
-    final coreDone = completedTodayDrills().clamp(0, 3);
+  int _localCompletedTotalActivitiesToday() {
+    final coreDone = _localCompletedTodayDrills();
     if (dailyAnchorMinutes == 5) return coreDone;
     if (dailyAnchorMinutes == 10) {
       return coreDone + (isTargetedRetryCompletedToday ? 1 : 0);
@@ -416,6 +446,59 @@ class AppStateProvider extends ChangeNotifier {
           (isTougherChallengeCompletedToday ? 1 : 0);
     }
     return coreDone;
+  }
+
+  int completedTotalActivitiesToday() {
+    final local = _localCompletedTotalActivitiesToday();
+    final fromApi = (todayPlan['completed_total'] as num?)?.round();
+    if (fromApi == null) return local;
+    return fromApi > local ? fromApi : local;
+  }
+
+  /// Keep Today plan counters in sync the moment a core take is saved locally,
+  /// so Targeted retry unlocks without waiting for bootstrap refresh.
+  void _syncTodayPlanAfterLocalSession({
+    required String activitySlug,
+    required bool isRetry,
+    String? planExtra,
+  }) {
+    if (isRetry) return;
+    final core = todayDrillSlugs.take(3).toSet();
+    final resolved = normalizeActivitySlug(activitySlug);
+    final nextCore = completedTodayDrills();
+    todayPlan = Map<String, dynamic>.from(todayPlan);
+    if (core.contains(resolved)) {
+      todayPlan['core_completed'] = nextCore;
+    }
+    if (planExtra == 'targeted_retry') {
+      isTargetedRetryCompletedToday = true;
+      final extras = Map<String, dynamic>.from(
+        (todayPlan['extras_completed'] as Map?) ?? {},
+      );
+      extras['targeted_retry'] = true;
+      todayPlan['extras_completed'] = extras;
+    } else if (planExtra == 'tougher_challenge') {
+      isTougherChallengeCompletedToday = true;
+      final extras = Map<String, dynamic>.from(
+        (todayPlan['extras_completed'] as Map?) ?? {},
+      );
+      extras['tougher_challenge'] = true;
+      todayPlan['extras_completed'] = extras;
+    }
+    todayPlan['completed_total'] = _localCompletedTotalActivitiesToday();
+    if (nextCore >= 3) {
+      if (dailyAnchorMinutes == 5) {
+        todayPlan['phase'] = 'complete';
+      } else if (dailyAnchorMinutes == 10) {
+        todayPlan['phase'] =
+            isTargetedRetryCompletedToday ? 'complete' : 'retry_offer';
+      } else if (dailyAnchorMinutes == 15) {
+        todayPlan['phase'] =
+            (isTargetedRetryCompletedToday && isTougherChallengeCompletedToday)
+                ? 'complete'
+                : 'extras_offer';
+      }
+    }
   }
 
   Map<String, dynamic> getWeakestExerciseToday() {
@@ -551,7 +634,11 @@ class AppStateProvider extends ChangeNotifier {
     if (!_api.sessionLoaded) {
       await _api.loadSession();
     }
-    if (!_api.isLoggedIn) return;
+    await loadGuestFunnelFromDisk();
+    if (!_api.isLoggedIn) {
+      notifyListeners();
+      return;
+    }
     userId = _api.userId?.isNotEmpty == true ? _api.userId! : userId;
     fullName = _api.fullName ?? '';
     email = _api.email ?? email;
@@ -567,13 +654,137 @@ class AppStateProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> loadGuestFunnelFromDisk() async {
+    final prefs = await SharedPreferences.getInstance();
+    guestFunnelStage = prefs.getString(_guestFunnelStageKey) ?? '';
+    pendingGuestTier = prefs.getString(_guestTierKey);
+    guestTrialUsed = prefs.getBool(_guestTrialUsedKey) ?? false;
+    guestPaywallReached = prefs.getBool(_guestPaywallReachedKey) ?? false;
+    final raw = prefs.getString(_guestAssessmentKey);
+    if (raw == null || raw.isEmpty) return;
+    try {
+      final map = jsonDecode(raw) as Map<String, dynamic>;
+      fullName = (map['full_name'] as String?)?.trim() ?? fullName;
+      answers.voiceProfile = map['voice_profile'] as String?;
+      answers.careerStage = map['career_stage'] as String?;
+      answers.careerType = map['career_type'] as String?;
+      answers.confidence = map['confidence'] as String?;
+      answers.roadblock = map['roadblock'] as String?;
+      answers.primaryGoal = map['primary_goal'] as String?;
+      selectedDifficulty =
+          (map['difficulty'] as String?) ?? selectedDifficulty;
+      if (answers.careerStage != null || answers.primaryGoal != null) {
+        computeAssessmentPlan();
+        hasPendingLocalAssessment = true;
+      }
+      if (guestFunnelStage == guestStageAwaitingAccount &&
+          pendingGuestTier != null) {
+        subscriptionTier = pendingGuestTier!;
+        subscriptionStatus = 'active';
+        isSubscribed = true;
+      }
+    } catch (e) {
+      debugPrint('[Hakkiri] guest funnel restore failed: $e');
+    }
+  }
+
+  Future<void> persistGuestFunnelToDisk() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_guestFunnelStageKey, guestFunnelStage);
+    await prefs.setBool(_guestTrialUsedKey, guestTrialUsed);
+    await prefs.setBool(_guestPaywallReachedKey, guestPaywallReached);
+    if (pendingGuestTier != null) {
+      await prefs.setString(_guestTierKey, pendingGuestTier!);
+    } else {
+      await prefs.remove(_guestTierKey);
+    }
+    await prefs.setString(
+      _guestAssessmentKey,
+      jsonEncode({
+        'full_name': fullName,
+        'voice_profile': answers.voiceProfile,
+        'career_stage': answers.careerStage,
+        'career_type': answers.careerType,
+        'confidence': answers.confidence,
+        'roadblock': answers.roadblock,
+        'primary_goal': answers.primaryGoal,
+        'difficulty': selectedDifficulty,
+      }),
+    );
+  }
+
+  Future<void> clearGuestFunnel() async {
+    guestFunnelStage = '';
+    pendingGuestTier = null;
+    hasPendingLocalAssessment = false;
+    guestTrialUsed = false;
+    guestPaywallReached = false;
+    final prefs = await SharedPreferences.getInstance();
+    await Future.wait([
+      prefs.remove(_guestFunnelStageKey),
+      prefs.remove(_guestAssessmentKey),
+      prefs.remove(_guestTierKey),
+      prefs.remove(_guestTrialUsedKey),
+      prefs.remove(_guestPaywallReachedKey),
+    ]);
+  }
+
+  Future<void> markGuestAwaitingIap() async {
+    guestFunnelStage = guestStageAwaitingIap;
+    hasPendingLocalAssessment = true;
+    await persistGuestFunnelToDisk();
+    notifyListeners();
+  }
+
+  Future<void> markGuestReachedPaywall() async {
+    guestFunnelStage = guestStageAwaitingIap;
+    guestPaywallReached = true;
+    hasPendingLocalAssessment = true;
+    await persistGuestFunnelToDisk();
+    notifyListeners();
+  }
+
+  /// One free guest try for any drill — catalog prompt from API, not saved.
+  /// Returns false if already used or logged in.
+  Future<bool> prepareGuestTrial(String activitySlug) async {
+    if (isLoggedIn || guestTrialUsed) return false;
+    final slug = normalizeActivitySlug(activitySlug);
+    ensureActivitySelected(slug);
+    syncDifficultyForActivity(slug);
+    await fetchNextPromptFromApi(excludeCurrent: true);
+    guestTrialUsed = true;
+    guestFunnelStage = guestStageAwaitingIap;
+    hasPendingLocalAssessment = true;
+    await persistGuestFunnelToDisk();
+    notifyListeners();
+    return true;
+  }
+
+  /// Legacy alias — free try is no longer Think Fast only.
+  Future<bool> prepareGuestThinkFastTrial() => prepareGuestTrial('think_fast');
+
+  Future<void> markGuestAwaitingAccount({String? tier}) async {
+    guestFunnelStage = guestStageAwaitingAccount;
+    if (tier != null) {
+      pendingGuestTier = tier;
+      subscriptionTier = tier;
+      subscriptionStatus = 'active';
+      isSubscribed = true;
+    }
+    hasPendingLocalAssessment = true;
+    await persistGuestFunnelToDisk();
+    notifyListeners();
+  }
+
   Future<void> registerAccount({
     required String name,
     required String email,
     required String password,
   }) async {
-    // Wipe previous member's assessment so a fresh account never looks "done".
-    _resetAssessmentLocalState();
+    // Keep guest assessment answers so we can sync after Create account.
+    if (!hasPendingLocalAssessment) {
+      _resetAssessmentLocalState();
+    }
     final data = await _api.register(
       fullName: name,
       email: email,
@@ -581,9 +792,10 @@ class AppStateProvider extends ChangeNotifier {
     );
     _applyAuthPayload(data);
     unawaited(AnalyticsService.instance.logSignUp(method: 'email'));
-    // Signup always starts the assessment funnel.
-    isOnboarded = false;
-    await _api.persistOnboarded(false);
+    if (!hasPendingLocalAssessment) {
+      isOnboarded = false;
+      await _api.persistOnboarded(false);
+    }
     unawaited(PushNotificationService.instance.syncTokenToApi());
     notifyListeners();
   }
@@ -606,8 +818,10 @@ class AppStateProvider extends ChangeNotifier {
 
   Future<Map<String, dynamic>> continueWithGoogle() async {
     final google = await GoogleAuthService.signIn();
-    // Clear local answers only — onboarding flag comes from the API below.
-    _resetAssessmentLocalState(clearOnboardedFlag: false);
+    // Keep guest assessment when Create account comes after the quiz.
+    if (!hasPendingLocalAssessment) {
+      _resetAssessmentLocalState(clearOnboardedFlag: false);
+    }
     final data = await _api.loginWithGoogle(idToken: google.idToken);
     _applyAuthPayload(data);
     final created = data['created'] == true;
@@ -636,7 +850,9 @@ class AppStateProvider extends ChangeNotifier {
 
   Future<Map<String, dynamic>> continueWithApple() async {
     final apple = await AppleAuthService.signIn();
-    _resetAssessmentLocalState(clearOnboardedFlag: false);
+    if (!hasPendingLocalAssessment) {
+      _resetAssessmentLocalState(clearOnboardedFlag: false);
+    }
     final data = await _api.loginWithApple(
       idToken: apple.idToken,
       fullName: apple.displayName,
@@ -673,9 +889,108 @@ class AppStateProvider extends ChangeNotifier {
     answers.roadblock = null;
     answers.primaryGoal = null;
     personalizedPlan = null;
+    hasPendingLocalAssessment = false;
+    guestFunnelStage = '';
+    pendingGuestTier = null;
+    guestTrialUsed = false;
+    guestPaywallReached = false;
     if (clearOnboardedFlag) {
       isOnboarded = false;
     }
+  }
+
+  /// Assessment → local plan → IAP → Create account. Persist for splash resume.
+  Future<void> completeAssessmentLocally({
+    required String name,
+    required String gender,
+    required String careerStage,
+    required String careerType,
+    required String confidence,
+    required String problem,
+    required String goal,
+  }) async {
+    if (name.trim().length >= 2) {
+      fullName = name.trim();
+    }
+    answers.voiceProfile = gender;
+    answers.careerStage = careerStage;
+    answers.careerType = careerType;
+    answers.confidence = confidence;
+    answers.roadblock = problem;
+    answers.primaryGoal = goal;
+    computeAssessmentPlan();
+    hasPendingLocalAssessment = true;
+    guestFunnelStage = guestStageAwaitingIap;
+    await persistGuestFunnelToDisk();
+    unawaited(AnalyticsService.instance.logAssessmentCompleted(
+      careerType: careerType,
+      confidence: confidence,
+      primaryRoadblock: problem,
+    ));
+    notifyListeners();
+  }
+
+  String _mapConfidenceForApi(String id) {
+    switch (id) {
+      case 'not_at_all':
+      case 'slightly':
+        return 'not_very';
+      case 'confident':
+        return 'fairly';
+      case 'fairly':
+      case 'very':
+      case 'not_very':
+        return id;
+      default:
+        return 'fairly';
+    }
+  }
+
+  String _mapGoalForApi(String id) {
+    switch (id) {
+      case 'keep_engaged':
+        return 'persuasive_arguments';
+      case 'other':
+        return 'clear_daily';
+      default:
+        return id;
+    }
+  }
+
+  /// After Create account: push guest assessment (+ local IAP tier) to the server.
+  Future<bool> syncPendingAssessmentIfNeeded() async {
+    if (!isLoggedIn || !hasPendingLocalAssessment) return false;
+    await submitAssessmentToApi(
+      name: fullName.trim().length >= 2 ? fullName.trim() : 'Member',
+      gender: answers.voiceProfile ?? 'female',
+      careerStage: answers.careerStage ?? 'mid_level',
+      careerType: answers.careerType ?? 'tech_product',
+      confidence: _mapConfidenceForApi(answers.confidence ?? 'fairly'),
+      problem: answers.roadblock ?? 'filler_rush',
+      goal: _mapGoalForApi(answers.primaryGoal ?? 'calmer_confident'),
+    );
+    final tier = pendingGuestTier ??
+        (isSubscribed ? subscriptionTier : null);
+    if (tier != null &&
+        (tier == 'monthly_pro' ||
+            tier == 'annual_pro' ||
+            tier == 'monthly' ||
+            tier == 'annual')) {
+      try {
+        await choosePlanFromApi(
+          tier == 'annual' || tier == 'annual_pro'
+              ? 'annual_pro'
+              : 'monthly_pro',
+        );
+        isSubscribed = true;
+      } catch (e) {
+        debugPrint('[Hakkiri] guest plan sync after signup failed: $e');
+      }
+    }
+    hasPendingLocalAssessment = false;
+    await clearGuestFunnel();
+    notifyListeners();
+    return true;
   }
 
   Future<void> markOnboardedComplete() async {
@@ -774,6 +1089,46 @@ class AppStateProvider extends ChangeNotifier {
       await GoogleAuthService.signOut();
     } catch (_) {}
     await _api.clearSession();
+    await clearGuestFunnel();
+    unawaited(AnalyticsService.instance.logLogout());
+    userId = '';
+    fullName = '';
+    email = '';
+    isLoggedIn = false;
+    isOnboarded = false;
+    isBootstrapping = false;
+    hasBootstrapped = false;
+    answers.voiceProfile = null;
+    answers.careerStage = null;
+    answers.careerType = null;
+    answers.confidence = null;
+    answers.roadblock = null;
+    answers.primaryGoal = null;
+    personalizedPlan = null;
+    sessionHistory.clear();
+    _reflectionNotes.clear();
+    reflectionPracticeSessions = 0;
+    reflectionFocusAreasCompleted = 0;
+    challenges = [];
+    todayQueue = [];
+    todayPrimary = null;
+    currentStreak = 0;
+    longestStreak = 0;
+    totalXp = 0;
+    completedSessions = 0;
+    overallAverage = null;
+    overallSamples = 0;
+    pillarStats = {};
+    activityBreakdown = [];
+    notifyListeners();
+  }
+
+  Future<void> deleteAccount() async {
+    try {
+      await GoogleAuthService.signOut();
+    } catch (_) {}
+    await _api.deleteAccount();
+    await clearGuestFunnel();
     unawaited(AnalyticsService.instance.logLogout());
     userId = '';
     fullName = '';
@@ -882,42 +1237,45 @@ class AppStateProvider extends ChangeNotifier {
 
   void _applyProfile(Map<String, dynamic> profile) {
     if (profile.isEmpty) return;
-    // Only overwrite fields that the API actually sent (null = not set yet).
-    if (profile.containsKey('voice_profile')) {
-      final v = profile['voice_profile'];
-      answers.voiceProfile = v?.toString();
-    }
-    if (profile.containsKey('career_stage')) {
-      final v = profile['career_stage'];
-      answers.careerStage = v?.toString();
-    }
-    if (profile.containsKey('career_type')) {
-      final v = profile['career_type'];
-      answers.careerType = v?.toString();
-    }
-    if (profile.containsKey('speaking_confidence')) {
-      final v = profile['speaking_confidence'];
-      answers.confidence = v?.toString();
-    }
-    if (profile.containsKey('primary_roadblock')) {
-      final v = profile['primary_roadblock'];
-      answers.roadblock = v?.toString();
-    }
-    if (profile.containsKey('primary_goal')) {
-      final v = profile['primary_goal'];
-      answers.primaryGoal = v?.toString();
-    }
-    final plan = profile['personalized_plan'];
-    if (plan is Map<String, dynamic>) {
-      personalizedPlan = PersonalizedPlanModel.fromJson(plan);
-      if (personalizedPlan!.focusLine.isNotEmpty) {
-        focusLine = personalizedPlan!.focusLine;
+    // Guest assessment waiting for Create account — don't wipe with empty profile.
+    if (!hasPendingLocalAssessment) {
+      if (profile.containsKey('voice_profile')) {
+        final v = profile['voice_profile'];
+        answers.voiceProfile = v?.toString();
       }
-    } else if (profile.containsKey('personalized_plan') && plan == null) {
-      personalizedPlan = null;
+      if (profile.containsKey('career_stage')) {
+        final v = profile['career_stage'];
+        answers.careerStage = v?.toString();
+      }
+      if (profile.containsKey('career_type')) {
+        final v = profile['career_type'];
+        answers.careerType = v?.toString();
+      }
+      if (profile.containsKey('speaking_confidence')) {
+        final v = profile['speaking_confidence'];
+        answers.confidence = v?.toString();
+      }
+      if (profile.containsKey('primary_roadblock')) {
+        final v = profile['primary_roadblock'];
+        answers.roadblock = v?.toString();
+      }
+      if (profile.containsKey('primary_goal')) {
+        final v = profile['primary_goal'];
+        answers.primaryGoal = v?.toString();
+      }
+      final plan = profile['personalized_plan'];
+      if (plan is Map<String, dynamic>) {
+        personalizedPlan = PersonalizedPlanModel.fromJson(plan);
+        if (personalizedPlan!.focusLine.isNotEmpty) {
+          focusLine = personalizedPlan!.focusLine;
+        }
+      } else if (profile.containsKey('personalized_plan') && plan == null) {
+        personalizedPlan = null;
+      }
     }
     // Server is source of truth — do NOT infer from leftover local answers.
-    if (profile.containsKey('onboarding_complete')) {
+    if (profile.containsKey('onboarding_complete') &&
+        !hasPendingLocalAssessment) {
       final done = profile['onboarding_complete'] == true;
       isOnboarded = done;
       unawaited(_api.persistOnboarded(done));
@@ -1107,9 +1465,9 @@ class AppStateProvider extends ChangeNotifier {
         name: 'Think Fast',
         isMvp: true,
         tagline: 'Instant cognitive agility under time pressure',
-        description: 'A random high-stakes question flashes on screen with a 3-second delay. You speak for 60 seconds using bottom-line-up-front structure.',
+        description: 'A random high-stakes question flashes on screen with a 5-second delay. You speak for 60 seconds using bottom-line-up-front structure.',
         cognitiveMechanism: 'Rapid lexical retrieval and on-the-spot framing under stress',
-        prepDurationSeconds: 3,
+        prepDurationSeconds: 5,
         defaultDurationSeconds: 60,
         benefits: ['High cognitive agility under stress', 'Higher perceived authority', 'Eliminates meeting waffle'],
         successMeasures: ['Latency & stall tactics', 'Structural coherence', 'Composition & fillers'],
@@ -1198,6 +1556,7 @@ class AppStateProvider extends ChangeNotifier {
         objective: 'Acknowledge concerns calmly, state your boundary with poise, and align on shared objectives.',
         exemplarResponse: 'I would start by listening to understand their concerns, acknowledge their perspective, and then align on shared objectives.',
         tags: ['corporate_finance', 'stakeholder_management'],
+        industries: ['corporate_finance', 'general'],
         durationSeconds: 60,
         prepSeconds: 5,
       ),
@@ -1209,6 +1568,7 @@ class AppStateProvider extends ChangeNotifier {
         objective: 'Validate their budget constraint, reframe around ROI, and avoid defensive tone.',
         exemplarResponse: 'I understand budget sensitivity is top of mind. Rather than cutting core scope, let us review the business outcomes and identify the highest ROI phases first.',
         tags: ['sales_marketing', 'negotiation'],
+        industries: ['sales_marketing'],
         durationSeconds: 60,
         prepSeconds: 5,
       ),
@@ -1220,6 +1580,7 @@ class AppStateProvider extends ChangeNotifier {
         objective: 'Translate technical debt into commercial speed and reliability without jargon.',
         exemplarResponse: 'Think of our codebase like an office building. Over time, extra wiring slows down renovations. Refactoring clears the foundation so our next feature ships in half the time.',
         tags: ['tech_product', 'engineering'],
+        industries: ['tech_product'],
         durationSeconds: 60,
         prepSeconds: 5,
       ),
@@ -1231,6 +1592,7 @@ class AppStateProvider extends ChangeNotifier {
         objective: 'Lead with empathy, separate behavior from character, and co-design a concrete next step.',
         exemplarResponse: 'I appreciate your dedication to the team. To help you thrive on this project, I want to address one specific area of clarity in communication, and discuss how we can support you.',
         tags: ['healthcare_edu', 'people_management'],
+        industries: ['healthcare_edu'],
         durationSeconds: 60,
         prepSeconds: 5,
       ),
@@ -1242,8 +1604,9 @@ class AppStateProvider extends ChangeNotifier {
         objective: 'Fill the silence and survive the 60-second clock with a clear perspective.',
         exemplarResponse: 'I strongly believe companies should ban video calls on Fridays. First, screen fatigue degrades deep analytical focus. Second, uninterrupted quiet blocks allow employees to close key deliverables before the weekend.',
         tags: ['workplace', 'remote_work'],
+        industries: ['general'],
         durationSeconds: 60,
-        prepSeconds: 3,
+        prepSeconds: 5,
       ),
       const PromptModel(
         id: 'tf_02',
@@ -1253,8 +1616,9 @@ class AppStateProvider extends ChangeNotifier {
         objective: 'Take immediate accountability, outline corrective sprint, and maintain trust.',
         exemplarResponse: 'We take full responsibility for the milestone delay. A breakdown in internal review caused an unexpected bottleneck. Here is our recovery plan: senior engineers are reallocated, and we deliver by Thursday 2 PM.',
         tags: ['client_management', 'accountability'],
+        industries: ['general', 'corporate_finance', 'tech_product', 'sales_marketing'],
         durationSeconds: 60,
-        prepSeconds: 3,
+        prepSeconds: 5,
       ),
       const PromptModel(
         id: 'tf_03',
@@ -1264,8 +1628,9 @@ class AppStateProvider extends ChangeNotifier {
         objective: 'Command total authority, communicate triage status (BLUF), and outline communication protocol.',
         exemplarResponse: 'Board members: at 14:10 UTC, European and US data centers experienced an unexpected cascade. Triage is active; DNS rollback is at 60% completion. Recovery target is 35 minutes. Public status page has been updated.',
         tags: ['crisis', 'boardroom'],
+        industries: ['tech_product', 'corporate_finance'],
         durationSeconds: 60,
-        prepSeconds: 3,
+        prepSeconds: 5,
       ),
 
       // Cut It In Half
@@ -1283,16 +1648,34 @@ class AppStateProvider extends ChangeNotifier {
         prepSeconds: 45,
       ),
 
-      // 1 Minute Expert
+      // 1 Minute Expert — corporate / finance local fallbacks
       const PromptModel(
-        id: 'ome_01',
+        id: 'ome_cf_01',
         activitySlug: 'one_minute_expert',
         difficulty: 'intermediary',
-        title: 'Artificial Intelligence: Automation vs Augmentation',
-        promptText: 'Explain the critical difference between automation (replacing tasks) and augmentation (helping humans).',
-        objective: 'Use a categorical two-part framework with a clear concluding takeaway.',
-        exemplarResponse: 'To understand AI workplace impact, we must separate automation from augmentation. Automation eliminates repetitive tasks like data entry. Augmentation supercharges human cognition—acting as a sparring partner that helps doctors diagnose faster or writers synthesize ideas.',
-        tags: ['tech', 'ai'],
+        title: 'Working capital',
+        promptText:
+            'Explain working capital to a non-finance stakeholder and why it can kill a profitable company.',
+        objective: 'Define it, then one concrete risk.',
+        exemplarResponse:
+            'Working capital is the cash tied up in day-to-day operations — stock, unpaid invoices, and bills you still owe. A company can show profit on paper and still run out of cash if customers pay late while suppliers demand cash now.',
+        tags: ['corporate_finance', 'cash'],
+        industries: ['corporate_finance'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'ome_cf_02',
+        activitySlug: 'one_minute_expert',
+        difficulty: 'beginner',
+        title: 'EBITDA in plain English',
+        promptText:
+            'Explain what EBITDA means to a smart colleague who is not in finance.',
+        objective: 'One clear definition, then why leaders still look at it.',
+        exemplarResponse:
+            'EBITDA is a rough view of operating profit before interest, tax, and the accounting for assets wearing out. Leaders use it to compare how the core business is performing without financing or tax noise.',
+        tags: ['corporate_finance'],
+        industries: ['corporate_finance'],
         durationSeconds: 60,
         prepSeconds: 5,
       ),
@@ -1305,7 +1688,8 @@ class AppStateProvider extends ChangeNotifier {
         title: 'SEO to a Traditional Pastry Chef',
         promptText: 'Explain Search Engine Optimization (SEO) to a traditional pastry chef who wants more foot traffic into their local bakery.',
         objective: 'Use baking and street signage metaphors without digital jargon.',
-        exemplarResponse: 'Chef, think of Google as the town crier standing on the busiest street corner. When hungry tourists ask for the freshest croissant, the crier recommends the shop with the clearest sign, the best aroma drifting onto the street, and the most locals raving outside. SEO is simply polishing your sign so the town crier points customers straight into your bakery.',
+        exemplarResponse:
+            'Chef, think of Google as the person on the corner giving directions. SEO is making your bakery the clearest answer — right name, right street, and proof people like what you bake — so that guide points hungry customers to your door.',
         tags: ['marketing', 'local_business'],
         durationSeconds: 60,
         prepSeconds: 10,
@@ -1562,12 +1946,16 @@ class AppStateProvider extends ChangeNotifier {
       tier: normalized,
       priceGbp: isAnnual ? 69.99 : 9.99,
     );
-    if (isLoggedIn) {
-      try {
-        await choosePlanFromApi(normalized);
-      } catch (e) {
-        debugPrint('[Hakkiri] Warning syncing subscription to API: $e');
-      }
+    // Guest bought before Create account — keep local, upload after signup.
+    if (!isLoggedIn) {
+      await markGuestAwaitingAccount(tier: normalized);
+      notifyListeners();
+      return;
+    }
+    try {
+      await choosePlanFromApi(normalized);
+    } catch (e) {
+      debugPrint('[Hakkiri] Warning syncing subscription to API: $e');
     }
     await markOnboardedComplete();
     notifyListeners();
@@ -1613,12 +2001,19 @@ class AppStateProvider extends ChangeNotifier {
 
   void selectActivity(String slug) {
     final resolved = normalizeActivitySlug(slug);
-    selectedActivity = activities.firstWhere(
-      (a) => a.slug == resolved,
-      orElse: () => activities.first,
-    );
+    final match = activities.where((a) => a.slug == resolved);
+    if (match.isEmpty) {
+      debugPrint('[Hakkiri] selectActivity: unknown slug "$resolved"');
+      return;
+    }
+    selectedActivity = match.first;
     if (activityLevels[resolved] != null) {
       selectedDifficulty = activityLevels[resolved]!;
+    }
+    // Drop a prompt that belongs to a different drill (e.g. leftover Think Fast).
+    if (selectedPrompt != null &&
+        selectedPrompt!.activitySlug != resolved) {
+      selectedPrompt = null;
     }
     _updateSelectedPrompt();
     notifyListeners();
@@ -1696,15 +2091,13 @@ class AppStateProvider extends ChangeNotifier {
 
   /// Pull the next practice question from the API catalog (Mongo prompts).
   /// Pass [excludeCurrent] so Begin exercise does not repeat the last question.
+  /// Guests use the same public `/prompts/next` catalog (no JWT).
   Future<bool> fetchNextPromptFromApi({bool excludeCurrent = true}) async {
     final activity = selectedActivity;
     if (activity == null) return false;
-    if (!_api.isLoggedIn) {
-      rotateLocalPrompt();
-      return true;
-    }
+    final requestSlug = activity.slug;
     try {
-      selectedDifficulty = levelForActivity(activity.slug);
+      selectedDifficulty = levelForActivity(requestSlug);
       final difficulty = selectedDifficulty == 'pro'
           ? 'professional'
           : selectedDifficulty == 'i_dont_know'
@@ -1712,30 +2105,58 @@ class AppStateProvider extends ChangeNotifier {
               : selectedDifficulty;
       final excludeId = excludeCurrent &&
               selectedPrompt != null &&
-              selectedPrompt!.activitySlug == activity.slug &&
+              selectedPrompt!.activitySlug == requestSlug &&
               _looksLikeCatalogPromptId(selectedPrompt!.id)
           ? selectedPrompt!.id
           : null;
       final data = await _api.nextPrompt(
-        activitySlug: activity.slug,
+        activitySlug: requestSlug,
         difficulty: difficulty,
         careerType: answers.careerType,
         excludePromptId: excludeId,
+        requireAuth: _api.isLoggedIn,
       );
+      // Ignore stale responses if the user switched drills mid-flight.
+      if (selectedActivity?.slug != requestSlug) {
+        debugPrint(
+          '[Hakkiri] drop stale prompt for $requestSlug '
+          '(now ${selectedActivity?.slug})',
+        );
+        return false;
+      }
       final promptMap = data['prompt'];
       if (promptMap is Map) {
-        selectedPrompt =
+        final next =
             PromptModel.fromJson(Map<String, dynamic>.from(promptMap));
+        final nextSlug = normalizeActivitySlug(next.activitySlug);
+        if (nextSlug.isNotEmpty && nextSlug != requestSlug) {
+          debugPrint(
+            '[Hakkiri] API prompt activity mismatch: '
+            'wanted $requestSlug got $nextSlug — rotating local',
+          );
+          rotateLocalPrompt();
+          return true;
+        }
+        selectedPrompt = next;
         notifyListeners();
         return true;
       }
     } catch (_) {
+      if (selectedActivity?.slug != requestSlug) return false;
       // Network failed — still rotate locally so the same question does not stick.
       rotateLocalPrompt();
       return true;
     }
+    if (selectedActivity?.slug != requestSlug) return false;
     rotateLocalPrompt();
     return true;
+  }
+
+  /// True when [selectedPrompt] belongs to [slug] (or current activity).
+  bool promptMatchesActivity([String? slug]) {
+    final want = normalizeActivitySlug(slug ?? selectedActivity?.slug ?? '');
+    if (want.isEmpty || selectedPrompt == null) return false;
+    return normalizeActivitySlug(selectedPrompt!.activitySlug) == want;
   }
 
   void _updateSelectedPrompt({bool forceRotate = false}) {
@@ -1762,17 +2183,43 @@ class AppStateProvider extends ChangeNotifier {
         pool.where((p) => p.difficulty == targetDiff).toList();
     if (byDiff.isNotEmpty) pool = byDiff;
 
-    if (career != null && career.isNotEmpty) {
-      final careerMatches =
-          pool.where((p) => p.tags.contains(career)).toList();
-      // Soft prefer career tags only when there is real variety.
-      if (careerMatches.length >= 3) {
-        pool = careerMatches;
+    // Hard industry filter: never serve another track's exclusive prompt.
+    final hasCareer = career != null &&
+        career.isNotEmpty &&
+        career != 'general' &&
+        career != 'other';
+    if (hasCareer) {
+      final safe = pool
+          .where((p) => p.matchesCareer(career) || p.isGeneralIndustry)
+          .toList();
+      final specific = safe.where((p) => p.matchesCareer(career)).toList();
+      final general = safe.where((p) => p.isGeneralIndustry).toList();
+      if (specific.isNotEmpty) {
+        pool = specific;
+      } else if (general.isNotEmpty) {
+        pool = general;
+      } else {
+        pool = safe;
       }
+    } else {
+      final general = pool.where((p) => p.isGeneralIndustry).toList();
+      if (general.isNotEmpty) pool = general;
     }
 
+    // Stay on this activity — never fall back to an unrelated bank prompt.
     if (pool.isEmpty) {
-      selectedPrompt = promptBank.first;
+      final sameActivity = promptBank
+          .where((p) => p.activitySlug == selectedActivity!.slug)
+          .where(
+            (p) =>
+                !hasCareer ||
+                p.matchesCareer(career) ||
+                p.isGeneralIndustry,
+          )
+          .toList();
+      if (sameActivity.isEmpty) return;
+      sameActivity.shuffle();
+      selectedPrompt = sameActivity.first;
       return;
     }
 
@@ -1932,6 +2379,11 @@ class AppStateProvider extends ChangeNotifier {
     );
     latestSession = record;
     sessionHistory.insert(0, record);
+    _syncTodayPlanAfterLocalSession(
+      activitySlug: prompt.activitySlug,
+      isRetry: resolvedIsRetry,
+      planExtra: resolvedPlanExtra,
+    );
 
     // Save session in Supabase backend (best-effort / legacy)
     _supabase.recordPracticeSession(

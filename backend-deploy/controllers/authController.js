@@ -5,6 +5,10 @@ const Profile = require("../models/Profile");
 const Subscription = require("../models/Subscription");
 const Streak = require("../models/Streak");
 const Settings = require("../models/Settings");
+const PracticeSession = require("../models/PracticeSession");
+const Reflection = require("../models/Reflection");
+const DailyPlanProgress = require("../models/DailyPlanProgress");
+const ChallengeProgress = require("../models/ChallengeProgress");
 const { success, error } = require("../helpers/response");
 const { userJson, profileJson, subscriptionJson, streakJson, settingsJson } = require("../services/serializers");
 
@@ -368,4 +372,25 @@ const me = async (req, res) => {
   });
 };
 
-module.exports = { register, login, googleAuth, appleAuth, me };
+const deleteAccount = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    await Promise.all([
+      User.findByIdAndDelete(userId),
+      Profile.deleteMany({ user: userId }),
+      Streak.deleteMany({ user: userId }),
+      Settings.deleteMany({ user: userId }),
+      Subscription.deleteMany({ user: userId }),
+      PracticeSession.deleteMany({ user: userId }),
+      Reflection.deleteMany({ user: userId }),
+      DailyPlanProgress.deleteMany({ user: userId }),
+      ChallengeProgress.deleteMany({ user: userId }),
+    ]);
+    return success(res, "Account and all associated data permanently deleted.");
+  } catch (err) {
+    console.error("Delete account error:", err);
+    return error(res, "Could not delete account. Please try again.", 500);
+  }
+};
+
+module.exports = { register, login, googleAuth, appleAuth, me, deleteAccount };

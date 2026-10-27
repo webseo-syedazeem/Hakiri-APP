@@ -32,37 +32,85 @@ function dedupePrompts(list) {
   return out;
 }
 
+function industriesOf(item) {
+  const inds = item.industries || [];
+  return Array.isArray(inds) ? inds.map(String) : [];
+}
+
+/** Prompt is safe for any track (general / untagged). */
+function isGeneralPrompt(item) {
+  const inds = industriesOf(item);
+  if (!inds.length) return true;
+  return inds.includes("general");
+}
+
+/** Prompt is tagged for this career track (may also list other tracks). */
+function matchesCareer(item, career) {
+  if (!career) return true;
+  return industriesOf(item).includes(career);
+}
+
+/**
+ * Never serve another track's exclusive prompt to this career.
+ * Allowed = tagged for career OR general (or untagged).
+ */
+function allowedForCareer(item, career) {
+  if (!career) return isGeneralPrompt(item);
+  return matchesCareer(item, career) || isGeneralPrompt(item);
+}
+
+/**
+ * Pick a prompt for an activity.
+ * Industry rule: never serve another track's exclusive prompt
+ * (e.g. healthcare-only when user selected corporate_finance).
+ * Prefer career-tagged prompts, then general. Rotate for variety.
+ */
 async function choosePrompt({ activitySlug, difficulty, careerType, excludeCodes = [], seed }) {
   const requested = canonical("difficulty", difficulty) || "beginner";
   const storedDifficulty = requested === "i_dont_know" ? "intermediary" : requested;
   let pool = await Prompt.find({ activitySlug, difficulty: storedDifficulty });
   if (!pool.length) pool = await Prompt.find({ activitySlug });
 
-  const specific =
+  const career =
     careerType && careerType !== "general" && careerType !== "other"
-      ? pool.filter((item) => (item.industries || []).includes(careerType))
-      : [];
-  const general = pool.filter(
-    (item) => (item.industries || []).includes("general") || !(item.industries || []).length
-  );
+      ? String(careerType)
+      : null;
 
-  // Never trap users in a 1–2 prompt industry niche (e.g. always "project deadline").
-  // Use the full difficulty pool for variety; soft-prefer career matches when plenty exist.
-  const ranked = dedupePrompts([...specific, ...general, ...pool]);
+  const pickForCareer = (source) => {
+    const safe = career
+      ? source.filter((item) => allowedForCareer(item, career))
+      : source.filter(isGeneralPrompt);
+    if (!career) {
+      return dedupePrompts(safe.length ? safe : source.filter(isGeneralPrompt));
+    }
+    const specific = safe.filter((item) => matchesCareer(item, career));
+    const general = safe.filter(isGeneralPrompt);
+    // Mix career + general so small catalogs still rotate (never other-track exclusives).
+    // Preferring only "specific" made users stuck on one prompt (e.g. SEO-to-chef forever).
+    const mixed = dedupePrompts([...specific, ...general]);
+    return mixed.length ? mixed : dedupePrompts(safe);
+  };
+
+  let ranked = pickForCareer(pool);
+
+  // If this difficulty has no career/general prompts, widen difficulty but keep industry filter.
+  if (!ranked.length) {
+    const allDiff = await Prompt.find({ activitySlug });
+    ranked = pickForCareer(allDiff);
+  }
+
+  // Last resort: still never leak another track's exclusive prompts.
+  if (!ranked.length) {
+    const allDiff = await Prompt.find({ activitySlug });
+    ranked = dedupePrompts(
+      allDiff.filter((item) => allowedForCareer(item, career))
+    );
+  }
+
   const exclude = new Set((excludeCodes || []).filter(Boolean).map(String));
   const fresh = ranked.filter((item) => !exclude.has(item.code));
-  let list = fresh.length ? fresh : ranked;
+  const list = fresh.length ? fresh : ranked;
   if (!list.length) return null;
-
-  const careerFresh = list.filter((item) => specific.some((s) => s.code === item.code));
-  // Soft bias only when career pool itself has real variety.
-  if (
-    careerFresh.length >= 3 &&
-    !(seed && String(seed).includes(":stable:")) &&
-    Math.random() < 0.4
-  ) {
-    list = careerFresh;
-  }
 
   const index =
     seed && String(seed).includes(":stable:")
@@ -98,9 +146,14 @@ const listPrompts = async (req, res) => {
   let prompts = await Prompt.find(filter).sort({ code: 1 });
   if (req.query.career_type) {
     const career = canonical("career_type", req.query.career_type);
-    if (career && career !== "general") {
-      const specific = prompts.filter((item) => (item.industries || []).includes(career));
-      if (specific.length) prompts = specific;
+    if (career && career !== "general" && career !== "other") {
+      const specific = prompts.filter((item) => matchesCareer(item, career));
+      const general = prompts.filter(isGeneralPrompt);
+      // Same rule as choosePrompt: career first, then general — never other tracks only.
+      prompts = specific.length ? specific : general.length ? general : prompts;
+    } else if (career === "general") {
+      const general = prompts.filter(isGeneralPrompt);
+      if (general.length) prompts = general;
     }
   }
   return success(res, "Prompts.", { prompts: prompts.map(promptJson) });
@@ -119,22 +172,33 @@ const nextPrompt = async (req, res) => {
   if (!activity) return error(res, "Activity not found.", 404);
   if (!activity.isMvp) return error(res, "This activity is not in the MVP yet.", 404);
 
-  const profile = await Profile.findOne({ user: req.user._id });
-  const career = canonical("career_type", req.query.career_type) || profile?.careerType || "general";
+  const userId = req.user?._id;
   const { activityLevel, hydrateCoaching } = require("../services/coaching");
-  const coaching = hydrateCoaching(profile?.coaching, {
-    confidence: profile?.speakingConfidence,
-    drills: profile?.plan?.initialDrills,
-  });
-  const difficulty = activityLevel(coaching, activitySlug);
-  const recent = await PracticeSession.find({
-    user: req.user._id,
-    activitySlug,
-    isCoachedRetry: false,
-  })
-    .sort({ createdAt: -1 })
-    .limit(20)
-    .select("promptCode");
+  let career = canonical("career_type", req.query.career_type) || "general";
+  let difficulty =
+    canonical("difficulty", req.query.difficulty) || "intermediary";
+
+  let recent = [];
+  if (userId) {
+    const profile = await Profile.findOne({ user: userId });
+    career =
+      canonical("career_type", req.query.career_type) ||
+      profile?.careerType ||
+      "general";
+    const coaching = hydrateCoaching(profile?.coaching, {
+      confidence: profile?.speakingConfidence,
+      drills: profile?.plan?.initialDrills,
+    });
+    difficulty = activityLevel(coaching, activitySlug);
+    recent = await PracticeSession.find({
+      user: userId,
+      activitySlug,
+      isCoachedRetry: false,
+    })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .select("promptCode");
+  }
 
   const excludeParam = String(req.query.exclude || req.query.exclude_codes || "")
     .split(",")
@@ -153,7 +217,7 @@ const nextPrompt = async (req, res) => {
     careerType: career,
     excludeCodes,
     // Random rotation each Begin exercise (daily-anchor still uses stable seed).
-    seed: `${req.user._id}:${activitySlug}:${difficulty}:${Date.now()}`,
+    seed: `${userId || "guest"}:${activitySlug}:${difficulty}:${Date.now()}`,
   });
   if (!chosen) return error(res, "No prompt is available for this activity.", 404);
 

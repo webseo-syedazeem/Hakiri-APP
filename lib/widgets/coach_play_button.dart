@@ -20,36 +20,85 @@ class CoachPlayButton extends StatefulWidget {
 }
 
 class _CoachPlayButtonState extends State<CoachPlayButton> {
+  bool _loading = false;
   bool _playing = false;
+
+  String get _profile {
+    final appStateVoice =
+        context.read<AppStateProvider>().answers.voiceProfile;
+    return CoachTtsService.normalizeCoachId(
+      (appStateVoice != null && appStateVoice.trim().isNotEmpty)
+          ? appStateVoice
+          : CoachTtsService.instance.activeCoachId,
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final text = widget.text.trim();
+      if (text.isEmpty || !mounted) return;
+      // Warm cache so the first tap feels faster.
+      CoachTtsService.instance.prefetch(text, voiceProfile: _profile);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant CoachPlayButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.text.trim() != widget.text.trim()) {
+      final text = widget.text.trim();
+      if (text.isNotEmpty) {
+        CoachTtsService.instance.prefetch(text, voiceProfile: _profile);
+      }
+    }
+  }
 
   Future<void> _toggle() async {
     final text = widget.text.trim();
     if (text.isEmpty) return;
 
-    if (_playing) {
+    if (_loading || _playing) {
       await CoachTtsService.instance.stop();
-      if (mounted) setState(() => _playing = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _playing = false;
+        });
+      }
       return;
     }
 
-    final appStateVoice =
-        context.read<AppStateProvider>().answers.voiceProfile;
-    final profile = CoachTtsService.normalizeCoachId(
-      (appStateVoice != null && appStateVoice.trim().isNotEmpty)
-          ? appStateVoice
-          : CoachTtsService.instance.activeCoachId,
-    );
-    setState(() => _playing = true);
+    setState(() {
+      _loading = true;
+      _playing = false;
+    });
     try {
-      await CoachTtsService.instance.speak(text, voiceProfile: profile);
+      await CoachTtsService.instance.speak(
+        text,
+        voiceProfile: _profile,
+        onPlaybackStarted: () {
+          if (!mounted) return;
+          setState(() {
+            _loading = false;
+            _playing = true;
+          });
+        },
+      );
     } finally {
-      if (mounted) setState(() => _playing = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _playing = false;
+        });
+      }
     }
   }
 
   @override
   void dispose() {
-    if (_playing) {
+    if (_loading || _playing) {
       CoachTtsService.instance.stop();
     }
     super.dispose();
@@ -63,17 +112,27 @@ class _CoachPlayButtonState extends State<CoachPlayButton> {
       child: Container(
         width: widget.size,
         height: widget.size,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: enabled
               ? const Color(0xFF2563EB)
               : const Color(0xFF334155),
           shape: BoxShape.circle,
         ),
-        child: Icon(
-          _playing ? Icons.stop_rounded : Icons.play_arrow_rounded,
-          color: Colors.white,
-          size: widget.size * 0.6,
-        ),
+        child: _loading
+            ? SizedBox(
+                width: widget.size * 0.45,
+                height: widget.size * 0.45,
+                child: const CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              )
+            : Icon(
+                _playing ? Icons.stop_rounded : Icons.play_arrow_rounded,
+                color: Colors.white,
+                size: widget.size * 0.6,
+              ),
       ),
     );
   }

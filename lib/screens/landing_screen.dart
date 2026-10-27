@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import '../core/services/analytics_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
-import '../widgets/app_snackbar.dart';
 import '../widgets/blue_accent_rays.dart';
 import '../widgets/exercise_illustrations.dart';
 import '../widgets/onboarding_bubble_background.dart';
@@ -15,12 +14,11 @@ import 'activity_detail_screen.dart';
 import 'assessment_screen.dart';
 import 'debate_me_screen.dart';
 import 'login_screen.dart';
-import 'signup_screen.dart';
 
 /// Onboarding experience.
 ///
-/// New-account funnel:
-///   Welcome (Get started) → onboarding pages → Signup → Assessment → Home
+/// New-account funnel (faizan design + assessment-first flow):
+///   Welcome → onboarding pages → Assessment → plan → IAP → Signup
 ///
 /// [postSignup] = true starts at page 1 (skip welcome) for logged-in users
 /// who still need the marketing pages, then Assessment.
@@ -73,7 +71,8 @@ class _LandingScreenState extends State<LandingScreen>
         : widget.initialPage;
     _currentPage = start;
     _pageController = PageController(initialPage: start);
-    _trainCardController = PageController(viewportFraction: 0.70);
+    // ~78% width so active card sits centered with left/right peeks.
+    _trainCardController = PageController(viewportFraction: 0.78);
 
     // Continuous subtle 3D breathing / floating animation for the active exercise card
     _floatAnimationController = AnimationController(
@@ -121,14 +120,10 @@ class _LandingScreenState extends State<LandingScreen>
     }
   }
 
-  /// End of onboarding carousel: Signup first (new users), Assessment if already logged in.
+  /// End of onboarding: always Start assessment (Create account comes after IAP).
   void _finishOnboarding() {
     AnalyticsService.instance.logOnboardingCompleted();
-    if (widget.postSignup) {
-      _goToAssessment();
-    } else {
-      _goToSignup();
-    }
+    _goToAssessment();
   }
 
   String get _primaryCtaLabel {
@@ -156,10 +151,11 @@ class _LandingScreenState extends State<LandingScreen>
       return;
     }
     _lastBackPress = now;
-    AppSnackBar.showInfo(
-      context,
-      'Press back again to exit',
-      duration: const Duration(seconds: 2),
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Press back again to exit'),
+        duration: Duration(seconds: 2),
+      ),
     );
   }
 
@@ -185,13 +181,6 @@ class _LandingScreenState extends State<LandingScreen>
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
-  }
-
-  void _goToSignup() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const SignupScreen()),
     );
   }
 
@@ -688,14 +677,16 @@ class _LandingScreenState extends State<LandingScreen>
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        // Push cards a bit lower under the headline.
+        const SizedBox(height: 22),
 
         // Exercise Carousel Cards — Edge-to-Edge with 3D Cover Flow animation
         Expanded(
           child: PageView.builder(
             itemCount: exercises.length,
             controller: _trainCardController,
-            padEnds: false,
+            // Pads first/last so the active card is centered; neighbors peek both sides.
+            padEnds: true,
             physics: const BouncingScrollPhysics(),
             onPageChanged: (idx) => setState(() => _carouselIndex = idx),
             itemBuilder: (context, idx) {
@@ -740,8 +731,8 @@ class _LandingScreenState extends State<LandingScreen>
                   );
                 },
                 child: Padding(
-                  padding: EdgeInsets.only(
-                    left: idx == 0 ? 22 : 6,
+                  padding: const EdgeInsets.only(
+                    left: 8,
                     right: 8,
                     bottom: 4,
                     top: 2,
@@ -771,9 +762,9 @@ class _LandingScreenState extends State<LandingScreen>
                         }
                       },
                       child: Align(
-                        alignment: Alignment.topCenter,
-                        child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 460),
+                        // Vertically center the card in the carousel slot.
+                        alignment: Alignment.center,
+                        // Card height hugs content (smaller image → smaller card).
                         child: Container(
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
@@ -792,10 +783,11 @@ class _LandingScreenState extends State<LandingScreen>
                           ],
                         ),
                         child: Column(
+                          mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -888,43 +880,37 @@ class _LandingScreenState extends State<LandingScreen>
                                 ],
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            // Space between copy and illustration.
+                            const SizedBox(height: 45),
 
-                            // Large 3D illustration anchored to the lower part of card, bottom-aligned
-                            Expanded(
-                              child: Align(
-                                alignment: Alignment.bottomCenter,
-                                child: AnimatedBuilder(
-                                  animation: _floatAnimationController,
-                                  builder: (context, illChild) {
-                                    final floatY = sin(_floatAnimationController.value * 2 * pi) * 3.5;
-                                    return Transform.translate(
-                                      offset: Offset(0, floatY),
-                                      child: illChild,
-                                    );
-                                  },
-                                  child: Transform.scale(
-                                    scale: 1.14,
-                                    alignment: Alignment.bottomCenter,
-                                    child: Padding(
-                                      padding:
-                                          const EdgeInsets.fromLTRB(4, 0, 4, 0),
-                                      child: SizedBox(
-                                        width: double.infinity,
-                                        child: ExerciseIllustration(
-                                          type: ex['type']!,
-                                          fit: BoxFit.contain,
-                                          alignment: Alignment.bottomCenter,
-                                        ),
-                                      ),
-                                    ),
+                            // Illustration — fixed height so card stays compact.
+                            AnimatedBuilder(
+                              animation: _floatAnimationController,
+                              builder: (context, illChild) {
+                                final floatY =
+                                    sin(_floatAnimationController.value * 2 * pi) *
+                                        3.0;
+                                return Transform.translate(
+                                  offset: Offset(0, floatY),
+                                  child: illChild,
+                                );
+                              },
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(10, 0, 10, 14),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  height: 220,
+                                  child: ExerciseIllustration(
+                                    type: ex['type']!,
+                                    fit: BoxFit.contain,
+                                    alignment: Alignment.center,
                                   ),
                                 ),
                               ),
                             ),
                           ],
                         ),
-                      ),
                       ),
                       ),
                     ),

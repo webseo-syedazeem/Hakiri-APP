@@ -5,12 +5,10 @@ import '../core/services/analytics_service.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
-import '../widgets/app_snackbar.dart';
 import '../widgets/confidence_gauge_widget.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/hakkiri_logo.dart';
 import 'personalized_plan_screen.dart';
-import 'signup_screen.dart';
 
 class AssessmentScreen extends StatefulWidget {
   final int initialStep;
@@ -36,7 +34,9 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     final savedName = Provider.of<AppStateProvider>(context, listen: false).fullName.trim();
     _nameController = TextEditingController(
       text: savedName,
-    );
+    )..addListener(() {
+      if (mounted) setState(() {});
+    });
     _currentStepIndex = widget.initialStep;
     _selectedOptionId = _stepSelections[_currentStepIndex] ?? '';
     _pageController = PageController(initialPage: widget.initialStep);
@@ -363,8 +363,19 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
   Future<void> _nextStep() async {
     if (_isSubmitting) return;
 
+    // Always dismiss keyboard when moving on (name field / options).
+    FocusScope.of(context).unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
+
     if (!_canProceedCurrentStep) {
-      AppSnackBar.showInfo(context, 'Please select an option to continue.');
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select an option to continue.'),
+          duration: Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
       return;
     }
 
@@ -382,13 +393,35 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     }
 
     final state = Provider.of<AppStateProvider>(context, listen: false);
+    final name = _nameController.text.trim();
+    final gender = _stepSelections[2] ?? 'female';
+    final careerStage = _stepSelections[3] ?? 'mid_level';
+    final careerType = _stepSelections[4] ?? 'tech_product';
+    final confidenceUi = _stepSelections[5] ?? 'fairly';
+    final problem = _stepSelections[6] ?? 'filler_rush';
+    final goalUi = _stepSelections[7] ?? 'calmer_confident';
+
+    // Guest: keep answers local → plan → IAP → Create account.
     if (!state.isLoggedIn) {
-      if (!mounted) return;
-      AppSnackBar.showInfo(context, 'Create an account first.');
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const SignupScreen()),
-      );
+      setState(() => _isSubmitting = true);
+      try {
+        await state.completeAssessmentLocally(
+          name: name,
+          gender: gender,
+          careerStage: careerStage,
+          careerType: careerType,
+          confidence: confidenceUi,
+          problem: problem,
+          goal: goalUi,
+        );
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const PersonalizedPlanScreen()),
+        );
+      } finally {
+        if (mounted) setState(() => _isSubmitting = false);
+      }
       return;
     }
 
@@ -399,13 +432,13 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         message: 'Getting your information…',
         detail: 'Building your personalised speaking plan.',
         action: () => state.submitAssessmentToApi(
-          name: _nameController.text.trim(),
-          gender: _stepSelections[2] ?? 'female',
-          careerStage: _stepSelections[3] ?? 'mid_level',
-          careerType: _stepSelections[4] ?? 'tech_product',
-          confidence: _mapConfidenceForApi(_stepSelections[5] ?? 'fairly'),
-          problem: _stepSelections[6] ?? 'filler_rush',
-          goal: _mapGoalForApi(_stepSelections[7] ?? 'calmer_confident'),
+          name: name,
+          gender: gender,
+          careerStage: careerStage,
+          careerType: careerType,
+          confidence: _mapConfidenceForApi(confidenceUi),
+          problem: problem,
+          goal: _mapGoalForApi(goalUi),
         ),
       );
       if (!mounted) return;
@@ -415,10 +448,14 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       );
     } on HakkiriApiException catch (e) {
       if (!mounted) return;
-      AppSnackBar.showError(context, e.message);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message)),
+      );
     } catch (_) {
       if (!mounted) return;
-      AppSnackBar.showError(context, 'Could not save assessment. Check your connection.');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save assessment. Check your connection.')),
+      );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -837,6 +874,13 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               Expanded(
                 child: TextField(
                   controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.done,
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) {
+                    FocusScope.of(context).unfocus();
+                    if (_canProceedCurrentStep) _nextStep();
+                  },
                   style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 16,

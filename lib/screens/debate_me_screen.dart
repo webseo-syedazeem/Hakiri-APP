@@ -10,6 +10,7 @@ import 'package:record/record.dart';
 
 import '../core/services/analytics_service.dart';
 import '../core/services/hakkiri_api_service.dart';
+import '../core/services/ios_drill_recorder.dart';
 import '../core/services/session_audio_store.dart';
 import '../models/session_model.dart';
 import '../providers/app_state_provider.dart';
@@ -19,6 +20,7 @@ import '../widgets/blue_accent_rays.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/mic_reactive_waveform.dart';
 import 'feedback_screen.dart';
+import 'paywall_screen.dart';
 
 /// Guided Debate Me (client 6-step flow):
 /// 1. Overview → 2. Prompt + think → 3. Opening record →
@@ -29,10 +31,14 @@ class DebateMeScreen extends StatefulWidget {
   /// When true (from Activity Detail Begin), skip in-screen overview.
   final bool startAtPrompt;
 
+  /// Guest plan free try — after feedback / leave, go to IAP.
+  final bool isGuestTrial;
+
   const DebateMeScreen({
     super.key,
     this.topic,
     this.startAtPrompt = false,
+    this.isGuestTrial = false,
   });
 
   @override
@@ -165,6 +171,44 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
 
   Future<bool> _startRecorder({int attempt = 0}) async {
     _recorderLive = false;
+    if (Platform.isIOS) {
+      try {
+        final granted = await IosDrillRecorder.instance.hasPermission();
+        if (!granted) {
+          if (mounted) {
+            AppSnackBar.showError(
+              context,
+              'Microphone permission is needed to record your debate.',
+            );
+          }
+          return false;
+        }
+        await IosDrillRecorder.instance.cancel();
+        final path = await IosDrillRecorder.instance.start(
+          onAmplitude: (level) {
+            _micLevel.value = level;
+          },
+        );
+        _audioTempPath = path;
+        _recorderLive = true;
+        if (mounted) setState(() {});
+        return true;
+      } catch (_) {
+        _audioTempPath = null;
+        _recorderLive = false;
+        if (attempt < 1) {
+          await Future<void>.delayed(const Duration(milliseconds: 450));
+          return _startRecorder(attempt: attempt + 1);
+        }
+        if (mounted) {
+          AppSnackBar.showError(
+            context,
+            'Could not start the mic. Tap Finish and try again.',
+          );
+        }
+        return false;
+      }
+    }
     try {
       // hasPermission() also requests on iOS/Android.
       final granted = await _audioRecorder.hasPermission();
@@ -234,6 +278,13 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
     await _ampSub?.cancel();
     _ampSub = null;
     _recorderLive = false;
+    if (Platform.isIOS) {
+      final stopped = await IosDrillRecorder.instance.stop();
+      if (stopped.path != null && stopped.path!.isNotEmpty) {
+        _audioTempPath = stopped.path;
+      }
+      return _audioTempPath;
+    }
     try {
       if (await _audioRecorder.isRecording()) {
         final path = await _audioRecorder.stop();
@@ -593,8 +644,22 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) => FeedbackScreen(session: sessionForUi),
+        builder: (_) => FeedbackScreen(
+          session: sessionForUi,
+          isGuestTrial: widget.isGuestTrial,
+        ),
       ),
+    );
+  }
+
+  Future<void> _exitGuestTrialToPaywall() async {
+    final state = context.read<AppStateProvider>();
+    await state.markGuestReachedPaywall();
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const PaywallScreen()),
+      (route) => false,
     );
   }
 
@@ -602,6 +667,11 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
   /// Confirm → Activity Detail (Begin exercise) screen.
   Future<void> _onBack() async {
     if (_busy) return;
+
+    if (widget.isGuestTrial) {
+      await _exitGuestTrialToPaywall();
+      return;
+    }
 
     // In-screen overview (step 1) can leave without a dialog.
     if (_currentStep <= 1 && !widget.startAtPrompt) {
@@ -897,16 +967,37 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                         scrollDirection: Axis.horizontal,
                         physics: const BouncingScrollPhysics(),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _buildTimelineStep('1. Prompt', 'You\'re assigned a topic.', Icons.description_outlined),
+                            _buildTimelineStep(
+                              '1. Prompt',
+                              "You're assigned\na topic.",
+                              Icons.description_outlined,
+                            ),
                             _buildTimelineDivider(),
-                            _buildTimelineStep('2. Think', 'You have 10 seconds.', Icons.timer_outlined),
+                            _buildTimelineStep(
+                              '2. Think',
+                              'You have\n10 seconds.',
+                              Icons.timer_outlined,
+                            ),
                             _buildTimelineDivider(),
-                            _buildTimelineStep('3. Opening', 'Speak for 60 seconds.', Icons.mic_none_outlined),
+                            _buildTimelineStep(
+                              '3. Opening',
+                              'Speak for\n60 seconds.',
+                              Icons.mic_none_outlined,
+                            ),
                             _buildTimelineDivider(),
-                            _buildTimelineStep('4. Feedback', 'Hakkiri challenges your point.', Icons.chat_bubble_outline_rounded),
+                            _buildTimelineStep(
+                              '4. Pushback',
+                              'Hakkiri challenges\nyour point.',
+                              Icons.chat_bubble_outline_rounded,
+                            ),
                             _buildTimelineDivider(),
-                            _buildTimelineStep('5. Rebuttal', 'Respond, then get feedback.', Icons.insights_rounded),
+                            _buildTimelineStep(
+                              '5. Rebuttal',
+                              'Respond, then\nget feedback.',
+                              Icons.insights_rounded,
+                            ),
                           ],
                         ),
                       ),
@@ -1224,9 +1315,12 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
           child: ActionPillButton(
-            label: _topicSpeaking ? 'Skip to opening' : 'Start opening',
+            label: _topicSpeaking
+                ? 'Stop clock · Start recording'
+                : 'Start recording',
             onTap: () {
               _topicRevealTimer?.cancel();
+              _countdownTimer?.cancel();
               _goToStep(3);
             },
           ),
@@ -1675,9 +1769,12 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
           child: ActionPillButton(
-            label: _pushbackRevealing ? 'Skip to response' : 'Start response',
+            label: _pushbackRevealing
+                ? 'Stop clock · Start recording'
+                : 'Start recording',
             onTap: () {
               _pushbackRevealTimer?.cancel();
+              _countdownTimer?.cancel();
               _goToStep(5);
             },
           ),
@@ -2336,37 +2433,40 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
 
   Widget _buildTimelineStep(String title, String desc, IconData icon) {
     return SizedBox(
-      width: 90,
+      width: 118,
       child: Column(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(10),
             decoration: const BoxDecoration(
               color: Color(0xFFEFF6FF),
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 18, color: const Color(0xFF2563EB)),
+            child: Icon(icon, size: 20, color: const Color(0xFF2563EB)),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Text(
             title,
+            textAlign: TextAlign.center,
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 11.5,
+              fontSize: 13.5,
               fontWeight: FontWeight.w800,
               color: Color(0xFF0F172A),
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
             desc,
             textAlign: TextAlign.center,
+            maxLines: 2,
+            softWrap: true,
             style: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 9.5,
+              fontSize: 12.5,
               fontWeight: FontWeight.w500,
               color: Color(0xFF64748B),
-              height: 1.25,
+              height: 1.3,
             ),
           ),
         ],
@@ -2375,11 +2475,14 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
   }
 
   Widget _buildTimelineDivider() {
-    return Container(
-      width: 14,
-      height: 1.5,
-      color: const Color(0xFFCBD5E1),
-      margin: const EdgeInsets.symmetric(horizontal: 2),
+    return Padding(
+      padding: const EdgeInsets.only(top: 22),
+      child: Container(
+        width: 16,
+        height: 1.5,
+        color: const Color(0xFFCBD5E1),
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+      ),
     );
   }
 
