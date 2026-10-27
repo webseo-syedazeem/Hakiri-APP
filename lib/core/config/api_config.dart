@@ -8,3 +8,4 @@ class ApiConfig {
     return Uri.parse('$baseUrl$apiPrefix$normalized');
   }
 }
+
