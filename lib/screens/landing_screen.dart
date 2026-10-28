@@ -59,7 +59,7 @@ class _LandingScreenState extends State<LandingScreen>
     'Is Hakkiri for me?',
     'Why Hakkiri?',
     'Explore your learning path',
-    'Start assessment',
+    "I'm ready to start",
   ];
 
   @override
@@ -128,7 +128,7 @@ class _LandingScreenState extends State<LandingScreen>
 
   String get _primaryCtaLabel {
     if (_currentPage == _sectionLabels.length - 1 && !widget.postSignup) {
-      return 'Start assessment';
+      return "I'm ready to start";
     }
     return _sectionLabels[_currentPage];
   }
@@ -212,7 +212,18 @@ class _LandingScreenState extends State<LandingScreen>
         backgroundColor: Colors.white,
         body: Stack(
           children: [
-            const OnboardingBubbleBackground(),
+            // Positioned must be a direct Stack child (not inside Fade/Opacity).
+            Positioned(
+              top: MediaQuery.paddingOf(context).top,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: AnimatedOpacity(
+                opacity: _currentPage == 6 ? 0.0 : 1.0,
+                duration: const Duration(milliseconds: 250),
+                child: const OnboardingBubbleBackground(),
+              ),
+            ),
             SafeArea(
           bottom: !isIOS,
           child: SlideTransition(
@@ -278,14 +289,6 @@ class _LandingScreenState extends State<LandingScreen>
                         activeIndex: 2,
                         totalDots: 5,
                         activeColor: const Color(0xFF2563EB),
-                      ),
-                      const SizedBox(height: 12),
-                    ] else if (_currentPage == 6) ...[
-                      _buildDotsIndicator(
-                        activeIndex: 3,
-                        totalDots: 5,
-                        activeColor: const Color(0xFF2563EB),
-                        alignment: MainAxisAlignment.center,
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -456,14 +459,22 @@ class _LandingScreenState extends State<LandingScreen>
                 ),
               ),
 
-              // Subtitle: Exercises. Personalised feedback. Data insights.
-              const Center(
-                child: Text(
-                  'Exercises. Personalised feedback. Data insights.',
-                  style: TextStyle(
-                    color: Color(0xFF475569),
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w500,
+              // Subtitle above Get started — shrink to stay on one line
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Guided exercises. Personalised feedback. Clear progress.',
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(
+                      color: Color(0xFF475569),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.15,
+                    ),
                   ),
                 ),
               ),
@@ -607,7 +618,7 @@ class _LandingScreenState extends State<LandingScreen>
         'tag': '06 · 07',
         'title': 'One Minute Expert',
         'tagline': 'Know it. Explain it.',
-        'desc': 'Choose a topic and explain it clearly, confidently and coherently in 60 seconds.',
+        'desc': 'A topic is presented and you explain it clearly, confidently and coherently in 60 seconds.',
         'type': 'stopwatch',
       },
       {
@@ -1250,89 +1261,10 @@ class _LandingScreenState extends State<LandingScreen>
   }
 
   // ==========================================
-  // PAGE 5: SUGGESTED PRACTICE PATH (media_1791378897108.png)
+  // PAGE 6: SUGGESTED PRACTICE PATH (Twelve months journey)
   // ==========================================
   Widget _buildSuggestedPracticePathPage() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Tag: A GUIDED PRACTICE PATH
-          const Text(
-            'A GUIDED PRACTICE PATH',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.3,
-              color: Color(0xFF64748B),
-            ),
-          ),
-          const SizedBox(height: 4),
-
-          // Headline
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Twelve months,',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 30,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF0F172A),
-                  height: 1.15,
-                  letterSpacing: -0.8,
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Text(
-                    'one step at a time.',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 30,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF2563EB),
-                      height: 1.15,
-                      letterSpacing: -0.8,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Transform.translate(
-                    offset: const Offset(0, -6),
-                    child: const BlueAccentRays(size: 24),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-
-          // Subtitle
-          const Text(
-            'A starting point to help you build momentum.',
-            style: TextStyle(
-              color: Color(0xFF64748B),
-              fontSize: 12.5,
-              fontWeight: FontWeight.w500,
-              height: 1.25,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Winding Roadmap Graphic (100% Crisp Native Vector)
-          const Expanded(
-            child: Center(
-              child: TwelveMonthsRoadmapView(),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
+    return const TwelveMonthsRoadmapView();
   }
 
   Widget _buildTestimonialCard({

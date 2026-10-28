@@ -66,9 +66,13 @@ class PromptModel {
     required this.prepSeconds,
   });
 
+  /// Pure general / untagged only. A sales+general tag is NOT general —
+  /// otherwise healthcare users get brand/logo prompts.
   bool get isGeneralIndustry {
     if (industries.isEmpty) return true;
-    return industries.contains('general');
+    final careers =
+        industries.where((i) => i != 'general' && i.trim().isNotEmpty);
+    return careers.isEmpty;
   }
 
   bool matchesCareer(String? career) {

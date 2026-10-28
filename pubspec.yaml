@@ -2,7 +2,7 @@ name: hakkiri_app
 description: "Hakkiri - Daily Communication Gym for Real-Life Professional Agility"
 publish_to: 'none'
 
-version: 1.0.5+5
+version: 1.0.6+6
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

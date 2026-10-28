@@ -8,10 +8,14 @@ class OnboardingBubbleBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Positioned.fill(
-      child: IgnorePointer(
-        child: CustomPaint(
-          painter: _BubbleBackgroundPainter(),
+    // No Positioned here — callers that sit in a Stack must wrap this widget
+    // (or its fade parent) with Positioned themselves.
+    return const IgnorePointer(
+      child: SizedBox.expand(
+        child: ClipRect(
+          child: CustomPaint(
+            painter: _BubbleBackgroundPainter(),
+          ),
         ),
       ),
     );

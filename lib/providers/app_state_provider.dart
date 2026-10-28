@@ -69,6 +69,9 @@ class AppStateProvider extends ChangeNotifier {
   PersonalizedPlanModel? personalizedPlan;
   /// Guest finished assessment before Create account — sync after signup.
   bool hasPendingLocalAssessment = false;
+  /// Name typed in assessment — kept across existing-account login (server
+  /// full_name must not wipe it before sync).
+  String? pendingAssessmentName;
 
   /// Guest funnel (no login yet):
   /// - [guestStageAwaitingIap] → plan (trial) or paywall after trial/Continue
@@ -640,10 +643,17 @@ class AppStateProvider extends ChangeNotifier {
       return;
     }
     userId = _api.userId?.isNotEmpty == true ? _api.userId! : userId;
-    fullName = _api.fullName ?? '';
+    // Do not wipe the quiz name with a stale session cache — sync on signup
+    // must still see pendingAssessmentName / local fullName.
+    final quizName = pendingAssessmentName?.trim();
+    if (quizName == null || quizName.length < 2) {
+      fullName = _api.fullName ?? fullName;
+    }
     email = _api.email ?? email;
     isLoggedIn = true;
-    isOnboarded = _api.isOnboardedCached || isOnboarded;
+    if (!hasPendingLocalAssessment) {
+      isOnboarded = _api.isOnboardedCached || isOnboarded;
+    }
     if (userId.isNotEmpty) {
       unawaited(AnalyticsService.instance.syncUserProfile(
         userId: userId,
@@ -651,6 +661,14 @@ class AppStateProvider extends ChangeNotifier {
       ));
     }
     unawaited(PushNotificationService.instance.syncTokenToApi());
+    // Only recover a sync that was interrupted after login/signup — never
+    // invent a push before the user hits Create account / Login.
+    if (hasPendingLocalAssessment && isLoggedIn) {
+      unawaited(syncPendingAssessmentIfNeeded().catchError((e) {
+        debugPrint('[Hakkiri] splash pending assessment sync failed: $e');
+        return false;
+      }));
+    }
     notifyListeners();
   }
 
@@ -664,7 +682,47 @@ class AppStateProvider extends ChangeNotifier {
     if (raw == null || raw.isEmpty) return;
     try {
       final map = jsonDecode(raw) as Map<String, dynamic>;
-      fullName = (map['full_name'] as String?)?.trim() ?? fullName;
+      final hasAnswers = map['career_stage'] != null || map['primary_goal'] != null;
+
+      // Already signed in: only keep pending if onboarding still needs a sync.
+      // Stale guest flags were blocking profile updates (goal / challenge).
+      if (_api.isLoggedIn) {
+        final needsSync = hasAnswers && !_api.isOnboardedCached;
+        if (needsSync) {
+          final savedName = (map['full_name'] as String?)?.trim();
+          if (savedName != null && savedName.length >= 2) {
+            fullName = savedName;
+            pendingAssessmentName = savedName;
+          }
+          answers.voiceProfile = map['voice_profile'] as String?;
+          answers.careerStage = map['career_stage'] as String?;
+          answers.careerType = map['career_type'] as String?;
+          answers.confidence = map['confidence'] as String?;
+          answers.roadblock = map['roadblock'] as String?;
+          answers.primaryGoal = map['primary_goal'] as String?;
+          selectedDifficulty =
+              (map['difficulty'] as String?) ?? selectedDifficulty;
+          computeAssessmentPlan();
+          hasPendingLocalAssessment = true;
+        } else {
+          hasPendingLocalAssessment = false;
+          pendingAssessmentName = null;
+          await prefs.remove(_guestAssessmentKey);
+          await prefs.remove(_guestFunnelStageKey);
+          await prefs.remove(_guestTierKey);
+          await prefs.remove(_guestTrialUsedKey);
+          await prefs.remove(_guestPaywallReachedKey);
+          guestFunnelStage = '';
+          pendingGuestTier = null;
+        }
+        return;
+      }
+
+      final savedName = (map['full_name'] as String?)?.trim();
+      if (savedName != null && savedName.length >= 2) {
+        fullName = savedName;
+        pendingAssessmentName = savedName;
+      }
       answers.voiceProfile = map['voice_profile'] as String?;
       answers.careerStage = map['career_stage'] as String?;
       answers.careerType = map['career_type'] as String?;
@@ -673,7 +731,7 @@ class AppStateProvider extends ChangeNotifier {
       answers.primaryGoal = map['primary_goal'] as String?;
       selectedDifficulty =
           (map['difficulty'] as String?) ?? selectedDifficulty;
-      if (answers.careerStage != null || answers.primaryGoal != null) {
+      if (hasAnswers) {
         computeAssessmentPlan();
         hasPendingLocalAssessment = true;
       }
@@ -701,7 +759,7 @@ class AppStateProvider extends ChangeNotifier {
     await prefs.setString(
       _guestAssessmentKey,
       jsonEncode({
-        'full_name': fullName,
+        'full_name': (pendingAssessmentName ?? fullName).trim(),
         'voice_profile': answers.voiceProfile,
         'career_stage': answers.careerStage,
         'career_type': answers.careerType,
@@ -717,6 +775,7 @@ class AppStateProvider extends ChangeNotifier {
     guestFunnelStage = '';
     pendingGuestTier = null;
     hasPendingLocalAssessment = false;
+    pendingAssessmentName = null;
     guestTrialUsed = false;
     guestPaywallReached = false;
     final prefs = await SharedPreferences.getInstance();
@@ -804,22 +863,31 @@ class AppStateProvider extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
-    _resetAssessmentLocalState();
+    // Keep quiz answers if guest just finished assessment then logged in.
+    final keepPending = hasPendingLocalAssessment;
+    if (!keepPending) {
+      _resetAssessmentLocalState();
+    }
     final data = await _api.login(email: email, password: password);
     _applyAuthPayload(data);
     unawaited(AnalyticsService.instance.logLogin(method: 'email'));
-    // Login always resumes on Home — mark session ready locally.
-    isOnboarded = true;
-    await _api.persistOnboarded(true);
+    if (!keepPending) {
+      // Login always resumes on Home — mark session ready locally.
+      isOnboarded = true;
+      await _api.persistOnboarded(true);
+      unawaited(refreshFromApi());
+    }
+    // If keepPending: caller must syncPendingAssessmentIfNeeded() before refresh.
     unawaited(PushNotificationService.instance.syncTokenToApi());
-    unawaited(refreshFromApi());
+    notifyListeners();
     return data;
   }
 
   Future<Map<String, dynamic>> continueWithGoogle() async {
     final google = await GoogleAuthService.signIn();
-    // Keep guest assessment when Create account comes after the quiz.
-    if (!hasPendingLocalAssessment) {
+    // Keep guest assessment when Create account / login comes after the quiz.
+    final keepPending = hasPendingLocalAssessment;
+    if (!keepPending) {
       _resetAssessmentLocalState(clearOnboardedFlag: false);
     }
     final data = await _api.loginWithGoogle(idToken: google.idToken);
@@ -831,26 +899,30 @@ class AppStateProvider extends ChangeNotifier {
       unawaited(AnalyticsService.instance.logLogin(method: 'google'));
     }
     // API-level routing: existing + assessment done → Home (skip onboarding).
+    // If guest quiz is pending, leave onboarded false until sync writes the new answers.
     final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
     final apiSaysNeedsOnboarding = data['needs_onboarding'] == true;
     final apiSaysComplete = data['onboarding_complete'] == true ||
         profile['onboarding_complete'] == true;
-    final done = data.containsKey('needs_onboarding')
-        ? !apiSaysNeedsOnboarding
-        : (!created && apiSaysComplete);
-    isOnboarded = done;
-    await _api.persistOnboarded(done);
-    unawaited(PushNotificationService.instance.syncTokenToApi());
-    if (!created) {
-      unawaited(refreshFromApi());
+    if (!keepPending) {
+      final done = data.containsKey('needs_onboarding')
+          ? !apiSaysNeedsOnboarding
+          : (!created && apiSaysComplete);
+      isOnboarded = done;
+      await _api.persistOnboarded(done);
+      if (!created) {
+        unawaited(refreshFromApi());
+      }
     }
+    unawaited(PushNotificationService.instance.syncTokenToApi());
     notifyListeners();
     return data;
   }
 
   Future<Map<String, dynamic>> continueWithApple() async {
     final apple = await AppleAuthService.signIn();
-    if (!hasPendingLocalAssessment) {
+    final keepPending = hasPendingLocalAssessment;
+    if (!keepPending) {
       _resetAssessmentLocalState(clearOnboardedFlag: false);
     }
     final data = await _api.loginWithApple(
@@ -868,15 +940,17 @@ class AppStateProvider extends ChangeNotifier {
     final apiSaysNeedsOnboarding = data['needs_onboarding'] == true;
     final apiSaysComplete = data['onboarding_complete'] == true ||
         profile['onboarding_complete'] == true;
-    final done = data.containsKey('needs_onboarding')
-        ? !apiSaysNeedsOnboarding
-        : (!created && apiSaysComplete);
-    isOnboarded = done;
-    await _api.persistOnboarded(done);
-    unawaited(PushNotificationService.instance.syncTokenToApi());
-    if (!created) {
-      unawaited(refreshFromApi());
+    if (!keepPending) {
+      final done = data.containsKey('needs_onboarding')
+          ? !apiSaysNeedsOnboarding
+          : (!created && apiSaysComplete);
+      isOnboarded = done;
+      await _api.persistOnboarded(done);
+      if (!created) {
+        unawaited(refreshFromApi());
+      }
     }
+    unawaited(PushNotificationService.instance.syncTokenToApi());
     notifyListeners();
     return data;
   }
@@ -890,6 +964,7 @@ class AppStateProvider extends ChangeNotifier {
     answers.primaryGoal = null;
     personalizedPlan = null;
     hasPendingLocalAssessment = false;
+    pendingAssessmentName = null;
     guestFunnelStage = '';
     pendingGuestTier = null;
     guestTrialUsed = false;
@@ -909,8 +984,10 @@ class AppStateProvider extends ChangeNotifier {
     required String problem,
     required String goal,
   }) async {
-    if (name.trim().length >= 2) {
-      fullName = name.trim();
+    final trimmed = name.trim();
+    if (trimmed.length >= 2) {
+      fullName = trimmed;
+      pendingAssessmentName = trimmed;
     }
     answers.voiceProfile = gender;
     answers.careerStage = careerStage;
@@ -934,12 +1011,12 @@ class AppStateProvider extends ChangeNotifier {
     switch (id) {
       case 'not_at_all':
       case 'slightly':
+      case 'not_very':
         return 'not_very';
       case 'confident':
         return 'fairly';
       case 'fairly':
       case 'very':
-      case 'not_very':
         return id;
       default:
         return 'fairly';
@@ -957,40 +1034,67 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 
+  /// Profile API still uses male/female/non_binary; coach ids map into those.
+  String _mapVoiceForApi(String id) {
+    switch (id.trim().toLowerCase()) {
+      case 'male':
+      case 'david':
+      case 'marcus':
+        return 'male';
+      case 'non_binary':
+      case 'alex':
+        return 'non_binary';
+      case 'female':
+      case 'sarah':
+      case 'elena':
+      default:
+        return 'female';
+    }
+  }
+
   /// After Create account: push guest assessment (+ local IAP tier) to the server.
   Future<bool> syncPendingAssessmentIfNeeded() async {
     if (!isLoggedIn || !hasPendingLocalAssessment) return false;
-    await submitAssessmentToApi(
-      name: fullName.trim().length >= 2 ? fullName.trim() : 'Member',
-      gender: answers.voiceProfile ?? 'female',
-      careerStage: answers.careerStage ?? 'mid_level',
-      careerType: answers.careerType ?? 'tech_product',
-      confidence: _mapConfidenceForApi(answers.confidence ?? 'fairly'),
-      problem: answers.roadblock ?? 'filler_rush',
-      goal: _mapGoalForApi(answers.primaryGoal ?? 'calmer_confident'),
-    );
-    final tier = pendingGuestTier ??
-        (isSubscribed ? subscriptionTier : null);
-    if (tier != null &&
-        (tier == 'monthly_pro' ||
-            tier == 'annual_pro' ||
-            tier == 'monthly' ||
-            tier == 'annual')) {
-      try {
-        await choosePlanFromApi(
-          tier == 'annual' || tier == 'annual_pro'
-              ? 'annual_pro'
-              : 'monthly_pro',
-        );
-        isSubscribed = true;
-      } catch (e) {
-        debugPrint('[Hakkiri] guest plan sync after signup failed: $e');
+    try {
+      final quizName = (pendingAssessmentName ?? fullName).trim();
+      await submitAssessmentToApi(
+        name: quizName.length >= 2 ? quizName : 'Member',
+        gender: _mapVoiceForApi(answers.voiceProfile ?? 'female'),
+        careerStage: answers.careerStage ?? 'mid_level',
+        careerType: answers.careerType ?? 'tech_product',
+        confidence: _mapConfidenceForApi(answers.confidence ?? 'fairly'),
+        problem: answers.roadblock ?? 'filler_rush',
+        goal: _mapGoalForApi(answers.primaryGoal ?? 'calmer_confident'),
+      );
+      pendingAssessmentName = null;
+      final tier = pendingGuestTier ??
+          (isSubscribed ? subscriptionTier : null);
+      if (tier != null &&
+          (tier == 'monthly_pro' ||
+              tier == 'annual_pro' ||
+              tier == 'monthly' ||
+              tier == 'annual')) {
+        try {
+          await choosePlanFromApi(
+            tier == 'annual' || tier == 'annual_pro'
+                ? 'annual_pro'
+                : 'monthly_pro',
+          );
+          isSubscribed = true;
+        } catch (e) {
+          debugPrint('[Hakkiri] guest plan sync after signup failed: $e');
+        }
       }
+      hasPendingLocalAssessment = false;
+      await clearGuestFunnel();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('[Hakkiri] pending assessment sync failed: $e');
+      // Keep pending so signup can retry; do not leave a stuck silent flag
+      // that blocks later profile edits without a clear error.
+      rethrow;
     }
-    hasPendingLocalAssessment = false;
-    await clearGuestFunnel();
-    notifyListeners();
-    return true;
   }
 
   Future<void> markOnboardedComplete() async {
@@ -1009,21 +1113,45 @@ class AppStateProvider extends ChangeNotifier {
     required String roadblock,
     required String goal,
   }) async {
+    final mappedVoice = _mapVoiceForApi(voiceProfile);
+    final mappedConfidence = _mapConfidenceForApi(confidence);
+    final mappedGoal = _mapGoalForApi(goal);
     final data = await _api.updateProfile({
       'full_name': name.trim(),
-      'voice_profile': voiceProfile,
+      'voice_profile': mappedVoice,
       'career_stage': careerStage,
       'career_type': careerType,
-      'speaking_confidence': confidence,
+      'speaking_confidence': mappedConfidence,
       'primary_roadblock': roadblock,
-      'primary_goal': goal,
+      'primary_goal': mappedGoal,
     });
     if (name.trim().length >= 2) {
       fullName = name.trim();
       await _api.persistSessionFields(fullName: fullName);
     }
+    // Always mirror what we just saved so UI updates even if a stale
+    // guest-pending flag would skip _applyProfile.
+    final careerChanged = answers.careerType != careerType;
+    answers.careerStage = careerStage;
+    answers.careerType = careerType;
+    answers.confidence = mappedConfidence;
+    answers.roadblock = roadblock;
+    answers.primaryGoal = mappedGoal;
+    // Keep coach id locally if user had one; otherwise store API voice bucket.
+    final coachLike = voiceProfile.trim().toLowerCase();
+    if (voiceLabels.containsKey(coachLike)) {
+      answers.voiceProfile = coachLike;
+    } else {
+      answers.voiceProfile = mappedVoice;
+    }
+    computeAssessmentPlan();
     final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
-    _applyProfile(profile);
+    _applyProfile(profile, force: true);
+    // Career change → drop the old track's prompt so the next drill refetches.
+    if (careerChanged) {
+      selectedPrompt = null;
+      unawaited(fetchNextPromptFromApi(excludeCurrent: false));
+    }
     notifyListeners();
   }
 
@@ -1192,9 +1320,10 @@ class AppStateProvider extends ChangeNotifier {
 
     if (name.trim().length >= 2) {
       fullName = name.trim();
+      await _api.persistSessionFields(fullName: fullName);
     }
     final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
-    _applyProfile(profile);
+    _applyProfile(profile, force: true);
     await markOnboardedComplete();
     unawaited(AnalyticsService.instance.logAssessmentCompleted(
       careerType: careerType,
@@ -1212,11 +1341,23 @@ class AppStateProvider extends ChangeNotifier {
     final settings = (data['settings'] as Map<String, dynamic>?) ?? {};
 
     userId = (user['id'] ?? _api.userId ?? userId).toString();
-    fullName = (user['full_name'] ?? fullName).toString();
+    // Keep assessment name when guest is about to sync onto an existing account.
+    final quizName = (pendingAssessmentName ??
+            (hasPendingLocalAssessment ? fullName : null))
+        ?.trim();
+    if (quizName != null && quizName.length >= 2) {
+      fullName = quizName;
+      pendingAssessmentName = quizName;
+    } else {
+      fullName = (user['full_name'] ?? fullName).toString();
+    }
     email = (user['email'] ?? email).toString();
     isLoggedIn = true;
-    if (email.isNotEmpty) {
-      unawaited(_api.persistSessionFields(email: email));
+    if (email.isNotEmpty || fullName.trim().isNotEmpty) {
+      unawaited(_api.persistSessionFields(
+        email: email.isNotEmpty ? email : null,
+        fullName: fullName.trim().isNotEmpty ? fullName.trim() : null,
+      ));
     }
     _applyProfile(profile);
     _applySubscription(subscription);
@@ -1235,33 +1376,35 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 
-  void _applyProfile(Map<String, dynamic> profile) {
+  void _applyProfile(Map<String, dynamic> profile, {bool force = false}) {
     if (profile.isEmpty) return;
-    // Guest assessment waiting for Create account — don't wipe with empty profile.
-    if (!hasPendingLocalAssessment) {
+    // Pending guest assessment must win until syncPendingAssessmentIfNeeded
+    // pushes it — otherwise an existing account's old profile wipes the quiz.
+    final applyAnswers = force || !hasPendingLocalAssessment;
+    if (applyAnswers) {
       if (profile.containsKey('voice_profile')) {
         final v = profile['voice_profile'];
-        answers.voiceProfile = v?.toString();
+        if (v != null) answers.voiceProfile = v.toString();
       }
       if (profile.containsKey('career_stage')) {
         final v = profile['career_stage'];
-        answers.careerStage = v?.toString();
+        if (v != null) answers.careerStage = v.toString();
       }
       if (profile.containsKey('career_type')) {
         final v = profile['career_type'];
-        answers.careerType = v?.toString();
+        if (v != null) answers.careerType = v.toString();
       }
       if (profile.containsKey('speaking_confidence')) {
         final v = profile['speaking_confidence'];
-        answers.confidence = v?.toString();
+        if (v != null) answers.confidence = v.toString();
       }
       if (profile.containsKey('primary_roadblock')) {
         final v = profile['primary_roadblock'];
-        answers.roadblock = v?.toString();
+        if (v != null) answers.roadblock = v.toString();
       }
       if (profile.containsKey('primary_goal')) {
         final v = profile['primary_goal'];
-        answers.primaryGoal = v?.toString();
+        if (v != null) answers.primaryGoal = v.toString();
       }
       final plan = profile['personalized_plan'];
       if (plan is Map<String, dynamic>) {
@@ -1274,8 +1417,7 @@ class AppStateProvider extends ChangeNotifier {
       }
     }
     // Server is source of truth — do NOT infer from leftover local answers.
-    if (profile.containsKey('onboarding_complete') &&
-        !hasPendingLocalAssessment) {
+    if (profile.containsKey('onboarding_complete') && applyAnswers) {
       final done = profile['onboarding_complete'] == true;
       isOnboarded = done;
       unawaited(_api.persistOnboarded(done));
@@ -1477,10 +1619,10 @@ class AppStateProvider extends ChangeNotifier {
         name: 'Cut It In Half',
         isMvp: true,
         tagline: 'Extreme information synthesis and brevity',
-        description: 'Review a lengthy corporate brief in 45 seconds, then summarize the core thesis with at least 50% rate compression.',
+        description: 'Review a lengthy brief in 60 seconds, then summarise the core point in 30 seconds with at least 50% rate compression.',
         cognitiveMechanism: 'Information distillation, compression, and high-density verbalization',
-        prepDurationSeconds: 45,
-        defaultDurationSeconds: 45,
+        prepDurationSeconds: 60,
+        defaultDurationSeconds: 30,
         benefits: ['Forces deep information synthesis', 'Commands respect through brevity', 'Increases stakeholder retention'],
         successMeasures: ['Rate compression (50%+ reduction)', 'Time to value (BLUF)', 'Jargon translation'],
       ),
@@ -1503,7 +1645,7 @@ class AppStateProvider extends ChangeNotifier {
         tagline: 'Demystifying complexity for non-experts',
         description: 'Translate a complex domain concept into crystal-clear language for a designated non-expert persona without jargon.',
         cognitiveMechanism: 'Analogical reasoning and demographic persona calibration',
-        prepDurationSeconds: 10,
+        prepDurationSeconds: 5,
         defaultDurationSeconds: 60,
         benefits: ['Unlocks cross-functional leadership credibility', 'Forces conceptual mastery', 'Reduces meeting friction'],
         successMeasures: ['Persona Calibration', 'Time to Value', 'Linguistic Fit'],
@@ -1633,19 +1775,49 @@ class AppStateProvider extends ChangeNotifier {
         prepSeconds: 5,
       ),
 
-      // Cut It In Half
+      // Cut It In Half — promptText = passage; exemplar = short "must keep" brief
+      const PromptModel(
+        id: 'cih_b_fire_alarm',
+        activitySlug: 'cut_it_in_half',
+        difficulty: 'beginner',
+        title: 'Office closed Friday',
+        promptText:
+            'Hi all, just a quick reminder that the office will be closed on Friday afternoon for the fire alarm upgrade. The contractors will be on site from 1pm, so everyone needs to leave the building by then. Please make sure you take your laptop home with you on Friday morning, because you won\'t be able to get back in until Monday. Thanks for your patience.',
+        objective: 'Cut this to the facts. Lead with what people must do.',
+        exemplarResponse:
+            'Office closed Friday from 1pm; take your laptop home; no access until Monday.',
+        tags: ['brevity'],
+        durationSeconds: 30,
+        prepSeconds: 60,
+      ),
       const PromptModel(
         id: 'cih_01',
         activitySlug: 'cut_it_in_half',
         difficulty: 'beginner',
         title: 'Slack After-Hours Communication Policy',
-        promptText: 'Summarize the core policy announcement with at least 50% rate compression within 30 seconds.',
-        secondaryText: 'Hey team, I just wanted to jump on here and let everyone know that we’ve been looking at how we manage our internal communications lately. It turns out that a lot of people are feeling pretty overwhelmed by the sheer volume of Slack messages flying around every day, especially after hours. Because of that, leadership has decided that starting next Monday, we are going to implement a new policy where no one is expected to reply to any Slack messages after 6:00 PM. We really want everyone to get some proper downtime so we can keep our productivity high during normal working hours.',
-        objective: 'State the policy immediately, eliminate fluff, speak steadily.',
-        exemplarResponse: 'Starting Monday, to protect personal downtime and sustain daytime focus, team members are not required to respond to Slack messages after 6:00 PM.',
+        promptText:
+            'Hey team, I just wanted to jump on here and let everyone know that we\'ve been looking at how we manage our internal communications lately. It turns out that a lot of people are feeling pretty overwhelmed by the sheer volume of Slack messages flying around every day, especially after hours. Because of that, leadership has decided that starting next Monday, we are going to implement a new policy where no one is expected to reply to any Slack messages after 6:00 PM. We really want everyone to get some proper downtime so we can keep our productivity high during normal working hours.',
+        objective: 'Cut this message roughly in half. Lead with the policy.',
+        exemplarResponse:
+            'From Monday, nobody is expected to reply to Slack after 6pm. The aim is real downtime so daytime work stays focused.',
         tags: ['internal_comms', 'brevity'],
-        durationSeconds: 45,
-        prepSeconds: 45,
+        durationSeconds: 30,
+        prepSeconds: 60,
+      ),
+      const PromptModel(
+        id: 'cih_i_ward_report',
+        activitySlug: 'cut_it_in_half',
+        difficulty: 'intermediary',
+        title: 'Ward handoff note',
+        promptText:
+            'So basically overnight the patient was a bit unsettled and we tried a few things and the observations were mostly okay but then towards morning the oxygen crept up a little and we called the doctor who said to continue and review later. Family were anxious at the bedside and we explained that stable does not mean going home today. Pain was managed with the usual dose and she took some breakfast. Please make sure the allergy note from last shift is still on the chart before the ward round.',
+        objective: 'Cut this handoff to status, change, and action.',
+        exemplarResponse:
+            'Overnight: restless, obs mostly stable; oxygen need rose toward morning — doctor said continue and review later. Allergy note must stay on the chart before ward round.',
+        tags: ['healthcare'],
+        industries: ['healthcare_edu'],
+        durationSeconds: 30,
+        prepSeconds: 60,
       ),
 
       // 1 Minute Expert — corporate / finance local fallbacks
@@ -1692,7 +1864,7 @@ class AppStateProvider extends ChangeNotifier {
             'Chef, think of Google as the person on the corner giving directions. SEO is making your bakery the clearest answer — right name, right street, and proof people like what you bake — so that guide points hungry customers to your door.',
         tags: ['marketing', 'local_business'],
         durationSeconds: 60,
-        prepSeconds: 10,
+        prepSeconds: 5,
       ),
 
       // Storytelling Gym

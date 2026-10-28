@@ -69,6 +69,8 @@ class _RecordingScreenState extends State<RecordingScreen>
   int _speakingSecondsRemaining = 60;
   Timer? _speakingTimer;
   String _promptHeadline = 'How would you handle a difficult stakeholder?';
+  /// Cut It In Half: long passage — skip karaoke stage (avoids huge→tiny glitch).
+  bool _isCutInHalf = false;
 
   final SpeechToText _speech = SpeechToText();
   final AudioRecorder _audioRecorder = AudioRecorder();
@@ -136,6 +138,20 @@ class _RecordingScreenState extends State<RecordingScreen>
     _applyPromptAndStart(state);
   }
 
+  /// Cut It In Half must show the long PASSAGE to compress.
+  /// New catalog: passage is [promptText]. Legacy: passage was [secondaryText].
+  String? _cutItInHalfPassage(dynamic prompt) {
+    if (prompt == null) return null;
+    final primary = (prompt.promptText as String?)?.trim() ?? '';
+    final secondary = (prompt.secondaryText as String?)?.trim() ?? '';
+    if (secondary.length > primary.length && secondary.length >= 80) {
+      return secondary;
+    }
+    if (primary.isNotEmpty) return primary;
+    if (secondary.isNotEmpty) return secondary;
+    return null;
+  }
+
   void _applyPromptAndStart(AppStateProvider state) {
     final activity = state.selectedActivity;
     var prompt = state.selectedPrompt;
@@ -157,21 +173,27 @@ class _RecordingScreenState extends State<RecordingScreen>
         prompt?.prepSeconds ?? activity?.prepDurationSeconds ?? 5;
     if (_speakingTotalSeconds < 10) _speakingTotalSeconds = 10;
     if (_prepTotalSeconds < 1) _prepTotalSeconds = 1;
-    // Product copy: Think Fast + One Minute Expert use a 5s think window.
-    // Old API/DB defaults of 3s must not win over the activity setting.
+    // Product copy: Think Fast / One Minute Expert / Explain It Simply = 5s think.
     final slug = activity?.slug ?? '';
-    if ((slug == 'think_fast' || slug == 'one_minute_expert') &&
-        _prepTotalSeconds < 5) {
-      _prepTotalSeconds =
-          activity?.prepDurationSeconds ?? 5;
-      if (_prepTotalSeconds < 5) _prepTotalSeconds = 5;
+    if (slug == 'think_fast' ||
+        slug == 'one_minute_expert' ||
+        slug == 'explain_it_simply') {
+      _prepTotalSeconds = 5;
+    }
+    // Cut It In Half: 60s to read the passage, 30s to speak the short version.
+    if (slug == 'cut_it_in_half') {
+      _prepTotalSeconds = 60;
+      _speakingTotalSeconds = 30;
     }
 
     _speakingSecondsRemaining = _speakingTotalSeconds;
     _prepSecondsRemaining = _prepTotalSeconds;
     _prepArcController.duration = Duration(seconds: _prepTotalSeconds);
 
-    _promptHeadline = prompt?.promptText ??
+    // Cut It In Half: show the PASSAGE (to compress), never a quiz-style question.
+    // Prefer longer secondaryText when legacy prompts still store the brief there.
+    _promptHeadline = _cutItInHalfPassage(prompt) ??
+        prompt?.promptText ??
         'How would you handle a difficult stakeholder?';
     final nextWords =
         _promptHeadline.split(' ').where((w) => w.isNotEmpty).toList();
@@ -184,6 +206,15 @@ class _RecordingScreenState extends State<RecordingScreen>
       difficulty: state.selectedDifficulty,
     );
     AnalyticsService.instance.logScreenView(screenName: 'RecordingScreen');
+    _isCutInHalf = (activity?.slug ?? '') == 'cut_it_in_half';
+    // CIH: go straight to the 60s read countdown with stable passage size.
+    // Karaoke stage uses 32pt type and was causing a sudden shrink glitch.
+    if (_isCutInHalf) {
+      _revealedWordCount = _words.length;
+      _promptSpeaking = false;
+      _start5sCountdown();
+      return;
+    }
     _startWordByWordReveal();
   }
 
@@ -193,14 +224,17 @@ class _RecordingScreenState extends State<RecordingScreen>
   void _startWordByWordReveal() {
     _wordRevealTimer?.cancel();
 
-    _revealedWordCount = _words.isEmpty ? 0 : 1;
-    _promptSpeaking = true;
-    setState(() {});
     if (_words.isEmpty) {
+      _revealedWordCount = 0;
       _promptSpeaking = false;
+      setState(() {});
       _start5sCountdown();
       return;
     }
+
+    _revealedWordCount = 1;
+    _promptSpeaking = true;
+    setState(() {});
 
     _wordRevealTimer =
         Timer.periodic(const Duration(milliseconds: 400), (timer) {
@@ -904,58 +938,179 @@ class _RecordingScreenState extends State<RecordingScreen>
               const SizedBox(height: 24),
 
               _buildActivityTagBadge(boxed: true),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
-              // Live prompt from API/local — highlight the closing phrase
-              _buildPromptHeadlineRichText(),
-
-              // Center Circular prep countdown
-              Expanded(
-                child: Center(
-                  child: SizedBox(
-                    width: 220,
-                    height: 220,
-                    child: AnimatedBuilder(
-                      animation: _prepArcController,
-                      builder: (context, child) {
-                        return CustomPaint(
-                          painter: _CountdownCirclePainter(
-                            progress: 1.0 - _prepArcController.value,
-                          ),
-                          child: Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  '$_prepSecondsRemaining',
-                                  style: const TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 64,
-                                    fontWeight: FontWeight.w900,
-                                    color: Color(0xFF0F172A),
-                                    letterSpacing: -1.0,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                const Text(
-                                  'SECONDS',
-                                  style: TextStyle(
-                                    fontFamily: 'Inter',
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.6,
-                                    color: Color(0xFF64748B),
-                                  ),
-                                ),
-                              ],
+              if (_isCutInHalf)
+                // Readable passage size first; timer uses leftover space (capped).
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final wordCount = _promptHeadline
+                          .split(RegExp(r'\s+'))
+                          .where((w) => w.isNotEmpty)
+                          .length;
+                      // Slightly smaller type only for very long passages.
+                      final passageSize = wordCount > 100
+                          ? 16.0
+                          : wordCount > 70
+                              ? 17.5
+                              : 19.0;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'CUT THIS TEXT',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF2563EB),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.4,
                             ),
                           ),
-                        );
-                      },
+                          const SizedBox(height: 10),
+                          Text(
+                            _promptHeadline,
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: passageSize,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF0F172A),
+                              letterSpacing: -0.25,
+                              height: 1.38,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Expanded(
+                            child: LayoutBuilder(
+                              builder: (context, timerBox) {
+                                // Cap timer so short passages don't look tiny vs a giant ring.
+                                final timerSize = math
+                                    .min(
+                                      timerBox.maxWidth * 0.62,
+                                      timerBox.maxHeight * 0.88,
+                                    )
+                                    .clamp(120.0, 188.0);
+                                final numberSize =
+                                    (timerSize * 0.30).clamp(32.0, 54.0);
+                                final labelSize =
+                                    (timerSize * 0.052).clamp(9.0, 11.0);
+                                return Center(
+                                  child: SizedBox(
+                                    width: timerSize,
+                                    height: timerSize,
+                                    child: AnimatedBuilder(
+                                      animation: _prepArcController,
+                                      builder: (context, child) {
+                                        return CustomPaint(
+                                          painter: _CountdownCirclePainter(
+                                            progress: 1.0 -
+                                                _prepArcController.value,
+                                          ),
+                                          child: Center(
+                                            child: Padding(
+                                              padding: EdgeInsets.symmetric(
+                                                horizontal: timerSize * 0.14,
+                                              ),
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(
+                                                    '$_prepSecondsRemaining',
+                                                    style: TextStyle(
+                                                      fontFamily: 'Inter',
+                                                      fontSize: numberSize,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                      color: const Color(
+                                                          0xFF0F172A),
+                                                      letterSpacing: -1.0,
+                                                      height: 1.0,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 3),
+                                                  Text(
+                                                    'SEC TO READ',
+                                                    textAlign: TextAlign.center,
+                                                    maxLines: 1,
+                                                    softWrap: false,
+                                                    style: TextStyle(
+                                                      fontFamily: 'Inter',
+                                                      fontSize: labelSize,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      letterSpacing: 1.1,
+                                                      color: const Color(
+                                                          0xFF64748B),
+                                                      height: 1.0,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                )
+              else ...[
+                _buildPromptHeadlineRichText(),
+                Expanded(
+                  child: Center(
+                    child: SizedBox(
+                      width: 220,
+                      height: 220,
+                      child: AnimatedBuilder(
+                        animation: _prepArcController,
+                        builder: (context, child) {
+                          return CustomPaint(
+                            painter: _CountdownCirclePainter(
+                              progress: 1.0 - _prepArcController.value,
+                            ),
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    '$_prepSecondsRemaining',
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 64,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF0F172A),
+                                      letterSpacing: -1.0,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Text(
+                                    'SECONDS',
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.6,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
               ActionPillButton(
                 label: 'Stop clock · Start recording',
                 onTap: _skipPrepToRecording,
@@ -1039,10 +1194,15 @@ class _RecordingScreenState extends State<RecordingScreen>
               ),
               const SizedBox(height: 22),
 
-              // YOUR QUESTION
-              const Text(
-                'YOUR QUESTION',
-                style: TextStyle(
+              // Cut It In Half shows a passage to compress, not a Q&A question.
+              Text(
+                Provider.of<AppStateProvider>(context, listen: false)
+                            .selectedActivity
+                            ?.slug ==
+                        'cut_it_in_half'
+                    ? 'CUT THIS TEXT'
+                    : 'YOUR QUESTION',
+                style: const TextStyle(
                   fontFamily: 'Inter',
                   color: Color(0xFF818CF8),
                   fontSize: 10.5,
@@ -1052,16 +1212,18 @@ class _RecordingScreenState extends State<RecordingScreen>
               ),
               const SizedBox(height: 8),
 
-              // Question Headline
+              // Passage / question — keep CIH size stable (same as read screen).
               Text(
                 _promptHeadline,
-                style: const TextStyle(
+                maxLines: _isCutInHalf ? 8 : 6,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
                   fontFamily: 'Inter',
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
+                  fontSize: _isCutInHalf ? 15.5 : 24,
+                  fontWeight: _isCutInHalf ? FontWeight.w600 : FontWeight.w900,
                   color: Colors.white,
-                  letterSpacing: -0.6,
-                  height: 1.25,
+                  letterSpacing: _isCutInHalf ? -0.2 : -0.6,
+                  height: _isCutInHalf ? 1.35 : 1.25,
                 ),
               ),
               const SizedBox(height: 36),
@@ -1222,18 +1384,36 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   /// Dynamic prompt title — last ~3 words highlighted blue (same look as Faizan).
+  /// Cut It In Half passages use a smaller readable size (not a short question).
   Widget _buildPromptHeadlineRichText() {
     final words = _promptHeadline.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    final isLongPassage = words.length > 28;
+    final fontSize = isLongPassage ? 17.0 : 27.0;
+    final weight = isLongPassage ? FontWeight.w700 : FontWeight.w900;
     if (words.isEmpty) {
-      return const Text(
+      return Text(
         'Ready when you are.',
         style: TextStyle(
           fontFamily: 'Inter',
-          fontSize: 27,
-          fontWeight: FontWeight.w900,
-          color: Color(0xFF0F172A),
+          fontSize: fontSize,
+          fontWeight: weight,
+          color: const Color(0xFF0F172A),
           letterSpacing: -0.6,
           height: 1.22,
+        ),
+      );
+    }
+    // Long CIH passages: show full text plainly so the user can read and cut it.
+    if (isLongPassage) {
+      return Text(
+        _promptHeadline,
+        style: TextStyle(
+          fontFamily: 'Inter',
+          fontSize: fontSize,
+          fontWeight: weight,
+          color: const Color(0xFF0F172A),
+          letterSpacing: -0.2,
+          height: 1.35,
         ),
       );
     }
@@ -1242,11 +1422,11 @@ class _RecordingScreenState extends State<RecordingScreen>
     final tail = words.sublist(words.length - highlightCount).join(' ');
     return RichText(
       text: TextSpan(
-        style: const TextStyle(
+        style: TextStyle(
           fontFamily: 'Inter',
-          fontSize: 27,
-          fontWeight: FontWeight.w900,
-          color: Color(0xFF0F172A),
+          fontSize: fontSize,
+          fontWeight: weight,
+          color: const Color(0xFF0F172A),
           letterSpacing: -0.6,
           height: 1.22,
         ),

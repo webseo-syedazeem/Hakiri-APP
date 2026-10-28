@@ -131,6 +131,7 @@ class _ProfileSectionScreenState extends State<ProfileSectionScreen> {
     switch (id) {
       case 'not_at_all':
       case 'slightly':
+      case 'not_very':
         return 'not_very';
       case 'confident':
       case 'very':
@@ -337,7 +338,7 @@ class _ProfileSectionScreenState extends State<ProfileSectionScreen> {
           'id': 'healthcare_edu',
           'icon': Icons.health_and_safety_outlined,
           'title': 'Healthcare & Education',
-          'subtitle': 'Clear, empathetic communication',
+          'subtitle': 'Patients, families, clinical clarity',
         },
         {
           'id': 'other',

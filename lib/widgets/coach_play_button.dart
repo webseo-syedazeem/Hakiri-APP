@@ -85,6 +85,13 @@ class _CoachPlayButtonState extends State<CoachPlayButton> {
             _playing = true;
           });
         },
+        onBufferingChanged: (buffering) {
+          if (!mounted) return;
+          setState(() {
+            _loading = buffering;
+            if (!buffering) _playing = true;
+          });
+        },
       );
     } finally {
       if (mounted) {

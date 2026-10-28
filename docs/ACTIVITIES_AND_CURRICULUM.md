@@ -47,7 +47,7 @@ Hakkiri features 12 core communication drills, with **7 prioritized MVP activiti
 
 ### 2. Cut It In Half\*
 - **Problem**: Over-explaining, hiding requests under fluff, burdening listeners with cognitive load.
-- **Workflow**: Lengthy corporate text is presented. The user gets 45–60s to read. Recording commences; user must synthesize the core message with ≥50% word count reduction.
+- **Workflow**: Lengthy text is presented. The user gets 60s to read, then 30s to speak a shorter version with ≥50% word count reduction.
 - **Level Matrix**:
   - **Beginner**: Start speaking within 3s, state the primary point, steady pace.
     - *Prompt (Slack Policy)*: "Hey team, I just wanted to jump on here and let everyone know that we’ve been looking at how we manage our internal communications lately. It turns out that a lot of people are feeling pretty overwhelmed by the sheer volume of Slack messages flying around every day, especially after hours. Because of that, leadership has decided that starting next Monday, we are going to implement a new policy where no one is expected to reply to any Slack messages after 6:00 PM. We really want everyone to get some proper downtime so we can keep our productivity high during normal working hours."

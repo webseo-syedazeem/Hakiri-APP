@@ -310,6 +310,7 @@ class FeedbackScreen extends StatelessWidget {
                               return;
                             }
                             // 10/15 min: after 3 core drills, offer retry / stretch.
+                            // Stack is cleared — TargetedRetryScreen back navigates to Home.
                             if (state.shouldOfferPlanExtras) {
                               Navigator.pushAndRemoveUntil(
                                 context,

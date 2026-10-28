@@ -1536,6 +1536,17 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
   // STEP 4: HAKKIRI CHALLENGES YOUR POINT (AI Coach Pushback)
   // ===========================================================================
   Widget _buildStep4CoachPushback() {
+    final wordCount = _pushbackWords.isNotEmpty
+        ? _pushbackWords.length
+        : _pushbackQuote.trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length;
+    // Long pushback → shrink the prep timer so the quote stays readable.
+    final longPushback = wordCount >= 28;
+    final timerSize = longPushback ? 96.0 : 140.0;
+    final timerStroke = longPushback ? 6.0 : 8.0;
+    final timerNumberSize = longPushback ? 32.0 : 44.0;
+    final timerLabelSize = longPushback ? 10.0 : 11.5;
+    final quoteFontSize = longPushback ? 13.5 : 14.5;
+
     return Column(
       key: const ValueKey(4),
       children: [
@@ -1561,13 +1572,13 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
+                    Text(
                       'Hakkiri challenges',
                       style: TextStyle(
                         fontFamily: 'Inter',
-                        fontSize: 27,
+                        fontSize: longPushback ? 24 : 27,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF0F172A),
+                        color: const Color(0xFF0F172A),
                         letterSpacing: -0.6,
                       ),
                     ),
@@ -1576,13 +1587,13 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
+                    Text(
                       'your point.',
                       style: TextStyle(
                         fontFamily: 'Inter',
-                        fontSize: 27,
+                        fontSize: longPushback ? 24 : 27,
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF2563EB),
+                        color: const Color(0xFF2563EB),
                         letterSpacing: -0.6,
                       ),
                     ),
@@ -1593,152 +1604,158 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
 
-                // AI Coach Quote Box
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFFBFDBFE), width: 1.2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF2563EB).withValues(alpha: 0.08),
-                        blurRadius: 20,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
+                // AI Coach Quote Box — flexible so long text isn't crushed.
+                Flexible(
+                  flex: longPushback ? 5 : 3,
+                  child: Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(longPushback ? 14 : 18),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: const Color(0xFFBFDBFE), width: 1.2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                          blurRadius: 20,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEFF6FF),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.smart_toy_rounded, size: 16, color: Color(0xFF2563EB)),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Hakkiri says',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF2563EB),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      if (_pushbackWords.isEmpty)
-                        Text(
-                          _pushbackQuote,
-                          style: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF0F172A),
-                            height: 1.45,
-                          ),
-                        )
-                      else
-                        Wrap(
-                          spacing: 5,
-                          runSpacing: 6,
-                          children: List.generate(_pushbackWords.length, (index) {
-                            final word = _pushbackWords[index];
-                            final isRevealed = index < _pushbackRevealedCount;
-                            final isCurrent = index ==
-                                    _pushbackRevealedCount - 1 &&
-                                _pushbackRevealing;
-                            Color wordColor;
-                            if (!isRevealed) {
-                              wordColor = const Color(0xFFCBD5E1)
-                                  .withValues(alpha: 0.5);
-                            } else if (isCurrent) {
-                              wordColor = const Color(0xFF2563EB);
-                            } else {
-                              wordColor = const Color(0xFF0F172A);
-                            }
-                            return AnimatedScale(
-                              scale: isCurrent ? 1.05 : 1.0,
-                              duration: const Duration(milliseconds: 220),
-                              curve: Curves.easeOutCubic,
-                              child: AnimatedDefaultTextStyle(
-                                duration: const Duration(milliseconds: 220),
-                                curve: Curves.easeOutCubic,
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFFEFF6FF),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.smart_toy_rounded, size: 16, color: Color(0xFF2563EB)),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Hakkiri says',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: wordColor,
-                                  height: 1.45,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF2563EB),
                                 ),
-                                child: Text(word),
                               ),
-                            );
-                          }),
-                        ),
-                    ],
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          if (_pushbackWords.isEmpty)
+                            Text(
+                              _pushbackQuote,
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: quoteFontSize,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF0F172A),
+                                height: 1.45,
+                              ),
+                            )
+                          else
+                            Wrap(
+                              spacing: 5,
+                              runSpacing: 6,
+                              children: List.generate(_pushbackWords.length, (index) {
+                                final word = _pushbackWords[index];
+                                final isRevealed = index < _pushbackRevealedCount;
+                                final isCurrent = index ==
+                                        _pushbackRevealedCount - 1 &&
+                                    _pushbackRevealing;
+                                Color wordColor;
+                                if (!isRevealed) {
+                                  wordColor = const Color(0xFFCBD5E1)
+                                      .withValues(alpha: 0.5);
+                                } else if (isCurrent) {
+                                  wordColor = const Color(0xFF2563EB);
+                                } else {
+                                  wordColor = const Color(0xFF0F172A);
+                                }
+                                return AnimatedScale(
+                                  scale: isCurrent ? 1.05 : 1.0,
+                                  duration: const Duration(milliseconds: 220),
+                                  curve: Curves.easeOutCubic,
+                                  child: AnimatedDefaultTextStyle(
+                                    duration: const Duration(milliseconds: 220),
+                                    curve: Curves.easeOutCubic,
+                                    style: TextStyle(
+                                      fontFamily: 'Inter',
+                                      fontSize: quoteFontSize,
+                                      fontWeight: FontWeight.w700,
+                                      color: wordColor,
+                                      height: 1.45,
+                                    ),
+                                    child: Text(word),
+                                  ),
+                                );
+                              }),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                const Spacer(flex: 2),
+                SizedBox(height: longPushback ? 10 : 16),
 
-                // Circular countdown timer (10s) — starts after highlight.
+                // Circular countdown timer — smaller when pushback text is long.
                 Center(
                   child: Opacity(
                     opacity: _pushbackRevealing ? 0.45 : 1,
                     child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      SizedBox(
-                        width: 140,
-                        height: 140,
-                        child: CircularProgressIndicator(
-                          value: _prepSecondsRemaining / 10.0,
-                          strokeWidth: 8,
-                          backgroundColor: const Color(0xFFEFF6FF),
-                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
-                          strokeCap: StrokeCap.round,
+                      alignment: Alignment.center,
+                      children: [
+                        SizedBox(
+                          width: timerSize,
+                          height: timerSize,
+                          child: CircularProgressIndicator(
+                            value: _prepSecondsRemaining / 10.0,
+                            strokeWidth: timerStroke,
+                            backgroundColor: const Color(0xFFEFF6FF),
+                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
+                            strokeCap: StrokeCap.round,
+                          ),
                         ),
-                      ),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            '$_prepSecondsRemaining',
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 44,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF0F172A),
-                              letterSpacing: -1.0,
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '$_prepSecondsRemaining',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: timerNumberSize,
+                                fontWeight: FontWeight.w900,
+                                color: const Color(0xFF0F172A),
+                                letterSpacing: -1.0,
+                              ),
                             ),
-                          ),
-                          const Text(
-                            'seconds to prepare\nyour response',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF64748B),
+                            Text(
+                              'seconds to prepare\nyour response',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: timerLabelSize,
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF64748B),
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const Spacer(flex: 3),
+                SizedBox(height: longPushback ? 10 : 16),
 
                 // RESPONSE HINTS
                 const Text(
@@ -1761,7 +1778,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                     Expanded(child: _buildTipCard(Icons.bar_chart_rounded, 'Reinforce\nyour position')),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
               ],
             ),
           ),

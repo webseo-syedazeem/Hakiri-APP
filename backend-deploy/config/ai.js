@@ -226,7 +226,7 @@ function trimExemplarResponse(text, activitySlug) {
     slug === "explain_it_simply" ||
     slug === "think_fast" ||
     slug === "cut_it_in_half";
-  const maxWords = shortDrill ? 65 : 130;
+  const maxWords = shortDrill ? 50 : 70;
   const words = clean.split(/\s+/).filter(Boolean);
   if (words.length <= maxWords) return clean;
   // Prefer ending on a sentence boundary within the cap.
@@ -458,15 +458,15 @@ async function analyzeSpeechWithGemini({
     slug === "cut_it_in_half";
   const levelExemplarGuide = shortDrill
     ? level === "beginner" || level === "b"
-      ? "SHORT drill exemplar: 2–3 plain spoken sentences. Aim ~35–55 words. One analogy max. Stop early."
+      ? "SHORT drill exemplar: 2 plain spoken sentences. Aim ~30–45 words. One analogy max."
       : level === "professional" || level === "pro" || level === "p"
-        ? "SHORT drill exemplar: 3 crisp spoken sentences. Aim ~45–65 words. Hook + analogy + close. No essay."
-        : "SHORT drill exemplar: 3 spoken sentences. Aim ~40–60 words. Analogy first, then why it matters. Keep it tight."
+        ? "SHORT drill exemplar: 2–3 crisp sentences. Aim ~35–50 words. Hook + close. No essay."
+        : "SHORT drill exemplar: 2–3 sentences. Aim ~35–50 words. Analogy first. Keep it tight."
     : level === "beginner" || level === "b"
-      ? "BEGINNER exemplar: plain words, clear definition, 1–2 simple points, friendly close. Aim ~70–90 spoken words."
+      ? "BEGINNER exemplar: definition + 1 reason + short close. Aim ~45–60 spoken words. Max 3 sentences."
       : level === "professional" || level === "pro" || level === "p"
-        ? "PROFESSIONAL exemplar: bold hook, thesis, one insight or analogy, punchy close. Aim ~90–120 spoken words."
-        : "INTERMEDIARY exemplar: why it matters, two clear points, one takeaway. Aim ~80–100 spoken words.";
+        ? "PROFESSIONAL exemplar: bold hook, one insight, punchy close. Aim ~50–70 spoken words. Max 4 sentences."
+        : "INTERMEDIARY exemplar: define, two short reasons, one takeaway. Aim ~50–70 spoken words. Max 4 sentences.";
 
   // Cap exemplar tokens — long catalog exemplars slow the scoring call.
   const exemplarShort = String(exemplarResponse || "")

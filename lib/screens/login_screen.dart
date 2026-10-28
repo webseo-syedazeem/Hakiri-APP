@@ -67,7 +67,11 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
         message: 'Getting your information…',
         detail: 'Signing you back into Hakkiri.',
-        action: () => state.loginAccount(email: email, password: password),
+        action: () async {
+          await state.loginAccount(email: email, password: password);
+          // Assessment → existing account: overwrite profile with fresh quiz.
+          await state.syncPendingAssessmentIfNeeded();
+        },
       );
       if (!mounted) return;
       // Assessment → Pro gate → Home.
@@ -98,24 +102,18 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isSubmitting = true);
     try {
       final state = context.read<AppStateProvider>();
-      late final Map<String, dynamic> data;
       await HakkiriLoadingOverlay.run(
         context,
         message: 'Getting your information…',
         detail: 'Signing you in with Google.',
         action: () async {
-          data = await state.continueWithGoogle();
+          await state.continueWithGoogle();
+          await state.syncPendingAssessmentIfNeeded();
         },
       );
       if (!mounted) return;
-      // Same API rule as Get started → Google.
-      final created = data['created'] == true;
-      final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
-      final needsOnboarding = data.containsKey('needs_onboarding')
-          ? data['needs_onboarding'] == true
-          : (created || profile['onboarding_complete'] != true);
       final Widget next;
-      if (needsOnboarding) {
+      if (!state.isOnboarded) {
         next = const AssessmentScreen();
       } else if (!state.isSubscribed) {
         next = const LockedProfileScreen();
@@ -148,23 +146,18 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isSubmitting = true);
     try {
       final state = context.read<AppStateProvider>();
-      late final Map<String, dynamic> data;
       await HakkiriLoadingOverlay.run(
         context,
         message: 'Getting your information…',
         detail: 'Signing you in with Apple.',
         action: () async {
-          data = await state.continueWithApple();
+          await state.continueWithApple();
+          await state.syncPendingAssessmentIfNeeded();
         },
       );
       if (!mounted) return;
-      final created = data['created'] == true;
-      final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
-      final needsOnboarding = data.containsKey('needs_onboarding')
-          ? data['needs_onboarding'] == true
-          : (created || profile['onboarding_complete'] != true);
       final Widget next;
-      if (needsOnboarding) {
+      if (!state.isOnboarded) {
         next = const AssessmentScreen();
       } else if (!state.isSubscribed) {
         next = const LockedProfileScreen();

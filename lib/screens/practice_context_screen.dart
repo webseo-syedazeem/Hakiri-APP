@@ -46,7 +46,7 @@ class _PracticeContextScreenState extends State<PracticeContextScreen> {
       'id': 'healthcare_edu',
       'icon': Icons.health_and_safety_outlined,
       'title': 'Healthcare & Education',
-      'subtitle': 'Clear, empathetic communication',
+      'subtitle': 'Patients, families, clinical clarity',
     },
     {
       'id': 'other',

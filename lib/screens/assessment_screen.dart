@@ -401,46 +401,30 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     final problem = _stepSelections[6] ?? 'filler_rush';
     final goalUi = _stepSelections[7] ?? 'calmer_confident';
 
-    // Guest: keep answers local → plan → IAP → Create account.
-    if (!state.isLoggedIn) {
-      setState(() => _isSubmitting = true);
-      try {
-        await state.completeAssessmentLocally(
-          name: name,
-          gender: gender,
-          careerStage: careerStage,
-          careerType: careerType,
-          confidence: confidenceUi,
-          problem: problem,
-          goal: goalUi,
-        );
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const PersonalizedPlanScreen()),
-        );
-      } finally {
-        if (mounted) setState(() => _isSubmitting = false);
-      }
-      return;
-    }
-
+    // Always save locally first. Server update happens only when the user
+    // signs up / logs into an account (or if they already have a session).
     setState(() => _isSubmitting = true);
     try {
-      await HakkiriLoadingOverlay.run(
-        context,
-        message: 'Getting your information…',
-        detail: 'Building your personalised speaking plan.',
-        action: () => state.submitAssessmentToApi(
-          name: name,
-          gender: gender,
-          careerStage: careerStage,
-          careerType: careerType,
-          confidence: _mapConfidenceForApi(confidenceUi),
-          problem: problem,
-          goal: _mapGoalForApi(goalUi),
-        ),
+      await state.completeAssessmentLocally(
+        name: name,
+        gender: gender,
+        careerStage: careerStage,
+        careerType: careerType,
+        confidence: confidenceUi,
+        problem: problem,
+        goal: goalUi,
       );
+
+      if (state.isLoggedIn) {
+        // Already signed in (e.g. new account mid-funnel) — push now.
+        await HakkiriLoadingOverlay.run(
+          context,
+          message: 'Getting your information…',
+          detail: 'Saving your answers to your account.',
+          action: () => state.syncPendingAssessmentIfNeeded(),
+        );
+      }
+
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
@@ -454,7 +438,9 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save assessment. Check your connection.')),
+        const SnackBar(
+          content: Text('Could not save assessment. Check your connection.'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isSubmitting = false);

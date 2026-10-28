@@ -383,22 +383,57 @@ class CoachTtsService {
   String _cacheKey(String text, String voiceProfile) =>
       '${normalizeCoachId(voiceProfile)}::${text.trim()}';
 
+  /// Split into speakable lines so playback can start on sentence 1
+  /// while later sentences still download.
+  static List<String> splitSpeakChunks(String text) {
+    final clean = text.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (clean.isEmpty) return const [];
+    final parts = <String>[];
+    final re = RegExp(r'[^.!?]+[.!?]+|[^.!?]+$');
+    for (final m in re.allMatches(clean)) {
+      final s = m.group(0)?.trim() ?? '';
+      if (s.isNotEmpty) parts.add(s);
+    }
+    if (parts.isEmpty) return [clean];
+    // Merge tiny trailing fragments into the previous sentence.
+    final merged = <String>[];
+    for (final s in parts) {
+      if (merged.isNotEmpty && s.split(RegExp(r'\s+')).length <= 3) {
+        merged[merged.length - 1] = '${merged.last} $s';
+      } else {
+        merged.add(s);
+      }
+    }
+    return merged;
+  }
+
   /// Fetch + cache coach audio without playing (speeds up first tap).
+  /// Prefetches the first sentence first so play can start quickly.
   Future<void> prefetch(String text, {required String voiceProfile}) async {
     final clean = text.trim();
     if (clean.isEmpty) return;
     final norm = normalizeCoachId(voiceProfile);
-    final key = _cacheKey(clean, norm);
+    final chunks = splitSpeakChunks(clean);
+    final targets = chunks.length <= 1
+        ? [clean]
+        : chunks.take(2).toList(); // first two lines warm the queue
+    for (final chunk in targets) {
+      await _prefetchOne(chunk, norm);
+    }
+  }
+
+  Future<void> _prefetchOne(String text, String norm) async {
+    final key = _cacheKey(text, norm);
     if (_clipCache.containsKey(key) || _prefetchInFlight.contains(key)) return;
     _prefetchInFlight.add(key);
     try {
       final apiRate = (_defaultRateFor(norm) / 0.46).clamp(0.85, 1.15);
       final data = await HakkiriApiService.instance.coachSpeak(
-        text: clean,
+        text: text,
         voiceProfile: norm,
         rate: apiRate,
       );
-      final clip = _clipFromApiData(data, clean);
+      final clip = _clipFromApiData(data, text);
       if (clip != null) {
         _clipCache[key] = clip;
         _trimCache();
@@ -408,6 +443,29 @@ class CoachTtsService {
     } finally {
       _prefetchInFlight.remove(key);
     }
+  }
+
+  Future<_CachedCoachClip?> _fetchClip({
+    required String text,
+    required String voiceProfile,
+    required double flutterRate,
+    required int gen,
+  }) async {
+    final cacheKey = _cacheKey(text, voiceProfile);
+    final cached = _clipCache[cacheKey];
+    if (cached != null) return cached;
+    final apiRate = (flutterRate / 0.46).clamp(0.85, 1.15);
+    final data = await HakkiriApiService.instance.coachSpeak(
+      text: text,
+      voiceProfile: voiceProfile,
+      rate: apiRate,
+    );
+    if (gen != _speakGen) return null;
+    final clip = _clipFromApiData(data, text);
+    if (clip == null) return null;
+    _clipCache[cacheKey] = clip;
+    _trimCache();
+    return clip;
   }
 
   void _trimCache() {
@@ -472,6 +530,8 @@ class CoachTtsService {
     String text, {
     required String voiceProfile,
     VoidCallback? onPlaybackStarted,
+    /// True while waiting for audio (first clip or gap between sentences).
+    void Function(bool buffering)? onBufferingChanged,
   }) async {
     final clean = text.trim();
     if (clean.isEmpty) return;
@@ -480,16 +540,37 @@ class CoachTtsService {
     final norm = normalizeCoachId(voiceProfile);
     final gen = ++_speakGen;
     _speaking = true;
+    final rate = _defaultRateFor(norm);
     try {
-      // Prefer ElevenLabs / Gemini coach-speak so suggested answers sound human.
+      final chunks = splitSpeakChunks(clean);
+      // Chunked playback: start sentence 1 ASAP; load 2/3 while it plays.
+      if (chunks.length > 1) {
+        final played = await _speakChunksViaApi(
+          chunks: chunks,
+          voiceProfile: norm,
+          flutterRate: rate,
+          gen: gen,
+          onPlaybackStarted: onPlaybackStarted,
+          onBufferingChanged: onBufferingChanged,
+        );
+        if (gen != _speakGen) return;
+        if (played) return;
+      }
+
+      onBufferingChanged?.call(
+        !_clipCache.containsKey(_cacheKey(clean, norm)),
+      );
       final usedApi = await _speakViaApi(
         clean: clean,
         words: clean.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList(),
         voiceProfile: norm,
-        flutterRate: _defaultRateFor(norm),
+        flutterRate: rate,
         gen: gen,
         paintTo: (_) {},
-        onPlaybackStarted: onPlaybackStarted,
+        onPlaybackStarted: () {
+          onBufferingChanged?.call(false);
+          onPlaybackStarted?.call();
+        },
       );
       if (gen != _speakGen) return;
       if (usedApi) return;
@@ -502,6 +583,90 @@ class CoachTtsService {
       debugPrint('CoachTtsService speak error: $e');
     } finally {
       if (gen == _speakGen) _speaking = false;
+    }
+  }
+
+  /// Play sentence-by-sentence; prefetch the next clip while current plays.
+  Future<bool> _speakChunksViaApi({
+    required List<String> chunks,
+    required String voiceProfile,
+    required double flutterRate,
+    required int gen,
+    VoidCallback? onPlaybackStarted,
+    void Function(bool buffering)? onBufferingChanged,
+  }) async {
+    try {
+      // Kick off line 1 + line 2 in parallel.
+      if (!_clipCache.containsKey(_cacheKey(chunks.first, voiceProfile))) {
+        onBufferingChanged?.call(true);
+      }
+      final firstFuture = _fetchClip(
+        text: chunks.first,
+        voiceProfile: voiceProfile,
+        flutterRate: flutterRate,
+        gen: gen,
+      );
+      if (chunks.length > 1) {
+        unawaited(
+          _fetchClip(
+            text: chunks[1],
+            voiceProfile: voiceProfile,
+            flutterRate: flutterRate,
+            gen: gen,
+          ),
+        );
+      }
+      var started = false;
+      for (var i = 0; i < chunks.length; i++) {
+        if (gen != _speakGen) return true;
+        // Between sentences: show loading on the play button if next clip
+        // is still downloading.
+        if (i > 0 &&
+            !_clipCache.containsKey(_cacheKey(chunks[i], voiceProfile))) {
+          onBufferingChanged?.call(true);
+        }
+        final clip = i == 0
+            ? await firstFuture
+            : await _fetchClip(
+                text: chunks[i],
+                voiceProfile: voiceProfile,
+                flutterRate: flutterRate,
+                gen: gen,
+              );
+        if (clip == null) {
+          if (i == 0) return false;
+          onBufferingChanged?.call(false);
+          continue;
+        }
+        // Warm the next sentence while this one plays.
+        if (i + 1 < chunks.length) {
+          unawaited(
+            _fetchClip(
+              text: chunks[i + 1],
+              voiceProfile: voiceProfile,
+              flutterRate: flutterRate,
+              gen: gen,
+            ),
+          );
+        }
+        final ok = await _playClip(
+          clip: clip,
+          gen: gen,
+          paintTo: (_) {},
+          onPlaybackStarted: () {
+            onBufferingChanged?.call(false);
+            if (!started) {
+              started = true;
+              onPlaybackStarted?.call();
+            }
+          },
+        );
+        if (!ok || gen != _speakGen) return true;
+      }
+      return started;
+    } catch (e) {
+      debugPrint('Chunked coach-speak failed: $e');
+      return false;
     }
   }
 
@@ -727,122 +892,20 @@ class CoachTtsService {
     VoidCallback? onPlaybackStarted,
   }) async {
     try {
-      final cacheKey = _cacheKey(clean, voiceProfile);
-      var clip = _clipCache[cacheKey];
-      if (clip == null) {
-        // Map flutter_tts-ish rate (~0.46) → API pace hint (~1.0).
-        final apiRate = (flutterRate / 0.46).clamp(0.85, 1.15);
-        final data = await HakkiriApiService.instance.coachSpeak(
-          text: clean,
-          voiceProfile: voiceProfile,
-          rate: apiRate,
-        );
-        if (gen != _speakGen) return true;
-        clip = _clipFromApiData(data, clean);
-        if (clip == null) return false;
-        _clipCache[cacheKey] = clip;
-        _trimCache();
-      } else if (gen != _speakGen) {
-        return true;
-      }
-
-      final timings = clip.timings;
-      final dir = await getTemporaryDirectory();
-      final file = File(
-        '${dir.path}/coach_tts_${DateTime.now().millisecondsSinceEpoch}.${clip.ext}',
+      final clip = await _fetchClip(
+        text: clean,
+        voiceProfile: voiceProfile,
+        flutterRate: flutterRate,
+        gen: gen,
       );
-      await file.writeAsBytes(clip.bytes, flush: true);
-      if (gen != _speakGen) {
-        try {
-          await file.delete();
-        } catch (_) {}
-        return true;
-      }
-
-      await _tearDownPlayerSubs();
-      try {
-        await _player.stop();
-      } catch (_) {}
-
-      try {
-        await _player.setAudioContext(
-          AudioContext(
-            iOS: AudioContextIOS(
-              category: AVAudioSessionCategory.playback,
-              options: const {
-                AVAudioSessionOptions.defaultToSpeaker,
-                AVAudioSessionOptions.allowBluetooth,
-                AVAudioSessionOptions.allowBluetoothA2DP,
-              },
-            ),
-            android: const AudioContextAndroid(
-              isSpeakerphoneOn: true,
-              stayAwake: false,
-              contentType: AndroidContentType.speech,
-              usageType: AndroidUsageType.assistanceAccessibility,
-              audioFocus: AndroidAudioFocus.gain,
-            ),
-          ),
-        );
-      } catch (_) {}
-
-      void paintFromMs(int ms) {
-        if (!_speaking || gen != _speakGen || timings.isEmpty) return;
-        var idx = 0;
-        for (var i = 0; i < timings.length; i++) {
-          if (ms >= timings[i].startMs) idx = i;
-        }
-        paintTo(idx + 1);
-      }
-
-      final done = Completer<void>();
-      _playDone = done;
-
-      _completeSub = _player.onPlayerComplete.listen((_) {
-        if (!done.isCompleted) done.complete();
-      });
-      _posSub = _player.onPositionChanged.listen((pos) {
-        paintFromMs(pos.inMilliseconds);
-      });
-      _karaokePaceTimer =
-          Timer.periodic(const Duration(milliseconds: 32), (_) async {
-        if (!_speaking || gen != _speakGen) return;
-        try {
-          final pos = await _player.getCurrentPosition();
-          if (pos != null) paintFromMs(pos.inMilliseconds);
-        } catch (_) {}
-      });
-
-      paintTo(1);
-      onPlaybackStarted?.call();
-      await _player.play(DeviceFileSource(file.path));
-
-      // Wait until playback ends (or stop() cancels).
-      await done.future.timeout(
-        Duration(milliseconds: clip.durationMs + 4000),
-        onTimeout: () {},
+      if (gen != _speakGen) return true;
+      if (clip == null) return false;
+      return _playClip(
+        clip: clip,
+        gen: gen,
+        paintTo: paintTo,
+        onPlaybackStarted: onPlaybackStarted,
       );
-
-      await _tearDownPlayerSubs();
-      try {
-        await file.delete();
-      } catch (_) {}
-      // Best-effort cleanup of older clips.
-      try {
-        final tmp = Directory(dir.path);
-        await for (final entity in tmp.list()) {
-          if (entity is File &&
-              entity.path.contains('coach_tts_') &&
-              (entity.path.endsWith('.wav') || entity.path.endsWith('.mp3'))) {
-            final age = DateTime.now().difference(await entity.lastModified());
-            if (age.inMinutes > 10) {
-              await entity.delete();
-            }
-          }
-        }
-      } catch (_) {}
-
-      return true;
     } catch (e) {
       debugPrint('Coach-speak API failed, falling back: $e');
       await _tearDownPlayerSubs();
@@ -851,6 +914,109 @@ class CoachTtsService {
       } catch (_) {}
       return false;
     }
+  }
+
+  Future<bool> _playClip({
+    required _CachedCoachClip clip,
+    required int gen,
+    required void Function(int count) paintTo,
+    VoidCallback? onPlaybackStarted,
+  }) async {
+    final timings = clip.timings;
+    final dir = await getTemporaryDirectory();
+    final file = File(
+      '${dir.path}/coach_tts_${DateTime.now().millisecondsSinceEpoch}.${clip.ext}',
+    );
+    await file.writeAsBytes(clip.bytes, flush: true);
+    if (gen != _speakGen) {
+      try {
+        await file.delete();
+      } catch (_) {}
+      return true;
+    }
+
+    await _tearDownPlayerSubs();
+    try {
+      await _player.stop();
+    } catch (_) {}
+
+    try {
+      await _player.setAudioContext(
+        AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: const {
+              AVAudioSessionOptions.defaultToSpeaker,
+              AVAudioSessionOptions.allowBluetooth,
+              AVAudioSessionOptions.allowBluetoothA2DP,
+            },
+          ),
+          android: const AudioContextAndroid(
+            isSpeakerphoneOn: true,
+            stayAwake: false,
+            contentType: AndroidContentType.speech,
+            usageType: AndroidUsageType.assistanceAccessibility,
+            audioFocus: AndroidAudioFocus.gain,
+          ),
+        ),
+      );
+    } catch (_) {}
+
+    void paintFromMs(int ms) {
+      if (!_speaking || gen != _speakGen || timings.isEmpty) return;
+      var idx = 0;
+      for (var i = 0; i < timings.length; i++) {
+        if (ms >= timings[i].startMs) idx = i;
+      }
+      paintTo(idx + 1);
+    }
+
+    final done = Completer<void>();
+    _playDone = done;
+
+    _completeSub = _player.onPlayerComplete.listen((_) {
+      if (!done.isCompleted) done.complete();
+    });
+    _posSub = _player.onPositionChanged.listen((pos) {
+      paintFromMs(pos.inMilliseconds);
+    });
+    _karaokePaceTimer =
+        Timer.periodic(const Duration(milliseconds: 32), (_) async {
+      if (!_speaking || gen != _speakGen) return;
+      try {
+        final pos = await _player.getCurrentPosition();
+        if (pos != null) paintFromMs(pos.inMilliseconds);
+      } catch (_) {}
+    });
+
+    paintTo(1);
+    onPlaybackStarted?.call();
+    await _player.play(DeviceFileSource(file.path));
+
+    await done.future.timeout(
+      Duration(milliseconds: clip.durationMs + 4000),
+      onTimeout: () {},
+    );
+
+    await _tearDownPlayerSubs();
+    try {
+      await file.delete();
+    } catch (_) {}
+    try {
+      final tmp = Directory(dir.path);
+      await for (final entity in tmp.list()) {
+        if (entity is File &&
+            entity.path.contains('coach_tts_') &&
+            (entity.path.endsWith('.wav') || entity.path.endsWith('.mp3'))) {
+          final age = DateTime.now().difference(await entity.lastModified());
+          if (age.inMinutes > 10) {
+            await entity.delete();
+          }
+        }
+      }
+    } catch (_) {}
+
+    return gen == _speakGen;
   }
 
   double _defaultRateFor(String norm) {

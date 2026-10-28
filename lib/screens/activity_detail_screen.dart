@@ -755,9 +755,9 @@ final Map<String, _ActivitySpec> _activitySpecs = {
     ),
     subtitle: 'Read a longer message and make it shorter, clearer and more impactful.',
     steps: const [
-      _Step(Icons.description_outlined, '1. Read', 'A longer text\nappears (45-60s).'),
+      _Step(Icons.description_outlined, '1. Read', 'A longer text\nappears (60s).'),
       _Step(Icons.format_list_bulleted_rounded, '2. Find point', 'Identify what\nmatters.'),
-      _Step(Icons.mic_none_rounded, '3. Summarise', 'Speak your\nshorter version.'),
+      _Step(Icons.mic_none_rounded, '3. Summarise', 'Speak your shorter\nversion (30s).'),
       _feedbackStep,
     ],
     strategyTitle: 'CUT THE CLUTTER',
@@ -788,9 +788,9 @@ final Map<String, _ActivitySpec> _activitySpecs = {
     icon: Icons.school_outlined,
     label: '6. ONE MINUTE EXPERT',
     title: 'One Minute\nExpert.',
-    subtitle: 'Choose a topic you want to speak about and explain it confidently in one minute.',
+    subtitle: 'A topic is presented and you explain it clearly, confidently and coherently in 60 seconds.',
     steps: [
-      _Step(Icons.format_list_bulleted_rounded, '1. Choose topic', 'Pick a topic you\nwant to speak about.'),
+      _Step(Icons.format_list_bulleted_rounded, '1. Topic prompt', 'A topic is\npresented.'),
       _thinkStep,
       _Step(Icons.mic_none_rounded, '3. Speak', 'You have\n60 seconds.'),
       _feedbackStep,

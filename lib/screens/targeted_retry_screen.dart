@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/app_state_provider.dart';
 import 'activity_detail_screen.dart';
+import 'home_screen.dart';
 
 /// Screen matching doc_img_2.png (10-minute plan: "One more to lock it in")
 /// and doc_img_3.png (15-minute plan: "Ready for a bigger stretch?")
@@ -13,6 +14,19 @@ class TargetedRetryScreen extends StatelessWidget {
     super.key,
     this.is15MinutePlan = false,
   });
+
+  /// Feedback clears the stack before this screen — never bare [Navigator.pop]
+  /// or the user lands on a black empty navigator.
+  void _goBack(BuildContext context) {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+      return;
+    }
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeScreen()),
+      (route) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +47,12 @@ class TargetedRetryScreen extends StatelessWidget {
 
     final planMinutes = is15MinutePlan ? 15 : 10;
 
-    return Scaffold(
+    return PopScope(
+      canPop: Navigator.of(context).canPop(),
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _goBack(context);
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFFBFBF9),
       body: SafeArea(
         child: Column(
@@ -52,7 +71,7 @@ class TargetedRetryScreen extends StatelessWidget {
                         color: Color(0xFF0F172A),
                         size: 32,
                       ),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () => _goBack(context),
                       splashRadius: 24,
                     ),
                   ),
@@ -300,34 +319,16 @@ class TargetedRetryScreen extends StatelessWidget {
                                   ),
                                 ],
                               ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Text(
-                                    'Tougher challenge',
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Container(
-                                    width: 28,
-                                    height: 28,
-                                    decoration: const BoxDecoration(
-                                      color: Color(0xFF2563EB),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    alignment: Alignment.center,
-                                    child: const Icon(
-                                      Icons.arrow_forward_rounded,
-                                      color: Colors.white,
-                                      size: 16,
-                                    ),
-                                  ),
-                                ],
+                              alignment: Alignment.center,
+                              child: const Text(
+                                'Tougher challenge',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
                               ),
                             ),
                           ),
@@ -393,6 +394,7 @@ class TargetedRetryScreen extends StatelessWidget {
           ],
         ),
       ),
+    ),
     );
   }
 

@@ -4,6 +4,12 @@ const ALIASES = {
     female: "female",
     non_binary: "non_binary",
     non_binary_vocal_alignment: "non_binary",
+    // Coach voice ids used in the app → assessment voice buckets
+    david: "male",
+    marcus: "male",
+    sarah: "female",
+    elena: "female",
+    alex: "non_binary",
   },
   career_stage: {
     early: "early",
@@ -28,9 +34,12 @@ const ALIASES = {
   },
   speaking_confidence: {
     not_very: "not_very",
+    not_at_all: "not_very",
+    slightly: "not_very",
     anxious: "not_very",
     anxious_shaky: "not_very",
     fairly: "fairly",
+    confident: "fairly",
     moderate: "fairly",
     moderately_confident: "fairly",
     very: "very",
@@ -68,6 +77,9 @@ const ALIASES = {
     clear_daily: "clear_daily",
     diction_clarity: "clear_daily",
     diction_clarity_stamina: "clear_daily",
+    // UI extras on Profile / Assessment (map to nearest supported goal)
+    keep_engaged: "persuasive_arguments",
+    other: "clear_daily",
   },
   difficulty: {
     beginner: "beginner",

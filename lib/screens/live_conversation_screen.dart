@@ -30,7 +30,7 @@ class LiveConversationScreen extends StatefulWidget {
       case 'sales_marketing':
         return 'client pitches, pipeline reviews, objections, campaign or deal updates';
       case 'healthcare_edu':
-        return 'patient/family conversations, clinical handoffs, teaching, care-plan discussions';
+        return 'patient and family conversations, clinical handoffs, medication explanations, triage and care-plan discussions, ward rounds — healthcare first, not school-lesson topics';
       default:
         return 'workplace meetings, stakeholder updates, and on-the-spot professional answers';
     }

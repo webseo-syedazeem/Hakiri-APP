@@ -126,18 +126,8 @@ class _SignupScreenState extends State<SignupScreen> {
         detail: 'Signing you in with Google.',
         action: () async {
           data = await state.continueWithGoogle();
-          final created = data['created'] == true;
-          final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
-          final needsOnboarding = data.containsKey('needs_onboarding')
-              ? data['needs_onboarding'] == true
-              : (created || profile['onboarding_complete'] != true);
-          if (state.hasPendingLocalAssessment &&
-              (created || needsOnboarding)) {
-            syncedPending = await state.syncPendingAssessmentIfNeeded();
-          } else {
-            syncedPending = false;
-            state.hasPendingLocalAssessment = false;
-          }
+          // New or existing account: push the quiz the guest just filled.
+          syncedPending = await state.syncPendingAssessmentIfNeeded();
         },
       );
       if (!mounted) return;
@@ -193,18 +183,8 @@ class _SignupScreenState extends State<SignupScreen> {
         detail: 'Signing you in with Apple.',
         action: () async {
           data = await state.continueWithApple();
-          final created = data['created'] == true;
-          final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
-          final needsOnboarding = data.containsKey('needs_onboarding')
-              ? data['needs_onboarding'] == true
-              : (created || profile['onboarding_complete'] != true);
-          if (state.hasPendingLocalAssessment &&
-              (created || needsOnboarding)) {
-            syncedPending = await state.syncPendingAssessmentIfNeeded();
-          } else {
-            syncedPending = false;
-            state.hasPendingLocalAssessment = false;
-          }
+          // New or existing account: push the quiz the guest just filled.
+          syncedPending = await state.syncPendingAssessmentIfNeeded();
         },
       );
       if (!mounted) return;

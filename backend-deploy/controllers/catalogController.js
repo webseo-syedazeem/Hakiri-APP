@@ -37,11 +37,16 @@ function industriesOf(item) {
   return Array.isArray(inds) ? inds.map(String) : [];
 }
 
-/** Prompt is safe for any track (general / untagged). */
+/**
+ * Prompt is safe for any track only when it is purely general / untagged.
+ * `["sales_marketing", "general"]` is NOT general — that was leaking brand/SEO
+ * prompts into healthcare and other tracks.
+ */
 function isGeneralPrompt(item) {
   const inds = industriesOf(item);
   if (!inds.length) return true;
-  return inds.includes("general");
+  const careers = inds.filter((i) => i !== "general");
+  return careers.length === 0;
 }
 
 /** Prompt is tagged for this career track (may also list other tracks). */
@@ -51,8 +56,8 @@ function matchesCareer(item, career) {
 }
 
 /**
- * Never serve another track's exclusive prompt to this career.
- * Allowed = tagged for career OR general (or untagged).
+ * Never serve another track's prompt to this career.
+ * Allowed = tagged for career OR purely general (or untagged).
  */
 function allowedForCareer(item, career) {
   if (!career) return isGeneralPrompt(item);
@@ -61,9 +66,9 @@ function allowedForCareer(item, career) {
 
 /**
  * Pick a prompt for an activity.
- * Industry rule: never serve another track's exclusive prompt
- * (e.g. healthcare-only when user selected corporate_finance).
- * Prefer career-tagged prompts, then general. Rotate for variety.
+ * Industry rule: never serve another track's prompt
+ * (e.g. sales brand copy when user selected healthcare).
+ * Prefer career-tagged prompts, then pure general for variety.
  */
 async function choosePrompt({ activitySlug, difficulty, careerType, excludeCodes = [], seed }) {
   const requested = canonical("difficulty", difficulty) || "beginner";
@@ -85,10 +90,13 @@ async function choosePrompt({ activitySlug, difficulty, careerType, excludeCodes
     }
     const specific = safe.filter((item) => matchesCareer(item, career));
     const general = safe.filter(isGeneralPrompt);
-    // Mix career + general so small catalogs still rotate (never other-track exclusives).
-    // Preferring only "specific" made users stuck on one prompt (e.g. SEO-to-chef forever).
-    const mixed = dedupePrompts([...specific, ...general]);
-    return mixed.length ? mixed : dedupePrompts(safe);
+    // When this career has its own prompts, use ONLY those (e.g. healthcare
+    // users should get clinical prompts — not generic "explain Wi‑Fi" fillers).
+    // Pure-general is a fallback only when the career pool is empty.
+    if (specific.length) {
+      return dedupePrompts(specific);
+    }
+    return dedupePrompts(general.length ? general : safe);
   };
 
   let ranked = pickForCareer(pool);
@@ -149,8 +157,12 @@ const listPrompts = async (req, res) => {
     if (career && career !== "general" && career !== "other") {
       const specific = prompts.filter((item) => matchesCareer(item, career));
       const general = prompts.filter(isGeneralPrompt);
-      // Same rule as choosePrompt: career first, then general — never other tracks only.
-      prompts = specific.length ? specific : general.length ? general : prompts;
+      // Career-only when available; pure general only as fallback.
+      prompts = specific.length
+        ? specific
+        : general.length
+          ? general
+          : prompts;
     } else if (career === "general") {
       const general = prompts.filter(isGeneralPrompt);
       if (general.length) prompts = general;

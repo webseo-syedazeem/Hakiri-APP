@@ -107,7 +107,7 @@ const ACTIVITIES = [
     description:
       "A topic and an audience appear. Explain it to that person. If the topic is unfamiliar, use the learn-more link first.",
     cognitiveMechanism: "Analogical reasoning and audience calibration",
-    prepDurationSeconds: 10,
+    prepDurationSeconds: 5,
     defaultDurationSeconds: 60,
     benefits: ["Cross-functional leadership", "Deeper processing", "Less meeting friction"],
     successMeasures: ["Audience alignment", "Immediate engagement", "Time optimisation", "Linguistic fit"],
@@ -150,8 +150,8 @@ const ACTIVITIES = [
     description:
       "A long brief appears. You get time to read it, then you summarise it out loud.",
     cognitiveMechanism: "Information distillation and bottom-line-up-front delivery",
-    prepDurationSeconds: 45,
-    defaultDurationSeconds: 60,
+    prepDurationSeconds: 60,
+    defaultDurationSeconds: 30,
     benefits: ["Forces synthesis", "Commands more authority", "Increases retention"],
     successMeasures: ["Rate compression", "Time to value", "Jargon mimicry"],
     rubrics: [
@@ -416,7 +416,12 @@ const PROMPTS = [
     exemplarResponse:
       "We missed Friday's delivery. The handoff inside our team was unclear, and that is on me. The revised delivery is Thursday at 2pm, and I will send a daily status until then.",
     tags: ["client"],
-    industries: ["general", "corporate_finance", "tech_product", "sales_marketing"],
+    industries: [
+      "corporate_finance",
+      "tech_product",
+      "sales_marketing",
+      "healthcare_edu",
+    ],
     prepSeconds: 5,
   }),
   p({
@@ -581,49 +586,144 @@ const PROMPTS = [
     prepSeconds: 5,
   }),
 
+  // Cut It In Half: promptText = PASSAGE to compress; exemplarResponse = short "must keep" brief.
   p({
     code: "cih_b_slack",
     activitySlug: "cut_it_in_half",
     difficulty: "beginner",
     title: "Slack after-hours policy",
-    promptText: "Summarise this announcement. State the main point early and cut the warm-up.",
-    secondaryText:
+    promptText:
       "Hey team, I just wanted to jump on here and let everyone know that we've been looking at how we manage our internal communications lately. It turns out that a lot of people are feeling pretty overwhelmed by the sheer volume of Slack messages flying around every day, especially after hours. Because of that, leadership has decided that starting next Monday, we are going to implement a new policy where no one is expected to reply to any Slack messages after 6:00 PM. We really want everyone to get some proper downtime so we can keep our productivity high during normal working hours.",
-    objective: "Start speaking quickly, state the policy, and keep a steady pace.",
-    exemplarResponse: "From Monday, nobody is expected to reply to Slack after 6pm. The aim is real downtime so daytime work stays focused.",
+    objective: "Cut this message roughly in half. Lead with the policy.",
+    exemplarResponse:
+      "From Monday, nobody is expected to reply to Slack after 6pm. The aim is real downtime so daytime work stays focused.",
     tags: ["internal"],
-    prepSeconds: 45,
-    durationSeconds: 45,
+    prepSeconds: 60,
+    durationSeconds: 30,
+  }),
+  p({
+    code: "cih_b_fire_alarm",
+    activitySlug: "cut_it_in_half",
+    difficulty: "beginner",
+    title: "Office closed Friday",
+    promptText:
+      "Hi all, just a quick reminder that the office will be closed on Friday afternoon for the fire alarm upgrade. The contractors will be on site from 1pm, so everyone needs to leave the building by then. Please make sure you take your laptop home with you on Friday morning, because you won't be able to get back in until Monday. Thanks for your patience.",
+    objective: "Cut this to the facts. Lead with what people must do.",
+    exemplarResponse:
+      "Office closed Friday from 1pm; take your laptop home; no access until Monday.",
+    prepSeconds: 60,
+    durationSeconds: 30,
+  }),
+  p({
+    code: "cih_b_expenses_app",
+    activitySlug: "cut_it_in_half",
+    difficulty: "beginner",
+    title: "New expenses system",
+    promptText:
+      "Hello team, from next month we are switching to a new expenses system. Instead of filling in the spreadsheet and emailing it to finance, you'll take a photo of your receipt in the app and submit it there. Training sessions are next Tuesday at 10am and 3pm — please join one of them. Old spreadsheet claims will not be accepted after the end of this month.",
+    objective: "Cut this to the facts people need.",
+    exemplarResponse:
+      "Expenses move to the app next month; photo receipts only; join Tuesday training; spreadsheet claims stop end of month.",
+    prepSeconds: 60,
+    durationSeconds: 30,
   }),
   p({
     code: "cih_i_cac",
     activitySlug: "cut_it_in_half",
     difficulty: "intermediary",
     title: "Rising acquisition cost",
-    promptText: "Cut this finance update by about half. Lead with the decision you need.",
-    secondaryText:
+    promptText:
       "As we review our financial performance metrics for the third quarter of this fiscal year, the data indicates a highly concerning downward trend. Specifically, our customer acquisition costs have escalated by a significant 22% compared to the previous quarter, which is largely driven by increased ad bidding competition on our primary paid social media channels. Concurrently, our overall conversion rates have flattened out entirely. To address this widening margin gap, the marketing department needs to immediately pause all active top-of-funnel ad campaigns by Friday afternoon so we can reallocate our remaining budget into our high-performing email retention strategies.",
-    objective: "State the main point and reach about 50 percent compression.",
+    objective: "Cut this by about half. Lead with the decision.",
     exemplarResponse:
-      "Acquisition cost is up 22 percent and conversion is flat. Pause top-of-funnel ads by Friday and move the remaining budget into email retention.",
+      "Acquisition cost is up 22% and conversion is flat. Pause top-of-funnel ads by Friday and move the remaining budget into email retention.",
     industries: ["corporate_finance", "sales_marketing"],
-    prepSeconds: 45,
-    durationSeconds: 60,
+    prepSeconds: 60,
+    durationSeconds: 30,
+  }),
+  p({
+    code: "cih_i_pipeline",
+    activitySlug: "cut_it_in_half",
+    difficulty: "intermediary",
+    title: "Pipeline risk update",
+    promptText:
+      "I wanted to give everyone a bit of context on where we are with the Q4 pipeline before the forecast call. We've had a few deals slip, mainly because procurement on the buyer side has slowed, and two of our larger opportunities are now tracking into January rather than December. That said, the mid-market motion is healthy and we still have a path to land within five percent of target if we protect the three deals in verbal commit and stop discounting below the floor without approval. Can everyone please update Salesforce by Thursday noon so finance can lock the number?",
+    objective: "Cut this to the risk and the ask.",
+    exemplarResponse:
+      "Two large deals slipped to January; mid-market is fine. Protect the three verbal commits, no discounts below floor without approval, and update Salesforce by Thursday noon.",
+    industries: ["sales_marketing"],
+    prepSeconds: 60,
+    durationSeconds: 30,
+  }),
+  p({
+    code: "cih_i_incident",
+    activitySlug: "cut_it_in_half",
+    difficulty: "intermediary",
+    title: "Incident status note",
+    promptText:
+      "Just circling back on this morning's outage so everyone has the same story. Around 09:40 we saw elevated error rates on the checkout API after a config change went out. We rolled the change back at 10:05 and error rates returned to normal by 10:18. No customer payment data was exposed. We're writing a full postmortem and will share draft actions by tomorrow EOD. In the meantime please route any customer questions to the status page link rather than inventing timelines.",
+    objective: "Cut this to status, impact, and next step.",
+    exemplarResponse:
+      "Checkout errors from a 09:40 config change; rolled back by 10:05; recovered 10:18; no payment data exposed. Postmortem draft tomorrow; point customers to the status page.",
+    industries: ["tech_product"],
+    prepSeconds: 60,
+    durationSeconds: 30,
+  }),
+  p({
+    code: "cih_i_ward_report",
+    activitySlug: "cut_it_in_half",
+    difficulty: "intermediary",
+    title: "Ward handoff note",
+    promptText:
+      "So basically overnight the patient was a bit unsettled and we tried a few things and the observations were mostly okay but then towards morning the oxygen crept up a little and we called the doctor who said to continue and review later. Family were anxious at the bedside and we explained that stable does not mean going home today. Pain was managed with the usual dose and she took some breakfast. Please make sure the allergy note from last shift is still on the chart before the ward round.",
+    objective: "Cut this handoff to status, change, and action.",
+    exemplarResponse:
+      "Overnight: restless, obs mostly stable; oxygen need rose toward morning — doctor said continue and review later. Allergy note must stay on the chart before ward round.",
+    industries: ["healthcare_edu"],
+    prepSeconds: 60,
+    durationSeconds: 30,
+  }),
+  p({
+    code: "cih_i_parent_note",
+    activitySlug: "cut_it_in_half",
+    difficulty: "intermediary",
+    title: "School / clinic parent note",
+    promptText:
+      "Dear parents, I am writing to let you know that next Wednesday the clinic will run a short immunisation session in the hall between 9 and 11. Children who are due their booster will be seen first. Please bring the red book if you have it. If your child is unwell with a fever that morning, please do not bring them and call us to rebook. We will send a text confirmation the day before. Thank you for your help in keeping the queue moving.",
+    objective: "Cut this to the facts parents need.",
+    exemplarResponse:
+      "Wednesday 9–11 immunisation session; bring the red book; stay home and rebook if fever; text confirmation the day before.",
+    industries: ["healthcare_edu"],
+    prepSeconds: 60,
+    durationSeconds: 30,
   }),
   p({
     code: "cih_p_pricing",
     activitySlug: "cut_it_in_half",
     difficulty: "professional",
     title: "Pricing model shift",
-    promptText: "Compress this into punchy sentences. The decision should land in the first five seconds.",
-    secondaryText:
+    promptText:
       "In light of shifting macroeconomic tailwinds and aggressive market penetration by low-cost, decentralized competitors, our current enterprise SaaS monetization framework is experiencing unprecedented margin erosion. While our legacy client footprint remains relatively insulated due to multi-year contractual lock-ins, our net new logo acquisition velocity has decelerated by a critical margin. Consequently, cross-functional stakeholders must urgently initiate a comprehensive pricing restructuring paradigm. We need to transition from our traditional seat-based licensing model to a consumption-based utility model before the upcoming annual shareholder summit to safeguard our projected valuation targets.",
-    objective: "Paraphrase, pace it, and leave an action.",
+    objective: "Compress hard. Decision in the first five seconds.",
     exemplarResponse:
-      "We should switch new customers from seats to usage pricing before the shareholder meeting. Existing contracts can stay. New-logo growth has slowed, and usage pricing is how we protect the valuation story.",
+      "Switch new customers from seats to usage pricing before the shareholder meeting. Existing contracts stay. New-logo growth has slowed — usage pricing protects the valuation story.",
     industries: ["corporate_finance", "tech_product"],
-    prepSeconds: 45,
-    durationSeconds: 60,
+    prepSeconds: 60,
+    durationSeconds: 30,
+  }),
+  p({
+    code: "cih_p_board_risk",
+    activitySlug: "cut_it_in_half",
+    difficulty: "professional",
+    title: "Board risk paragraph",
+    promptText:
+      "Following an extensive review of our third-party vendor landscape and in light of recent regulatory guidance regarding operational resilience, the risk committee recommends that we accelerate the dual-sourcing programme for our two most critical payment processors. Although dual-sourcing introduces short-term cost and integration complexity, the concentration risk on a single provider is no longer acceptable given our transaction volume and the potential supervisory consequences of a prolonged outage. Management is asked to present a 90-day dual-sourcing plan at the next board meeting, including budget, owners, and exit criteria for the primary vendor dependency.",
+    objective: "Board-ready brevity. Ask and deadline first.",
+    exemplarResponse:
+      "We need a 90-day dual-sourcing plan for our two critical payment processors at the next board. Single-provider concentration risk is no longer acceptable; short-term cost is worth the resilience.",
+    industries: ["corporate_finance"],
+    prepSeconds: 60,
+    durationSeconds: 30,
   }),
 
   p({
@@ -673,7 +773,7 @@ const PROMPTS = [
     objective: "Fill the minute with one idea, repeated clearly.",
     exemplarResponse:
       "Consistency matters more than intensity because the body changes from what you repeat, not from what you try once. A brutal workout you quit after a week leaves almost nothing behind. A moderate session you do three times a week becomes a habit, and the habit is what builds strength and fitness. When you start, the goal is not to impress yourself on day one. It is to still be training next month. Show up often, keep it doable, and intensity can grow later.",
-    industries: ["healthcare_edu", "sales_marketing"],
+    industries: ["sales_marketing"],
     prepSeconds: 5,
   }),
   p({
@@ -685,7 +785,7 @@ const PROMPTS = [
     objective: "Use two clear buckets.",
     exemplarResponse:
       "Here is the difference that matters at work today. Automation takes a task off a person's plate — like software that sorts invoices so nobody types them by hand. Augmentation stays beside the person — like a tool that drafts options a doctor still chooses from. One removes work. The other improves the human decision. If you confuse them, you either fire the wrong people or you expect software to own judgment it should not own. So ask: are we replacing the task, or are we making the human better at it?",
-    industries: ["tech_product", "general"],
+    industries: ["tech_product"],
     learnMoreUrl: "https://en.wikipedia.org/wiki/Intelligence_amplification",
     learnMoreLabel: "Augmentation versus replacement",
     prepSeconds: 5,
@@ -698,7 +798,7 @@ const PROMPTS = [
     promptText: "Explain what psychological safety means in a team and why it prevents project failures.",
     objective: "Define it, then give two reasons it matters.",
     exemplarResponse:
-      "Psychological safety means people can say 'this will fail' or 'I do not understand' without being punished for it. It matters for two reasons. First, projects fail in silence — the risk was known, but nobody dared to speak. Second, when bad news arrives early, the team can still change course, cut scope, or ask for help. A team that only hears good news is not healthy; it is blind. So psychological safety is not about being soft. It is about catching problems while there is still time to fix them.",
+      "Psychological safety means people can say 'this will fail' without being punished. Projects fail in silence. When bad news arrives early, the team can still change course — so safety is about catching problems in time, not about being soft.",
     learnMoreUrl: "https://en.wikipedia.org/wiki/Psychological_safety",
     learnMoreLabel: "What psychological safety means",
     // People / product leadership — not Corporate & Finance catalog.
@@ -840,7 +940,7 @@ const PROMPTS = [
       "The same coins buy less snack than last year. Shops pay more for ingredients and energy, so the price on the shelf goes up. That rise in everyday prices is inflation.",
     learnMoreUrl: "https://en.wikipedia.org/wiki/Inflation",
     learnMoreLabel: "Inflation in plain terms",
-    prepSeconds: 10,
+    prepSeconds: 5,
   }),
   p({
     code: "eis_b_job_child",
@@ -851,7 +951,7 @@ const PROMPTS = [
     objective: "Sound like a person, not a job description.",
     exemplarResponse:
       "I help a team decide what to do next. I listen, I write the plan so nobody gets confused, and I check that we finished what we promised.",
-    prepSeconds: 10,
+    prepSeconds: 5,
   }),
   p({
     code: "eis_b_ecommerce",
@@ -862,7 +962,7 @@ const PROMPTS = [
     objective: "Use his world as the picture.",
     exemplarResponse:
       "Imagine the market square is open all night, and the stall is a page people visit from their homes. They point at the horseshoe, pay, and a rider brings it to their door.",
-    prepSeconds: 10,
+    prepSeconds: 5,
   }),
   p({
     code: "eis_i_seo_chef",
@@ -875,8 +975,8 @@ const PROMPTS = [
       "When someone nearby searches 'fresh bread', Google is the person on the corner giving directions. SEO is making your shop the clearest answer: the right name, the right street, and proof that people like what you bake.",
     learnMoreUrl: "https://developers.google.com/search/docs/fundamentals/seo-starter-guide",
     learnMoreLabel: "Search essentials",
-    industries: ["sales_marketing", "general"],
-    prepSeconds: 10,
+    industries: ["sales_marketing"],
+    prepSeconds: 5,
   }),
   p({
     code: "eis_i_privacy",
@@ -889,7 +989,7 @@ const PROMPTS = [
       "Accept all is like letting a stranger copy your till receipts, your usual bus route, and what you almost bought. The site wants that trail so it can follow you with adverts. You can say no to the extra copying.",
     learnMoreUrl: "https://www.ncsc.gov.uk/collection/device-security-guidance/glossary",
     learnMoreLabel: "Why sites ask for consent",
-    prepSeconds: 10,
+    prepSeconds: 5,
   }),
   p({
     code: "eis_i_cloud_parent",
@@ -901,8 +1001,8 @@ const PROMPTS = [
     objective: "Friendly analogy. No jargon pile-up.",
     exemplarResponse:
       "The cloud is just someone else's computer, kept safe in a big building. When you save a photo there, it lives on that computer so you can open it from your phone or laptop. It is storage with a login, not weather.",
-    industries: ["tech_product", "general"],
-    prepSeconds: 10,
+    industries: ["tech_product"],
+    prepSeconds: 5,
   }),
   p({
     code: "eis_i_api_waiter",
@@ -914,8 +1014,8 @@ const PROMPTS = [
     objective: "Use the restaurant as the picture.",
     exemplarResponse:
       "An API is the waiter between the kitchen and the dining room. Guests do not walk into the kitchen; they ask through the waiter, get a clear answer, and the kitchen stays organised. Software apps talk to each other the same way.",
-    industries: ["tech_product", "general"],
-    prepSeconds: 10,
+    industries: ["tech_product"],
+    prepSeconds: 5,
   }),
   p({
     code: "eis_i_brand_neighbour",
@@ -927,8 +1027,8 @@ const PROMPTS = [
     objective: "Simple, human, one clear takeaway.",
     exemplarResponse:
       "A brand is the promise people remember when they hear your name. The logo is just the badge. If every visit feels reliable and a bit special, that feeling is the brand — and it is why they come back.",
-    industries: ["sales_marketing", "general"],
-    prepSeconds: 10,
+    industries: ["sales_marketing"],
+    prepSeconds: 5,
   }),
   p({
     code: "eis_i_cashflow_friend",
@@ -940,8 +1040,8 @@ const PROMPTS = [
     objective: "One analogy, then why it can sink a busy shop.",
     exemplarResponse:
       "Profit is the score on paper. Cash flow is whether the till has money today. You can look profitable and still run dry if customers pay late while you pay suppliers now. Watch the till, not only the score.",
-    industries: ["corporate_finance", "general"],
-    prepSeconds: 10,
+    industries: ["corporate_finance"],
+    prepSeconds: 5,
   }),
   p({
     code: "eis_i_vaccine_uncle",
@@ -953,8 +1053,47 @@ const PROMPTS = [
     objective: "Calm, clear, no scare tactics.",
     exemplarResponse:
       "A vaccine is a practice round for your immune system. It shows a safe copy of the threat so your body learns the shape. Later, if the real thing shows up, your body already knows how to fight it faster.",
-    industries: ["healthcare_edu", "general"],
-    prepSeconds: 10,
+    industries: ["healthcare_edu"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "eis_i_triage_patient",
+    activitySlug: "explain_it_simply",
+    difficulty: "intermediary",
+    title: "Triage to a worried patient",
+    promptText:
+      "Explain triage to a patient in A&E who thinks waiting means the staff are ignoring them.",
+    objective: "Calm, respectful, clear priority logic.",
+    exemplarResponse:
+      "Triage is sorting by urgency, not by who arrived first. Someone struggling to breathe goes ahead of a sprained ankle even if they walked in later. Waiting does not mean you do not matter — it means others need help right now to stay safe.",
+    industries: ["healthcare_edu"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "eis_i_antibiotics_parent",
+    activitySlug: "explain_it_simply",
+    difficulty: "intermediary",
+    title: "Antibiotics to a parent",
+    promptText:
+      "Explain why antibiotics will not help a viral cold to a parent who wants a prescription 'just in case'.",
+    objective: "Firm but kind. One clear reason.",
+    exemplarResponse:
+      "Antibiotics kill bacteria, not viruses. A typical cold is viral, so the medicine will not shorten it — and using it when it is not needed makes future infections harder to treat. Rest, fluids, and time are the real treatment here.",
+    industries: ["healthcare_edu"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "eis_i_consent_teen",
+    activitySlug: "explain_it_simply",
+    difficulty: "intermediary",
+    title: "Informed consent to a teen",
+    promptText:
+      "Explain informed consent to a teenager about to have a minor procedure who just wants it 'over with'.",
+    objective: "Respect autonomy without sounding like a lecture.",
+    exemplarResponse:
+      "Informed consent means you understand what will happen, what could go wrong, and what the choices are — then you say yes. It is not a formality. It is you staying in charge of your body while we do the work safely.",
+    industries: ["healthcare_edu"],
+    prepSeconds: 5,
   }),
   p({
     code: "eis_i_funnel_coach",
@@ -966,8 +1105,8 @@ const PROMPTS = [
     objective: "Map it to their season language.",
     exemplarResponse:
       "A sales funnel is like your season path: many kids hear about the club, fewer come to try-outs, fewer still make the squad, and a small group play match day. Each step narrows. Marketing fills the top; closing is match day.",
-    industries: ["sales_marketing", "general"],
-    prepSeconds: 10,
+    industries: ["sales_marketing"],
+    prepSeconds: 5,
   }),
   p({
     code: "eis_i_margin_baker",
@@ -979,8 +1118,8 @@ const PROMPTS = [
     objective: "Kitchen maths, not spreadsheet talk.",
     exemplarResponse:
       "Gross margin is what is left from the loaf price after you pay for flour, butter, and packaging — before rent and wages. If that slice is too thin, no amount of busy weekends will save the shop.",
-    industries: ["corporate_finance", "sales_marketing", "general"],
-    prepSeconds: 10,
+    industries: ["corporate_finance", "sales_marketing"],
+    prepSeconds: 5,
   }),
   p({
     code: "eis_p_quantum",
@@ -994,7 +1133,7 @@ const PROMPTS = [
     learnMoreUrl: "https://en.wikipedia.org/wiki/Quantum_computing",
     learnMoreLabel: "Quantum computing overview",
     industries: ["tech_product", "sales_marketing"],
-    prepSeconds: 10,
+    prepSeconds: 5,
   }),
   p({
     code: "eis_p_ml_historian",
@@ -1008,7 +1147,7 @@ const PROMPTS = [
     learnMoreUrl: "https://en.wikipedia.org/wiki/Machine_learning",
     learnMoreLabel: "Machine learning, the idea",
     industries: ["tech_product", "healthcare_edu"],
-    prepSeconds: 10,
+    prepSeconds: 5,
   }),
   p({
     code: "eis_p_irr_board",
@@ -1021,7 +1160,7 @@ const PROMPTS = [
     exemplarResponse:
       "IRR is the growth rate that makes an investment's cash in and cash out balance. If two projects need the same money, the higher IRR is usually the better use of cash — unless the risk or timing is worse.",
     industries: ["corporate_finance"],
-    prepSeconds: 10,
+    prepSeconds: 5,
   }),
   p({
     code: "eis_p_latency_ops",
@@ -1033,8 +1172,8 @@ const PROMPTS = [
     objective: "Business impact in the first sentence.",
     exemplarResponse:
       "Latency is the wait between tap and result. Uptime means the system is alive; latency means it is useful. A shop that is open but makes every customer queue for thirty seconds still loses sales.",
-    industries: ["tech_product", "corporate_finance", "general"],
-    prepSeconds: 10,
+    industries: ["tech_product", "corporate_finance"],
+    prepSeconds: 5,
   }),
   p({
     code: "eis_p_nps_ward",
@@ -1046,8 +1185,8 @@ const PROMPTS = [
     objective: "Make it operational, not corporate.",
     exemplarResponse:
       "NPS asks one thing: would you recommend us? Promoters pull others in; detractors warn them away. For a ward, it is a simple pulse on whether patients leave telling a good story or a warning.",
-    industries: ["healthcare_edu", "general"],
-    prepSeconds: 10,
+    industries: ["healthcare_edu"],
+    prepSeconds: 5,
   }),
   p({
     code: "eis_b_wifi_grandma",
@@ -1059,7 +1198,7 @@ const PROMPTS = [
     objective: "Warm and simple. One picture.",
     exemplarResponse:
       "Wi‑Fi is an invisible radio signal from a small box in your house. Walls and distance weaken it, so the garden might catch it while the bathroom does not. It is not magic — it is a signal with a limited reach.",
-    prepSeconds: 10,
+    prepSeconds: 5,
   }),
   p({
     code: "eis_b_password_teen",
@@ -1071,7 +1210,7 @@ const PROMPTS = [
     objective: "One clear risk, no lecture tone.",
     exemplarResponse:
       "If one site gets hacked and you reused the same password, thieves can walk into your email and games too. A unique password is a different key for every door — so one broken lock does not open the whole house.",
-    prepSeconds: 10,
+    prepSeconds: 5,
   }),
 
   p({
@@ -1287,7 +1426,7 @@ const PROMPTS = [
     objective: "Answer the challenge without going flat or defensive.",
     exemplarResponse:
       "The extra two weeks are not for the original scope. A dependency slipped by six working days. I can deliver the agreed scope on the original date if we cut the two items we added last Tuesday.",
-    industries: ["general", "tech_product", "corporate_finance"],
+    industries: ["tech_product", "corporate_finance", "healthcare_edu"],
     prepSeconds: 5,
   }),
   p({
@@ -1300,7 +1439,7 @@ const PROMPTS = [
     objective: "Listen, then answer the actual claim.",
     exemplarResponse:
       "I am sorry it felt short of what you expected. A full refund applies when the service was unavailable. What you described is the plan working, but not the outcome you wanted. I can offer the unused month back, or a working session to get you to that outcome.",
-    industries: ["general", "sales_marketing"],
+    industries: ["sales_marketing"],
     prepSeconds: 5,
   }),
   p({
@@ -1414,6 +1553,112 @@ const PROMPTS = [
     industries: ["healthcare_edu"],
     prepSeconds: 5,
   }),
+
+  // --- Extra healthcare clinical prompts (health first, not school-lesson topics) ---
+  p({
+    code: "eis_b_bp_patient",
+    activitySlug: "explain_it_simply",
+    difficulty: "beginner",
+    title: "Blood pressure to a patient",
+    promptText:
+      "Explain what blood pressure numbers mean to a patient who only knows 'high' or 'low'.",
+    objective: "Calm and practical. One clear takeaway.",
+    exemplarResponse:
+      "The top number is the push when your heart beats. The bottom is the pressure between beats. High means your heart and vessels are working harder than they should — so we watch it and treat it before it causes bigger problems.",
+    industries: ["healthcare_edu"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "eis_b_diabetes_friend",
+    activitySlug: "explain_it_simply",
+    difficulty: "beginner",
+    title: "Diabetes to a friend",
+    promptText:
+      "Explain Type 2 diabetes to a friend who thinks it only means 'too much sugar in tea'.",
+    objective: "Simple, no blame, one picture.",
+    exemplarResponse:
+      "Your body uses sugar for energy. In Type 2, the key that opens the cell door does not work well, so sugar stays in the blood. It is not just about sweet drinks — it is about how the body handles energy every day.",
+    industries: ["healthcare_edu"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "eis_i_discharge_family",
+    activitySlug: "explain_it_simply",
+    difficulty: "intermediary",
+    title: "Discharge plan to a family",
+    promptText:
+      "Explain a hospital discharge plan to a family who is worried about going home 'too soon'.",
+    objective: "Reassure with a clear next-step list.",
+    exemplarResponse:
+      "Going home does not mean everything is finished. It means the hospital part is stable enough, and the rest continues with these meds, this follow-up date, and this number to call if X happens. Here is what to watch for in the first 48 hours.",
+    industries: ["healthcare_edu"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "tf_b_missed_meds",
+    activitySlug: "think_fast",
+    difficulty: "beginner",
+    title: "Missed medication dose",
+    promptText:
+      "A patient calls and says they forgot last night's tablet. What do you tell them in the next 60 seconds?",
+    objective: "Clear instruction. No panic. One next step.",
+    exemplarResponse:
+      "Do not double up this morning. Take today's dose at the usual time, and tell us if you miss two doses in a row. If you feel chest pain or severe dizziness, call emergency services now.",
+    industries: ["healthcare_edu"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "tf_i_ward_update",
+    activitySlug: "think_fast",
+    difficulty: "intermediary",
+    title: "Ward round update",
+    promptText:
+      "The consultant asks for a 60-second update on your patient. Give the status, the problem, and the ask.",
+    objective: "BLUF: status, issue, request.",
+    exemplarResponse:
+      "Mrs Khan is stable overnight. Oxygen is down to 2 litres. The open issue is the pending culture result. I need your decision on whether we stop the IV antibiotics this afternoon.",
+    industries: ["healthcare_edu"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "ome_i_hand_hygiene",
+    activitySlug: "one_minute_expert",
+    difficulty: "intermediary",
+    title: "Hand hygiene that sticks",
+    promptText:
+      "Explain why hand hygiene still fails on busy wards, and what actually changes behaviour.",
+    objective: "One clear argument for 60 seconds.",
+    exemplarResponse:
+      "Posters do not fail people — friction does. When gel is out of reach or gloves feel like a shortcut, compliance drops. Put gel at the bed, make the first touch a clean touch, and audit the moment of care, not the policy document. Behaviour follows the easiest safe path.",
+    industries: ["healthcare_edu"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "ome_b_pain_scale",
+    activitySlug: "one_minute_expert",
+    difficulty: "beginner",
+    title: "Pain scale to a patient",
+    promptText:
+      "Explain the 0 to 10 pain scale to a patient who keeps saying 'it just hurts'.",
+    objective: "Fill the minute with a simple structure.",
+    exemplarResponse:
+      "Zero is no pain. Ten is the worst pain you can imagine. We ask for a number so we can see if treatment is helping — not to test you. Compare today with yesterday. If it was an eight and now it is a five, that is progress even if it still hurts.",
+    industries: ["healthcare_edu"],
+    prepSeconds: 5,
+  }),
+  p({
+    code: "deb_b_vaccine_myth",
+    activitySlug: "debate_me",
+    difficulty: "beginner",
+    title: "Vaccine worry",
+    promptText:
+      "Act as a polite relative. Debate that 'natural immunity is always better than vaccines'. Push back gently on medical advice.",
+    objective: "Stay calm, clear, and factual.",
+    exemplarResponse:
+      "Natural infection can leave immunity, and it can also leave harm. Vaccines train the same system with far less risk. The goal is protection without the illness.",
+    industries: ["healthcare_edu"],
+    prepSeconds: 5,
+  }),
 ];
 
 const CHALLENGES = [
@@ -1497,7 +1742,7 @@ const ASSESSMENT_QUESTIONS = [
       { id: "corporate_finance", label: "Corporate & Finance", description: "Meetings, data reviews and formal presentations" },
       { id: "tech_product", label: "Tech, Engineering & Product", description: "Explaining complex ideas simply" },
       { id: "sales_marketing", label: "Sales, Marketing & Content", description: "Persuasion, negotiation and audience engagement" },
-      { id: "healthcare_edu", label: "Healthcare & Education", description: "Clear, empathetic communication" },
+      { id: "healthcare_edu", label: "Healthcare & Education", description: "Patients, families, clinical clarity" },
       { id: "other", label: "Other", description: "Something else" },
     ],
   },
@@ -1536,6 +1781,8 @@ const ASSESSMENT_QUESTIONS = [
       { id: "calmer_confident", label: "Feel calmer and more confident speaking under pressure", description: "" },
       { id: "persuasive_arguments", label: "Build clear, persuasive arguments on the spot", description: "" },
       { id: "clear_daily", label: "Speak more clearly and confidently every day", description: "" },
+      { id: "keep_engaged", label: "Keep people engaged and make an impact", description: "" },
+      { id: "other", label: "Other", description: "Personal communication goals" },
     ],
   },
 ];
