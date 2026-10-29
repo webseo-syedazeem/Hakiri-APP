@@ -180,10 +180,10 @@ class _RecordingScreenState extends State<RecordingScreen>
         slug == 'explain_it_simply') {
       _prepTotalSeconds = 5;
     }
-    // Cut It In Half: 60s to read the passage, 30s to speak the short version.
+    // Cut It In Half: passage to compress, then 60s to summarise out loud.
     if (slug == 'cut_it_in_half') {
       _prepTotalSeconds = 60;
-      _speakingTotalSeconds = 30;
+      _speakingTotalSeconds = 60;
     }
 
     _speakingSecondsRemaining = _speakingTotalSeconds;

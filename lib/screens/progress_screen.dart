@@ -5,7 +5,6 @@ import '../models/session_model.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/custom_sparkline.dart';
 import '../widgets/hakkiri_logo.dart';
-import '../widgets/orbital_background_painter.dart';
 import 'activity_detail_screen.dart';
 import 'all_sessions_screen.dart';
 import 'feedback_screen.dart';
@@ -50,41 +49,17 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
         .where((s) => s.timestamp.isAfter(cutoff))
         .toList();
 
-    // Overall Score for the active period
-    final double? periodAverage = filteredSessions.isNotEmpty
-        ? (filteredSessions.fold<double>(0.0, (sum, s) => sum + s.feedback.overallScore) /
-            filteredSessions.length)
-        : state.overallAverage;
-    final overallText = periodAverage == null
-        ? '0.0'
-        : periodAverage.toStringAsFixed(1);
-
-    final fluency = _periodPillarStat(filteredSessions, state, 'executive_presence');
-    final clarity = _periodPillarStat(filteredSessions, state, 'clarity');
-    final engagement = _periodPillarStat(filteredSessions, state, 'engagement');
+    // Design labels: Clarity / Structure / Engagement / Conciseness
+    final claritySkill =
+        _periodPillarStat(filteredSessions, state, 'executive_presence');
+    final structureSkill =
+        _periodPillarStat(filteredSessions, state, 'clarity');
+    final engagement =
+        _periodPillarStat(filteredSessions, state, 'engagement');
     final impact = _periodPillarStat(filteredSessions, state, 'impact');
-
-    final List<double> sparkline;
-    if (filteredSessions.length >= 2) {
-      sparkline = filteredSessions
-          .take(10)
-          .toList()
-          .reversed
-          .map((s) => s.feedback.overallScore.toDouble())
-          .toList();
-    } else if (filteredSessions.length == 1) {
-      final s = filteredSessions.first.feedback.overallScore.toDouble();
-      sparkline = [s, s, s];
-    } else if (state.sessionHistory.isNotEmpty) {
-      sparkline = state.sessionHistory
-          .take(10)
-          .toList()
-          .reversed
-          .map((s) => s.feedback.overallScore.toDouble())
-          .toList();
-    } else {
-      sparkline = const [3.0, 3.0, 3.0];
-    }
+    final recentSessions = filteredSessions;
+    final totalSessions = recentSessions.length;
+    final previewCount = totalSessions.clamp(0, 3);
 
     return SafeArea(
       bottom: false,
@@ -94,7 +69,6 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row: Logo + Filter Tabs Pill
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -102,13 +76,13 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                   variant: HakkiriLogoVariant.compactMark,
                   size: 22,
                 ),
-                // Pill Selector: [ 7 days | 30 days | 3 months ]
                 Container(
                   padding: const EdgeInsets.all(3),
                   decoration: BoxDecoration(
                     color: AppColors.surfaceWhite,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
+                    border:
+                        Border.all(color: AppColors.surfaceBorder, width: 1.0),
                   ),
                   child: Row(
                     children: [
@@ -120,281 +94,63 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                 ),
               ],
             ),
+            const SizedBox(height: 18),
+
+            const Text(
+              'Your skills',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                color: AppColors.textPrimary,
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.6,
+                height: 1.15,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'See how you’re progressing across key areas.',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                color: AppColors.textSecondary,
+                fontSize: 14,
+                height: 1.35,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 16),
 
-            // Header Section with Wave Background
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned(
-                  right: -10,
-                  top: -10,
-                  bottom: -10,
-                  width: 140,
-                  child: CustomPaint(painter: ProgressWavePainter()),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'YOUR PROGRESS',
-                      style: TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    RichText(
-                      text: const TextSpan(
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          color: AppColors.textPrimary,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -0.8,
-                          height: 1.15,
-                        ),
-                        children: [
-                          TextSpan(text: "You're getting clearer.\n"),
-                          TextSpan(
-                            text: 'Keep it going.',
-                            style: TextStyle(color: AppColors.royalBlue),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Hero Dark Card (Overall Score + Wavy Chart)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(22),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF1E1B4B).withValues(alpha: 0.25),
-                    blurRadius: 18,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Circular Score Ring
-                      Container(
-                        width: 74,
-                        height: 74,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: const Color(0xFF38BDF8),
-                            width: 4.0,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF38BDF8).withValues(alpha: 0.3),
-                              blurRadius: 10,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                        alignment: Alignment.center,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              'OVERALL',
-                              style: TextStyle(
-                                color: Color(0xFF94A3B8),
-                                fontSize: 8.0,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                            const SizedBox(height: 1),
-                            Text(
-                              overallText,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                            const Text(
-                              '/ 5',
-                              style: TextStyle(
-                                color: Color(0xFF94A3B8),
-                                fontSize: 9.0,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-
-                      // Details
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(
-                                        Icons.local_fire_department_rounded,
-                                        color: Color(0xFF10B981),
-                                        size: 15,
-                                      ),
-                                      const SizedBox(width: 2),
-                                      Flexible(
-                                        child: Text(
-                                          '${state.currentStreak}-day streak · ${state.totalXp} XP',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            color: Color(0xFF10B981),
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                GestureDetector(
-                                  onTap: () => _showScoreExplainer(context),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: const [
-                                        Icon(Icons.info_outline_rounded, color: Colors.white70, size: 10),
-                                        SizedBox(width: 2),
-                                        Text(
-                                          'How scores work',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 9,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              filteredSessions.length >= 3
-                                  ? 'Great progress.'
-                                  : (filteredSessions.isNotEmpty ? 'Keep practising.' : 'Start practising.'),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              filteredSessions.isNotEmpty
-                                  ? '${filteredSessions.length} session${filteredSessions.length == 1 ? '' : 's'} recorded in the last $filterLabel.'
-                                  : 'No sessions yet in the last $filterLabel. ${state.focusLine}',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.75),
-                                fontSize: 11.5,
-                                height: 1.35,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // Glowing trendline with dots
-                  CustomSparkline(
-                    values: sparkline,
-                    color: const Color(0xFF60A5FA),
-                    strokeWidth: 2.5,
-                    height: 28,
-                    showDots: true,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // SKILL BREAKDOWN Section Header
-            const Text(
-              'SKILL BREAKDOWN',
-              style: TextStyle(
-                color: AppColors.textMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1.2,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // 2x2 Grid of Skill Cards
             Row(
               children: [
                 Expanded(
                   child: _buildSkillCard(
-                    icon: Icons.mic_rounded,
+                    icon: Icons.chat_bubble_rounded,
                     iconColor: const Color(0xFF3B82F6),
                     iconBgColor: const Color(0xFFEFF6FF),
-                    title: 'Fluency & presence',
-                    scoreText: fluency.$1,
-                    deltaText: fluency.$3,
-                    isDeltaPositive: fluency.$4,
+                    title: 'Clarity',
+                    scoreText: claritySkill.$1,
+                    deltaText: claritySkill.$3,
+                    isDeltaPositive: claritySkill.$4,
                     description: 'Steadier pace, fewer hesitations.',
-                    sparklinePoints: fluency.$5,
+                    sparklinePoints: claritySkill.$5,
                     sparklineColor: const Color(0xFF3B82F6),
-                    isLocked: fluency.$2,
+                    isLocked: claritySkill.$2,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _buildSkillCard(
-                    icon: Icons.visibility_rounded,
+                    icon: Icons.bar_chart_rounded,
                     iconColor: const Color(0xFF10B981),
                     iconBgColor: const Color(0xFFECFDF5),
-                    title: 'Clarity',
-                    scoreText: clarity.$1,
-                    deltaText: clarity.$3,
-                    isDeltaPositive: clarity.$4,
+                    title: 'Structure',
+                    scoreText: structureSkill.$1,
+                    deltaText: structureSkill.$3,
+                    isDeltaPositive: structureSkill.$4,
                     description: 'Your main points are easier to follow.',
-                    sparklinePoints: clarity.$5,
+                    sparklinePoints: structureSkill.$5,
                     sparklineColor: const Color(0xFF10B981),
-                    isLocked: clarity.$2,
+                    isLocked: structureSkill.$2,
                   ),
                 ),
               ],
@@ -404,9 +160,9 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
               children: [
                 Expanded(
                   child: _buildSkillCard(
-                    icon: Icons.auto_awesome_rounded,
-                    iconColor: const Color(0xFFEF4444),
-                    iconBgColor: const Color(0xFFFEF2F2),
+                    icon: Icons.groups_rounded,
+                    iconColor: const Color(0xFFEC4899),
+                    iconBgColor: const Color(0xFFFDF2F8),
                     title: 'Engagement & tone',
                     scoreText: engagement.$1,
                     deltaText: engagement.$3,
@@ -415,7 +171,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                         ? 'Complete more sessions to unlock this score.'
                         : 'Keep people with you.',
                     sparklinePoints: engagement.$5,
-                    sparklineColor: const Color(0xFFCBD5E1),
+                    sparklineColor: const Color(0xFFEC4899),
                     isLocked: engagement.$2,
                   ),
                 ),
@@ -437,153 +193,134 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // RECOMMENDED NEXT Card
+            // Recommended next
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
               decoration: BoxDecoration(
                 color: const Color(0xFFFFFBEB),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFFEF3C7), width: 1.0),
+                border: Border.all(color: const Color(0xFFFEF3C7)),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
-                      borderRadius: BorderRadius.circular(14),
+                  const Text(
+                    'RECOMMENDED NEXT  ·  ~2 MIN',
+                    style: TextStyle(
+                      color: Color(0xFFD97706),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.7,
                     ),
-                    alignment: Alignment.center,
-                    child: const Icon(Icons.content_cut_rounded, color: Color(0xFFD97706), size: 24),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Row(
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.content_cut_rounded,
+                          color: Color(0xFFD97706),
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'RECOMMENDED NEXT',
+                              'Cut It in Half',
                               style: TextStyle(
-                                color: Color(0xFFD97706),
-                                fontSize: 9.5,
+                                color: AppColors.textPrimary,
+                                fontSize: 15,
                                 fontWeight: FontWeight.w800,
-                                letterSpacing: 0.8,
                               ),
                             ),
-                            SizedBox(width: 6),
+                            SizedBox(height: 2),
                             Text(
-                              '· ~2 min',
+                              'Build your conciseness with short, focused answers.',
                               style: TextStyle(
-                                color: Color(0xFFB45309),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF92400E),
+                                fontSize: 12,
+                                height: 1.3,
                               ),
                             ),
                           ],
                         ),
-                        SizedBox(height: 3),
-                        Text(
-                          'Cut it in Half',
-                          style: TextStyle(
-                            color: AppColors.textPrimary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        SizedBox(height: 2),
-                        Text(
-                          'Build your conciseness with short, focused answers.',
-                          style: TextStyle(
-                            color: Color(0xFF92400E),
-                            fontSize: 11.5,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton(
-                    onPressed: () {
-                      state.selectActivity('cut_it_in_half');
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ActivityDetailScreen()),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.royalBlue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
                       ),
-                      elevation: 0,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Text(
-                          'Start',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        onPressed: () {
+                          state.selectActivity('cut_it_in_half');
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ActivityDetailScreen(),
+                            ),
+                          );
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.royalBlue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(22),
+                          ),
+                          elevation: 0,
                         ),
-                        SizedBox(width: 4),
-                        Icon(Icons.arrow_forward_rounded, size: 14),
-                      ],
-                    ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Start',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            SizedBox(width: 4),
+                            Icon(Icons.arrow_forward_rounded, size: 15),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 22),
 
-            // SESSIONS Header with active period indicator
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Text(
-                      'SESSIONS',
-                      style: TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.2,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.royalBlue.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: AppColors.royalBlue.withValues(alpha: 0.2),
-                          width: 1.0,
-                        ),
-                      ),
-                      child: Text(
-                        filterLabel,
-                        style: const TextStyle(
-                          color: AppColors.royalBlue,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
+                const Text(
+                  'Recent practice',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 Text(
-                  '${filteredSessions.length} total',
+                  totalSessions == 0
+                      ? 'No sessions yet'
+                      : '$previewCount of $totalSessions sessions',
                   style: const TextStyle(
                     color: AppColors.textSecondary,
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -591,14 +328,16 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
             ),
             const SizedBox(height: 12),
 
-            if (filteredSessions.isEmpty)
+            if (recentSessions.isEmpty)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceWhite,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
+                  border:
+                      Border.all(color: AppColors.surfaceBorder, width: 1.0),
                 ),
                 child: Column(
                   children: [
@@ -629,9 +368,10 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                 ),
               )
             else ...[
-              ...filteredSessions.take(3).map((session) {
+              ...recentSessions.take(3).map((session) {
                 final score = session.feedback.overallScore;
-                final minutes = (session.durationSeconds / 60).ceil().clamp(1, 99);
+                final minutes =
+                    (session.durationSeconds / 60).ceil().clamp(1, 99);
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _buildRecentSessionCard(
@@ -644,7 +384,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                             : const Color(0xFFF59E0B),
                     title: session.activityName,
                     dateDuration:
-                        '${_formatSessionDay(session.timestamp)} · 🕒 $minutes min',
+                        '${_formatSessionDay(session.timestamp)} · $minutes min',
                     onTap: () {
                       Navigator.push(
                         context,
@@ -659,9 +399,9 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                   ),
                 );
               }),
-              if (filteredSessions.length > 3)
+              if (totalSessions > 3)
                 Padding(
-                  padding: const EdgeInsets.only(top: 2, bottom: 8),
+                  padding: const EdgeInsets.only(top: 2),
                   child: Material(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
@@ -683,36 +423,82 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: AppColors.royalBlue.withValues(alpha: 0.25),
+                            color: AppColors.royalBlue.withValues(alpha: 0.28),
                             width: 1.2,
                           ),
                           color: AppColors.royalBlue.withValues(alpha: 0.04),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              'See all ${filteredSessions.length} sessions',
-                              style: const TextStyle(
-                                fontFamily: 'Inter',
-                                color: AppColors.royalBlue,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            const Icon(
-                              Icons.arrow_forward_rounded,
-                              size: 15,
-                              color: AppColors.royalBlue,
-                            ),
-                          ],
+                        child: Text(
+                          'View all $totalSessions practice sessions →',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontFamily: 'Inter',
+                            color: AppColors.royalBlue,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
             ],
+
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFF6FF),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: const Color(0xFFBFDBFE)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFDBEAFE),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Icon(
+                      Icons.bar_chart_rounded,
+                      color: Color(0xFF2563EB),
+                      size: 22,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Hakkiri grows with you',
+                          style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Your level is reviewed weekly. Your recommended exercises update every two weeks based on your progress.',
+                          style: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 12.5,
+                            height: 1.4,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 28),
           ],
         ),
@@ -935,12 +721,6 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
   }
 
   String _formatSessionDay(DateTime stamp) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final day = DateTime(stamp.year, stamp.month, stamp.day);
-    if (day == today) {
-      return 'Today, ${stamp.hour.toString().padLeft(2, '0')}:${stamp.minute.toString().padLeft(2, '0')}';
-    }
     return '${stamp.day} ${_month(stamp.month)} ${stamp.year}';
   }
 
@@ -1027,56 +807,65 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              if (isLocked) ...[
-                const Icon(Icons.lock_outline_rounded, size: 14, color: AppColors.textMuted),
+          const SizedBox(height: 6),
+          if (isLocked)
+            Row(
+              children: [
+                const Icon(
+                  Icons.lock_outline_rounded,
+                  size: 14,
+                  color: AppColors.textMuted,
+                ),
                 const SizedBox(width: 4),
-                const Text(
-                  'Locked',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    color: AppColors.textMuted,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ] else ...[
-                Text(
-                  scoreText,
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    color: AppColors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ],
-              if (deltaText != null) ...[
-                const SizedBox(width: 6),
                 Flexible(
                   child: Text(
-                    deltaText,
+                    deltaText ?? 'Locked',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontFamily: 'Inter',
-                      color: isLocked
-                          ? AppColors.textMuted
-                          : (isDeltaPositive == true
-                              ? const Color(0xFF10B981)
-                              : const Color(0xFFEF4444)),
-                      fontSize: 11,
+                      color: AppColors.textMuted,
+                      fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
               ],
-            ],
-          ),
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  'Level $scoreText',
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    color: AppColors.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (deltaText != null) ...[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      deltaText,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        color: isDeltaPositive == true
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFFEF4444),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           const SizedBox(height: 4),
           Text(
             description,
@@ -1191,9 +980,9 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                     'Feedback',
                     style: TextStyle(
                       fontFamily: 'Inter',
-                      color: Color(0xFF93C5FD),
+                      color: Color(0xFF3B82F6),
                       fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),

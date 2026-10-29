@@ -142,9 +142,29 @@ const updateProfile = async (req, res) => {
     primaryRoadblock: patch.primaryRoadblock || existing?.primaryRoadblock,
     primaryGoal: patch.primaryGoal || existing?.primaryGoal,
   };
+  const focusChanged = Boolean(
+    (patch.primaryRoadblock &&
+      patch.primaryRoadblock !== existing?.primaryRoadblock) ||
+      (patch.primaryGoal && patch.primaryGoal !== existing?.primaryGoal)
+  );
   if (Object.values(merged).every(Boolean)) {
     patch.plan = buildPlan(merged);
     patch.onboardingComplete = true;
+  }
+  // Home Today plan prefers coaching.planDrills — refresh when focus changes
+  // so new goal / challenge drills show up immediately.
+  if (focusChanged && patch.plan?.initialDrills?.length) {
+    const prevCoach =
+      existing?.coaching && typeof existing.coaching === "object"
+        ? existing.coaching.toObject
+          ? existing.coaching.toObject()
+          : { ...existing.coaching }
+        : {};
+    patch.coaching = {
+      ...prevCoach,
+      planDrills: patch.plan.initialDrills.slice(0, 3),
+      planSetAt: new Date(),
+    };
   }
 
   const profile = await Profile.findOneAndUpdate({ user: req.user._id }, patch, {

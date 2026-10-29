@@ -137,9 +137,96 @@ const TRACK_LABEL = {
   very: "Very confident",
 };
 
+/** Goal + challenge votes → top 3 drills (matches Flutter computeAssessmentPlan). */
+function drillsFromFocus(roadblock, goal) {
+  const votes = {
+    think_fast: 0,
+    connect_the_dots: 0,
+    explain_it_simply: 0,
+    cut_it_in_half: 0,
+    storytelling_gym: 0,
+    one_minute_expert: 0,
+    debate_me: 0,
+  };
+  const bump = (slug) => {
+    if (votes[slug] != null) votes[slug] += 1;
+  };
+
+  switch (String(goal || "")) {
+    case "authority":
+      bump("cut_it_in_half");
+      bump("debate_me");
+      break;
+    case "calmer_confident":
+      bump("think_fast");
+      bump("connect_the_dots");
+      break;
+    case "persuasive_arguments":
+      bump("debate_me");
+      bump("connect_the_dots");
+      break;
+    case "clear_daily":
+      bump("explain_it_simply");
+      bump("cut_it_in_half");
+      break;
+    case "keep_engaged":
+      bump("storytelling_gym");
+      bump("one_minute_expert");
+      break;
+    default:
+      bump("think_fast");
+      bump("cut_it_in_half");
+  }
+
+  switch (String(roadblock || "")) {
+    case "blank_pressure":
+      bump("think_fast");
+      bump("connect_the_dots");
+      break;
+    case "too_long":
+      bump("cut_it_in_half");
+      bump("think_fast");
+      break;
+    case "filler_rush":
+      bump("think_fast");
+      bump("one_minute_expert");
+      break;
+    case "explain_simple":
+      bump("explain_it_simply");
+      bump("one_minute_expert");
+      break;
+    case "keep_engaged":
+      bump("storytelling_gym");
+      bump("one_minute_expert");
+      break;
+    case "lose_confidence":
+      bump("debate_me");
+      bump("connect_the_dots");
+      break;
+    case "accent_clarity":
+      bump("explain_it_simply");
+      bump("one_minute_expert");
+      break;
+    default:
+      bump("think_fast");
+      bump("connect_the_dots");
+  }
+
+  const ranked = Object.entries(votes).sort((a, b) => b[1] - a[1]);
+  const top = ranked.filter(([, n]) => n > 0).map(([slug]) => slug).slice(0, 3);
+  if (top.length >= 3) return top;
+  const fallback = DRILLS[roadblock] || DRILLS.blank_pressure;
+  for (const slug of fallback) {
+    if (!top.includes(slug)) top.push(slug);
+    if (top.length >= 3) break;
+  }
+  return top.slice(0, 3);
+}
+
 function buildPlan(answers) {
   const roadblock = answers.primaryRoadblock || "blank_pressure";
-  const drills = DRILLS[roadblock] || DRILLS.blank_pressure;
+  const goal = answers.primaryGoal || "calmer_confident";
+  const drills = drillsFromFocus(roadblock, goal);
   const track = answers.careerType || "general";
   return {
     headline: "Your first month of speaking practice",

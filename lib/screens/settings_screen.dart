@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../core/constants/app_colors.dart';
 import '../core/constants/app_strings.dart';
 import '../core/services/analytics_service.dart';
+import '../core/services/coach_tts_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_logo.dart';
 import 'how_hakkiri_works_screen.dart';
@@ -167,6 +168,12 @@ class SettingsScreen extends StatelessWidget {
                   );
                 },
               ),
+              _buildSettingTile(
+                title: 'AI coach voice',
+                value: state.coachVoiceGenderLabel,
+                icon: Icons.record_voice_over_outlined,
+                onTap: () => _showCoachVoicePicker(context),
+              ),
 
               const SizedBox(height: 20),
               _buildSectionHeader('TRUST & TRANSPARENCY'),
@@ -208,6 +215,130 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static Future<void> _showCoachVoicePicker(BuildContext context) async {
+    final state = Provider.of<AppStateProvider>(context, listen: false);
+    final current = state.coachVoiceGender;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surfaceWhite,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'AI coach voice',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Used for suggested answers on the feedback screen. Same AI voice engine — pick Male or Female.',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 13,
+                    color: AppColors.textMuted,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _voiceOption(
+                  sheetContext,
+                  id: 'female',
+                  title: 'Female',
+                  subtitle: 'Warm coach voice (current default)',
+                  selected: current == 'female',
+                ),
+                const SizedBox(height: 8),
+                _voiceOption(
+                  sheetContext,
+                  id: 'male',
+                  title: 'Male',
+                  subtitle: 'Steady coach voice',
+                  selected: current == 'male',
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static Widget _voiceOption(
+    BuildContext context, {
+    required String id,
+    required String title,
+    required String subtitle,
+    required bool selected,
+  }) {
+    return Material(
+      color: selected
+          ? AppColors.royalBlue.withValues(alpha: 0.08)
+          : AppColors.background,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () async {
+          final state = Provider.of<AppStateProvider>(context, listen: false);
+          await CoachTtsService.instance.stop();
+          await state.updateVoiceProfile(id);
+          if (context.mounted) Navigator.pop(context);
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          child: Row(
+            children: [
+              Icon(
+                selected
+                    ? Icons.check_circle_rounded
+                    : Icons.circle_outlined,
+                color: selected ? AppColors.royalBlue : AppColors.textMuted,
+                size: 22,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        color: AppColors.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),

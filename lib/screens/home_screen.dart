@@ -628,163 +628,168 @@ class HomeScreenContent extends StatelessWidget {
               );
             }),
 
-            // 10/15 bonus rows
+            // 10/15 unlock extras — unified outer green container enclosing cards (matching design)
             if (minutes >= 10) ...[
-              const SizedBox(height: 10),
-              _buildExerciseCard(
-                context: context,
-                icon: Icons.refresh_rounded,
-                iconColor: const Color(0xFF2563EB),
-                iconBgColor: const Color(0xFFDBEAFE),
-                title: 'Targeted retry',
-                subtitle: state.isTargetedRetryCompletedToday
-                    ? '${weakest['name']} again'
-                    : (coreDone >= 3
-                        ? '${weakest['name']} · weakest area'
-                        : 'Unlocks after 3 core exercises'),
-                isCompleted: state.isTargetedRetryCompletedToday,
-                trailingText: state.isTargetedRetryCompletedToday
-                    ? null
-                    : (coreDone >= 3 ? 'Ready' : 'Locked'),
-                onTap: coreDone >= 3 && !state.isTargetedRetryCompletedToday
-                    ? () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => TargetedRetryScreen(
-                              is15MinutePlan: minutes >= 15,
-                            ),
-                          ),
-                        );
-                      }
-                    : null,
-              ),
-            ],
-            if (minutes >= 15) ...[
-              const SizedBox(height: 10),
-              _buildExerciseCard(
-                context: context,
-                icon: Icons.bolt_rounded,
-                iconColor: const Color(0xFFDC2626),
-                iconBgColor: const Color(0xFFFEE2E2),
-                title: 'Tougher challenge',
-                subtitle: state.isTougherChallengeCompletedToday
-                    ? '${weakest['stretchName']} stretch'
-                    : (coreDone >= 3
-                        ? '${weakest['stretchName']} · stretch round'
-                        : 'Unlocks after 3 core exercises'),
-                isCompleted: state.isTougherChallengeCompletedToday,
-                trailingText: state.isTougherChallengeCompletedToday
-                    ? null
-                    : (coreDone >= 3 ? 'Ready' : 'Locked'),
-                onTap: coreDone >= 3 && !state.isTougherChallengeCompletedToday
-                    ? () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const TargetedRetryScreen(
-                              is15MinutePlan: true,
-                            ),
-                          ),
-                        );
-                      }
-                    : null,
-              ),
-            ],
-            const SizedBox(height: 12),
-
-            // Bottom Highlight Mint Green Card → Progress tab
-            Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => MainTabScaffold.switchTab(context, 1),
-                borderRadius: BorderRadius.circular(18),
-                child: Ink(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5E9),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: const Color(0xFFC8E6C9),
-                      width: 1.0,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFC8E6C9),
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: Icon(
-                          remaining == 0
-                              ? Icons.emoji_events_rounded
-                              : coreDone >= 3
-                                  ? Icons.lock_open_rounded
-                                  : Icons.lock_outline_rounded,
-                          color: const Color(0xFF2E7D32),
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              remaining == 0
-                                  ? 'PLAN COMPLETE'
-                                  : minutes == 5
-                                      ? progressTitle
-                                      : 'AFTER THESE 3',
-                              style: const TextStyle(
-                                color: Color(0xFF2E7D32),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.0,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              remaining == 0
-                                  ? 'You completed $planDone/$planTotal activities today.'
-                                  : minutes == 5
-                                      ? progressHeadline
-                                      : minutes == 10
-                                          ? 'Unlock 1 targeted retry. We\'ll pick the exercise that needs one more go.'
-                                          : 'Unlock 1 targeted retry + 1 tougher challenge. Finish your core 3, then keep going.',
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            if (minutes == 5 && remaining > 0)
-                              Text(
-                                progressSub,
-                                style: const TextStyle(
-                                  color: Color(0xFF2E7D32),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
+              const SizedBox(height: 14),
+              _buildAfterThese3Banner(
+                unlocked: coreDone >= 3,
+                includeTougher: minutes >= 15,
+                child: Column(
+                  children: [
+                    _buildBonusUnlockCard(
+                      icon: Icons.refresh_rounded,
+                      accent: const Color(0xFF2563EB),
+                      softBg: const Color(0xFFE0EDFF),
+                      cardBg: const Color(0xFFF4F8FE),
+                      borderColor: const Color(0xFFDBEAFE),
+                      title: 'Targeted retry',
+                      subtitle: state.isTargetedRetryCompletedToday
+                          ? '${weakest['name']} again'
+                          : 'Repeat the exercise you scored lowest in.',
+                      status: state.isTargetedRetryCompletedToday
+                          ? _BonusStatus.done
+                          : (coreDone >= 3
+                              ? _BonusStatus.ready
+                              : _BonusStatus.locked),
+                      onTap: coreDone >= 3 &&
+                              !state.isTargetedRetryCompletedToday
+                          ? () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TargetedRetryScreen(
+                                    is15MinutePlan: minutes >= 15,
+                                  ),
                                 ),
-                              ),
-                          ],
-                        ),
-                      ),
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        color: Color(0xFF2E7D32),
-                        size: 22,
+                              );
+                            }
+                          : null,
+                    ),
+                    if (minutes >= 15) ...[
+                      const SizedBox(height: 10),
+                      _buildBonusUnlockCard(
+                        icon: Icons.bolt_rounded,
+                        accent: const Color(0xFFDC2626),
+                        softBg: const Color(0xFFFEE2E2),
+                        cardBg: const Color(0xFFFFF5F5),
+                        borderColor: const Color(0xFFFECACA),
+                        title: 'Tougher challenge',
+                        subtitle: state.isTougherChallengeCompletedToday
+                            ? '${weakest['stretchName']} stretch'
+                            : "Try a harder version of an exercise you've already completed.",
+                        status: state.isTougherChallengeCompletedToday
+                            ? _BonusStatus.done
+                            : (coreDone >= 3
+                                ? _BonusStatus.ready
+                                : _BonusStatus.locked),
+                        onTap: coreDone >= 3 &&
+                                !state.isTougherChallengeCompletedToday
+                            ? () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const TargetedRetryScreen(
+                                      is15MinutePlan: true,
+                                    ),
+                                  ),
+                                );
+                              }
+                            : null,
                       ),
                     ],
+                  ],
+                ),
+              ),
+            ],
+
+            // 5-min plan / plan-complete mint card → Progress
+            if (minutes == 5 || remaining == 0) ...[
+              const SizedBox(height: 12),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => MainTabScaffold.switchTab(context, 1),
+                  borderRadius: BorderRadius.circular(18),
+                  child: Ink(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: const Color(0xFFC8E6C9),
+                        width: 1.0,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFC8E6C9),
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            remaining == 0
+                                ? Icons.emoji_events_rounded
+                                : Icons.lock_outline_rounded,
+                            color: const Color(0xFF2E7D32),
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                remaining == 0
+                                    ? 'PLAN COMPLETE'
+                                    : progressTitle,
+                                style: const TextStyle(
+                                  color: Color(0xFF2E7D32),
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                remaining == 0
+                                    ? 'You completed $planDone/$planTotal activities today.'
+                                    : progressHeadline,
+                                style: const TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              if (minutes == 5 && remaining > 0)
+                                Text(
+                                  progressSub,
+                                  style: const TextStyle(
+                                    color: Color(0xFF2E7D32),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          color: Color(0xFF2E7D32),
+                          size: 22,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
             const SizedBox(height: 28),
           ],
         ),
@@ -811,6 +816,227 @@ class HomeScreenContent extends StatelessWidget {
       default:
         return (Icons.bolt_rounded, const Color(0xFF2563EB), const Color(0xFFEFF6FF));
     }
+  }
+
+  static Widget _buildAfterThese3Banner({
+    required bool unlocked,
+    required bool includeTougher,
+    required Widget child,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0xFFE8F5E9),
+            Color(0xFFF2FAF4),
+            Colors.white,
+          ],
+          stops: [0.0, 0.35, 0.90],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: const Color(0xFFC8E6C9),
+          width: 1.0,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFDCFCE7),
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  unlocked
+                      ? Icons.lock_open_rounded
+                      : Icons.lock_outline_rounded,
+                  color: const Color(0xFF15803D),
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'AFTER THESE 3',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        color: Color(0xFF15803D),
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      includeTougher
+                          ? 'Unlock a targeted retry + tougher challenge.'
+                          : 'Unlock a targeted retry.',
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        color: Color(0xFF0F172A),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          child,
+        ],
+      ),
+    );
+  }
+
+  static Widget _buildBonusUnlockCard({
+    required IconData icon,
+    required Color accent,
+    required Color softBg,
+    required Color cardBg,
+    required Color borderColor,
+    required String title,
+    required String subtitle,
+    required _BonusStatus status,
+    VoidCallback? onTap,
+  }) {
+    final statusLabel = switch (status) {
+      _BonusStatus.locked => 'LOCKED',
+      _BonusStatus.ready => 'READY',
+      _BonusStatus.done => 'DONE',
+    };
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1.0),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: softBg,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, color: accent, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        statusLabel,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          color: accent,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        color: Color(0xFF0F172A),
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        color: Color(0xFF64748B),
+                        fontSize: 12,
+                        height: 1.25,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (status == _BonusStatus.done)
+                    Container(
+                      width: 20,
+                      height: 20,
+                      decoration: BoxDecoration(
+                        color: accent,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: const Icon(
+                        Icons.check_rounded,
+                        color: Colors.white,
+                        size: 13,
+                      ),
+                    )
+                  else
+                    Icon(
+                      status == _BonusStatus.ready
+                          ? Icons.lock_open_rounded
+                          : Icons.lock_outline_rounded,
+                      color: const Color(0xFF94A3B8),
+                      size: 18,
+                    ),
+                  const SizedBox(width: 4),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF94A3B8),
+                    size: 20,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   static Widget _buildExerciseCard({
@@ -928,3 +1154,5 @@ class HomeScreenContent extends StatelessWidget {
     );
   }
 }
+
+enum _BonusStatus { locked, ready, done }

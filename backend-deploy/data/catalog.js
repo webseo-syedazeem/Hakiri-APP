@@ -148,10 +148,11 @@ const ACTIVITIES = [
     isMvp: true,
     tagline: "Clear, concise synthesis",
     description:
-      "A long brief appears. You get time to read it, then you summarise it out loud.",
+      
+      "You get a longer passage and 60 seconds to summarise it out loud — keep the key points, cut the fluff.",
     cognitiveMechanism: "Information distillation and bottom-line-up-front delivery",
     prepDurationSeconds: 60,
-    defaultDurationSeconds: 30,
+    defaultDurationSeconds: 60,
     benefits: ["Forces synthesis", "Commands more authority", "Increases retention"],
     successMeasures: ["Rate compression", "Time to value", "Jargon mimicry"],
     rubrics: [
@@ -599,7 +600,7 @@ const PROMPTS = [
       "From Monday, nobody is expected to reply to Slack after 6pm. The aim is real downtime so daytime work stays focused.",
     tags: ["internal"],
     prepSeconds: 60,
-    durationSeconds: 30,
+    durationSeconds: 60,
   }),
   p({
     code: "cih_b_fire_alarm",
@@ -612,7 +613,7 @@ const PROMPTS = [
     exemplarResponse:
       "Office closed Friday from 1pm; take your laptop home; no access until Monday.",
     prepSeconds: 60,
-    durationSeconds: 30,
+    durationSeconds: 60,
   }),
   p({
     code: "cih_b_expenses_app",
@@ -625,7 +626,7 @@ const PROMPTS = [
     exemplarResponse:
       "Expenses move to the app next month; photo receipts only; join Tuesday training; spreadsheet claims stop end of month.",
     prepSeconds: 60,
-    durationSeconds: 30,
+    durationSeconds: 60,
   }),
   p({
     code: "cih_i_cac",
@@ -639,7 +640,7 @@ const PROMPTS = [
       "Acquisition cost is up 22% and conversion is flat. Pause top-of-funnel ads by Friday and move the remaining budget into email retention.",
     industries: ["corporate_finance", "sales_marketing"],
     prepSeconds: 60,
-    durationSeconds: 30,
+    durationSeconds: 60,
   }),
   p({
     code: "cih_i_pipeline",
@@ -653,7 +654,7 @@ const PROMPTS = [
       "Two large deals slipped to January; mid-market is fine. Protect the three verbal commits, no discounts below floor without approval, and update Salesforce by Thursday noon.",
     industries: ["sales_marketing"],
     prepSeconds: 60,
-    durationSeconds: 30,
+    durationSeconds: 60,
   }),
   p({
     code: "cih_i_incident",
@@ -667,7 +668,7 @@ const PROMPTS = [
       "Checkout errors from a 09:40 config change; rolled back by 10:05; recovered 10:18; no payment data exposed. Postmortem draft tomorrow; point customers to the status page.",
     industries: ["tech_product"],
     prepSeconds: 60,
-    durationSeconds: 30,
+    durationSeconds: 60,
   }),
   p({
     code: "cih_i_ward_report",
@@ -681,7 +682,7 @@ const PROMPTS = [
       "Overnight: restless, obs mostly stable; oxygen need rose toward morning — doctor said continue and review later. Allergy note must stay on the chart before ward round.",
     industries: ["healthcare_edu"],
     prepSeconds: 60,
-    durationSeconds: 30,
+    durationSeconds: 60,
   }),
   p({
     code: "cih_i_parent_note",
@@ -695,7 +696,7 @@ const PROMPTS = [
       "Wednesday 9–11 immunisation session; bring the red book; stay home and rebook if fever; text confirmation the day before.",
     industries: ["healthcare_edu"],
     prepSeconds: 60,
-    durationSeconds: 30,
+    durationSeconds: 60,
   }),
   p({
     code: "cih_p_pricing",
@@ -709,7 +710,7 @@ const PROMPTS = [
       "Switch new customers from seats to usage pricing before the shareholder meeting. Existing contracts stay. New-logo growth has slowed — usage pricing protects the valuation story.",
     industries: ["corporate_finance", "tech_product"],
     prepSeconds: 60,
-    durationSeconds: 30,
+    durationSeconds: 60,
   }),
   p({
     code: "cih_p_board_risk",
@@ -723,7 +724,7 @@ const PROMPTS = [
       "We need a 90-day dual-sourcing plan for our two critical payment processors at the next board. Single-provider concentration risk is no longer acceptable; short-term cost is worth the resilience.",
     industries: ["corporate_finance"],
     prepSeconds: 60,
-    durationSeconds: 30,
+    durationSeconds: 60,
   }),
 
   p({

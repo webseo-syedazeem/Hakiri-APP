@@ -10,34 +10,32 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="5806d13a-207c-45e3-bc31-34302040450d" name="Changes" comment="initial commit">
-      <change afterPath="$PROJECT_DIR$/assets/images/journey_mountain_bg.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/APP_STORE_REVIEW_CHECKLIST.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/lib/core/navigation/guest_funnel_nav.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.dart_tool/package_graph.json" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_graph.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.flutter-plugins-dependencies" beforeDir="false" afterPath="$PROJECT_DIR$/.flutter-plugins-dependencies" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend-deploy/config/ai.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/config/ai.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-deploy/controllers/catalogController.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/controllers/catalogController.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-deploy/controllers/aiController.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/controllers/aiController.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-deploy/controllers/profileController.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/controllers/profileController.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend-deploy/data/catalog.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/data/catalog.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend-deploy/services/plan.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/services/plan.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/docs/ACTIVITIES_AND_CURRICULUM.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/ACTIVITIES_AND_CURRICULUM.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ios/Runner.xcodeproj/project.pbxproj" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner.xcodeproj/project.pbxproj" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/core/services/coach_tts_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/services/coach_tts_service.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/models/activity_model.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/models/activity_model.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/providers/app_state_provider.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/providers/app_state_provider.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/activity_detail_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/activity_detail_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/assessment_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/assessment_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/debate_me_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/debate_me_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/feedback_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/feedback_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/home_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/home_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/landing_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/landing_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/live_conversation_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/live_conversation_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/login_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/login_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/practice_context_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/practice_context_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/profile_section_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/profile_section_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/paywall_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/paywall_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/personalized_plan_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/personalized_plan_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/progress_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/progress_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/recording_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/recording_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/settings_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/settings_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/signup_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/signup_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/targeted_retry_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/targeted_retry_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/widgets/coach_play_button.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/widgets/coach_play_button.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/widgets/onboarding_bubble_background.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/widgets/onboarding_bubble_background.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/widgets/twelve_months_roadmap_view.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/widgets/twelve_months_roadmap_view.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/splash_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/splash_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -226,7 +224,15 @@
       <option name="project" value="LOCAL" />
       <updated>1793087667765</updated>
     </task>
-    <option name="localTasksCounter" value="13" />
+    <task id="LOCAL-00013" summary="initial commit">
+      <option name="closed" value="true" />
+      <created>1793159867867</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1793159867867</updated>
+    </task>
+    <option name="localTasksCounter" value="14" />
     <servers />
   </component>
   <component name="ToolWindowManager">
@@ -244,7 +250,7 @@
       <breakpoints>
         <line-breakpoint enabled="true" type="Dart">
           <url>file://$PROJECT_DIR$/lib/screens/progress_screen.dart</url>
-          <line>494</line>
+          <line>264</line>
           <option name="timeStamp" value="1" />
         </line-breakpoint>
       </breakpoints>

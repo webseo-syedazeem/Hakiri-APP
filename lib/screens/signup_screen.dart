@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
+import '../core/navigation/guest_funnel_nav.dart';
 import '../core/services/analytics_service.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../providers/app_state_provider.dart';
@@ -230,7 +231,14 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !_isSubmitting) {
+          goBackInGuestFunnel(context, from: GuestFunnelStep.signup);
+        }
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFFBFBF9),
       body: SafeArea(
         child: Stack(
@@ -244,14 +252,33 @@ class _SignupScreenState extends State<SignupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Centered Official Hakkiri Brand Mark (Bigger & Prominent)
-                  Center(
-                    child: const HakkiriLogo(
-                      variant: HakkiriLogoVariant.fullImage,
-                      size: 108,
+                  // Back pinned to top-left (not vertically centered with logo).
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: GestureDetector(
+                      onTap: _isSubmitting
+                          ? null
+                          : () => goBackInGuestFunnel(
+                                context,
+                                from: GuestFunnelStep.signup,
+                              ),
+                      child: const Padding(
+                        padding: EdgeInsets.only(top: 2, bottom: 8, right: 8),
+                        child: Icon(
+                          Icons.arrow_back_ios,
+                          color: Color(0xFFB8BFC9),
+                          size: 15,
+                        ),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const Center(
+                    child: HakkiriLogo(
+                      variant: HakkiriLogoVariant.fullImage,
+                      size: 96,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
 
                   // Headline: "Create account."
                   RichText(
@@ -419,6 +446,7 @@ class _SignupScreenState extends State<SignupScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 

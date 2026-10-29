@@ -236,7 +236,8 @@ class _LandingScreenState extends State<LandingScreen>
               Padding(
                 padding: const EdgeInsets.fromLTRB(24, 6, 24, 0),
                 child: _buildTopBar(
-                  showBack: true,
+                  // No back on Get started (page 0); show from page 1+.
+                  showBack: _currentPage > _minPage,
                 ),
               ),
               Expanded(
@@ -459,11 +460,12 @@ class _LandingScreenState extends State<LandingScreen>
                 ),
               ),
 
-              // Subtitle above Get started — shrink to stay on one line
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
+              // Subtitle above Get started — centered with the CTA below
+              const SizedBox(
+                width: double.infinity,
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
+                  alignment: Alignment.center,
                   child: Text(
                     'Guided exercises. Personalised feedback. Clear progress.',
                     textAlign: TextAlign.center,
@@ -471,7 +473,7 @@ class _LandingScreenState extends State<LandingScreen>
                     softWrap: false,
                     style: TextStyle(
                       color: Color(0xFF475569),
-                      fontSize: 12,
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
                       letterSpacing: -0.15,
                     ),
@@ -1057,23 +1059,28 @@ class _LandingScreenState extends State<LandingScreen>
   // ==========================================
   // PAGE 2: SEE YOUR FEEDBACK (own swipe-screen, no scroll)
   // ==========================================
-  // ignore: unused_element
+  // PAGE 2: SEE YOUR FEEDBACK (Matching user screenshot)
+  // ==========================================
   Widget _buildSeeFeedbackPage() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 10, 24, 6),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Tag: YOUR FEEDBACK
           const Text(
-            'EXAMPLE FEEDBACK',
+            'YOUR FEEDBACK',
             style: TextStyle(
-              fontSize: 11.5,
+              fontFamily: 'Inter',
+              fontSize: 11,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.2,
               color: Color(0xFF64748B),
             ),
           ),
           const SizedBox(height: 4),
+
+          // Headline
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1113,25 +1120,337 @@ class _LandingScreenState extends State<LandingScreen>
             ],
           ),
           const SizedBox(height: 4),
+
+          // Subtitle
           const Text(
-            'Clear, personalised feedback grounded in research.',
+            "Here's how you did and what to focus on next.",
             style: TextStyle(
+              fontFamily: 'Inter',
               color: Color(0xFF64748B),
-              fontSize: 13,
+              fontSize: 13.5,
               fontWeight: FontWeight.w500,
-              height: 1.25,
+              height: 1.3,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
+
+          // 2x2 Grid of Feedback Cards + Focus Next Banner
           Expanded(
-            child: Center(
-              child: SingleChildScrollView(
-                physics: const NeverScrollableScrollPhysics(),
-                child: _buildFeedbackResultCard(),
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: [
+                  // Row 1: Clarity & Structure
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMetricFeedbackCard(
+                          icon: Icons.chat_bubble_outline_rounded,
+                          iconColor: const Color(0xFF2563EB),
+                          iconBgColor: const Color(0xFFEFF6FF),
+                          title: 'Clarity',
+                          level: 'Level 1.3',
+                          drills: '12 drills',
+                          description: 'Steadier pace, fewer hesitations.',
+                          waveColor: const Color(0xFF2563EB),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildMetricFeedbackCard(
+                          icon: Icons.bar_chart_rounded,
+                          iconColor: const Color(0xFF10B981),
+                          iconBgColor: const Color(0xFFF0FDF4),
+                          title: 'Structure',
+                          level: 'Level 1.3',
+                          drills: '12 drills',
+                          description: 'Your main points are easier to follow.',
+                          waveColor: const Color(0xFF10B981),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Row 2: Engagement & tone & Conciseness
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildMetricFeedbackCard(
+                          icon: Icons.people_alt_rounded,
+                          iconColor: const Color(0xFFF43F5E),
+                          iconBgColor: const Color(0xFFFFF1F2),
+                          title: 'Engagement & tone',
+                          level: 'Level 1.3',
+                          drills: '12 drills',
+                          description: 'Keep people with you.',
+                          waveColor: const Color(0xFFF43F5E),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildMetricFeedbackCard(
+                          icon: Icons.content_cut_rounded,
+                          iconColor: const Color(0xFFD97706),
+                          iconBgColor: const Color(0xFFFEF3C7),
+                          title: 'Conciseness',
+                          level: 'Level 1.3',
+                          drills: '12 drills',
+                          description: 'Get to the point faster.',
+                          waveColor: const Color(0xFFF59E0B),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Focus Next Banner
+                  _buildFocusNextBanner(),
+                  const SizedBox(height: 6),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMetricFeedbackCard({
+    required IconData icon,
+    required Color iconColor,
+    required Color iconBgColor,
+    required String title,
+    required String level,
+    required String drills,
+    required String description,
+    required Color waveColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 11),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0).withValues(alpha: 0.8),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.035),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: iconBgColor,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                alignment: Alignment.center,
+                child: Icon(icon, color: iconColor, size: 19),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          color: Color(0xFF0F172A),
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 1),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            level,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF0F172A),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            drills,
+                            style: const TextStyle(
+                              fontFamily: 'Inter',
+                              color: Color(0xFF10B981),
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          SizedBox(
+            height: 30,
+            child: Text(
+              description,
+              maxLines: 2,
+              style: const TextStyle(
+                fontFamily: 'Inter',
+                color: Color(0xFF64748B),
+                fontSize: 10.5,
+                fontWeight: FontWeight.w400,
+                height: 1.25,
+              ),
+            ),
+          ),
+          const SizedBox(height: 9),
+          SizedBox(
+            width: double.infinity,
+            height: 12,
+            child: CustomPaint(
+              painter: _MetricHumpPainter(activeColor: waveColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFocusNextBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFDF5),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFFDE68A).withValues(alpha: 0.75),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFD97706).withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Scissors icon
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFEF3C7),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.content_cut_rounded,
+              color: Color(0xFFD97706),
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          // Text Column
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'FOCUS NEXT · ~2 MIN',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: Color(0xFFB45309),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Cut It in Half',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: Color(0xFF0F172A),
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Build your conciseness with short, focused answers.',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: Color(0xFF78716C),
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.25,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Start -> Button
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2563EB),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Start',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: Colors.white,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(width: 4),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Colors.white,
+                  size: 15,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1390,9 +1709,9 @@ class _LandingScreenState extends State<LandingScreen>
             child: const Padding(
               padding: EdgeInsets.all(4.0),
               child: Icon(
-                Icons.arrow_back_rounded,
-                color: Color(0xFF0F172A),
-                size: 24,
+                Icons.arrow_back_ios,
+                color: Color(0xFFB8BFC9),
+                size: 15,
               ),
             ),
           )
@@ -1896,7 +2215,7 @@ class _LandingScreenState extends State<LandingScreen>
                       style: TextStyle(
                         fontFamily: 'Inter',
                         color: Color(0xFF64748B),
-                        fontSize: 11,
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
                         height: 1.25,
                       ),
@@ -1964,7 +2283,7 @@ class _LandingScreenState extends State<LandingScreen>
                             style: TextStyle(
                               fontFamily: 'Inter',
                               color: Color(0xFF0F172A),
-                              fontSize: 11.5,
+                              fontSize: 13,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -1976,7 +2295,7 @@ class _LandingScreenState extends State<LandingScreen>
                         style: TextStyle(
                           fontFamily: 'Inter',
                           color: Color(0xFF64748B),
-                          fontSize: 10.5,
+                          fontSize: 12,
                           height: 1.3,
                           fontWeight: FontWeight.w500,
                         ),
@@ -2006,7 +2325,7 @@ class _LandingScreenState extends State<LandingScreen>
                             style: TextStyle(
                               fontFamily: 'Inter',
                               color: Color(0xFF0F172A),
-                              fontSize: 11.5,
+                              fontSize: 13,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -2018,7 +2337,7 @@ class _LandingScreenState extends State<LandingScreen>
                         style: TextStyle(
                           fontFamily: 'Inter',
                           color: Color(0xFF64748B),
-                          fontSize: 10.5,
+                          fontSize: 12,
                           height: 1.3,
                           fontWeight: FontWeight.w500,
                         ),
@@ -2224,4 +2543,50 @@ class _CountdownProgressRingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Custom painter for metric progress line with smooth bell-curve hump
+class _MetricHumpPainter extends CustomPainter {
+  final Color activeColor;
+
+  const _MetricHumpPainter({required this.activeColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final baseY = size.height * 0.75;
+    final peakY = size.height * 0.15;
+
+    // Active colored path with hump
+    final activePath = Path();
+    activePath.moveTo(0, baseY);
+    activePath.lineTo(w * 0.22, baseY);
+    // Smooth bell curve hump
+    activePath.cubicTo(w * 0.30, baseY, w * 0.35, peakY, w * 0.44, peakY);
+    activePath.cubicTo(w * 0.53, peakY, w * 0.58, baseY, w * 0.66, baseY);
+    activePath.lineTo(w * 0.76, baseY);
+
+    final activePaint = Paint()
+      ..color = activeColor
+      ..strokeWidth = 2.4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(activePath, activePaint);
+
+    // Inactive tail
+    final inactivePath = Path();
+    inactivePath.moveTo(w * 0.76, baseY);
+    inactivePath.lineTo(w, baseY);
+
+    final inactivePaint = Paint()
+      ..color = const Color(0xFFE2E8F0)
+      ..strokeWidth = 2.4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(inactivePath, inactivePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MetricHumpPainter oldDelegate) =>
+      oldDelegate.activeColor != activeColor;
 }

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../core/services/analytics_service.dart';
 import '../models/session_model.dart';
 import '../providers/app_state_provider.dart';
+import '../core/services/coach_tts_service.dart';
 import '../widgets/coach_play_button.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import 'conversation_chat_screen.dart';
@@ -1145,15 +1146,22 @@ class FeedbackScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'SUGGESTED ANSWER',
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 10.5,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 1.2,
-              color: Color(0xFF818CF8),
-            ),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'SUGGESTED ANSWER',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.2,
+                    color: Color(0xFF818CF8),
+                  ),
+                ),
+              ),
+              _CoachVoiceGenderToggle(compact: true),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
@@ -1196,7 +1204,12 @@ class FeedbackScreen extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CoachPlayButton(text: exemplar),
+                Consumer<AppStateProvider>(
+                  builder: (context, state, _) => CoachPlayButton(
+                    key: ValueKey('coach_${state.coachVoiceGender}_$exemplar'),
+                    text: exemplar,
+                  ),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -1487,4 +1500,60 @@ class _ScoreRingPainter extends CustomPainter {
       oldDelegate.trackColor != trackColor ||
       oldDelegate.activeColor != activeColor ||
       oldDelegate.strokeWidth != strokeWidth;
+}
+
+/// Male / Female switch for suggested-answer AI voice (same ElevenLabs coaches).
+class _CoachVoiceGenderToggle extends StatelessWidget {
+  final bool compact;
+
+  const _CoachVoiceGenderToggle({this.compact = false});
+
+  Future<void> _setGender(BuildContext context, String gender) async {
+    final state = context.read<AppStateProvider>();
+    if (state.coachVoiceGender == gender) return;
+    await CoachTtsService.instance.stop();
+    await state.updateVoiceProfile(gender);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final gender = context.watch<AppStateProvider>().coachVoiceGender;
+    Widget chip(String id, String label) {
+      final selected = gender == id;
+      return GestureDetector(
+        onTap: () => _setGender(context, id),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? 10 : 14,
+            vertical: compact ? 5 : 8,
+          ),
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xFF818CF8)
+                : Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: compact ? 11 : 13,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : const Color(0xFF94A3B8),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        chip('female', 'Female'),
+        const SizedBox(width: 6),
+        chip('male', 'Male'),
+      ],
+    );
+  }
 }

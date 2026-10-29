@@ -211,6 +211,16 @@ class AppStateProvider extends ChangeNotifier {
   String get voiceProfileLabel =>
       voiceLabels[answers.voiceProfile] ?? answers.voiceProfile ?? 'Not set';
 
+  /// Simple Male / Female label for Settings + Feedback coach TTS.
+  String get coachVoiceGender {
+    final id = CoachTtsService.normalizeCoachId(answers.voiceProfile);
+    if (id == 'david' || id == 'marcus' || id == 'male') return 'male';
+    return 'female';
+  }
+
+  String get coachVoiceGenderLabel =>
+      coachVoiceGender == 'male' ? 'Male' : 'Female';
+
   String get initials {
     final parts = fullName.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
     if (parts.isEmpty) return 'H';
@@ -1132,6 +1142,8 @@ class AppStateProvider extends ChangeNotifier {
     // Always mirror what we just saved so UI updates even if a stale
     // guest-pending flag would skip _applyProfile.
     final careerChanged = answers.careerType != careerType;
+    final focusChanged = answers.roadblock != roadblock ||
+        answers.primaryGoal != mappedGoal;
     answers.careerStage = careerStage;
     answers.careerType = careerType;
     answers.confidence = mappedConfidence;
@@ -1147,12 +1159,60 @@ class AppStateProvider extends ChangeNotifier {
     computeAssessmentPlan();
     final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
     _applyProfile(profile, force: true);
+    // Goal / challenge change → recompute drills and refresh Today queue.
+    if (focusChanged) {
+      computeAssessmentPlan();
+      _syncTodayQueueFromPersonalizedPlan();
+      try {
+        await refreshFromApi();
+        // Keep the vote-based set if bootstrap still returns a stale queue.
+        final refreshed = todayDrillSlugs;
+        final expected = personalizedPlan?.initialDrills ?? const <String>[];
+        if (expected.isNotEmpty &&
+            (refreshed.isEmpty || refreshed.first != expected.first)) {
+          _syncTodayQueueFromPersonalizedPlan();
+        }
+      } catch (_) {
+        _syncTodayQueueFromPersonalizedPlan();
+      }
+    }
     // Career change → drop the old track's prompt so the next drill refetches.
     if (careerChanged) {
       selectedPrompt = null;
       unawaited(fetchNextPromptFromApi(excludeCurrent: false));
     }
     notifyListeners();
+  }
+
+  /// Rebuild home Today cards from [personalizedPlan] when focus changes.
+  void _syncTodayQueueFromPersonalizedPlan() {
+    final drills = personalizedPlan?.initialDrills ?? const <String>[];
+    if (drills.isEmpty) return;
+
+    Map<String, dynamic> cardFor(String slug, String order) {
+      ActivityModel? match;
+      for (final a in activities) {
+        if (a.slug == slug) {
+          match = a;
+          break;
+        }
+      }
+      return {
+        'order': order,
+        'activity': {
+          'slug': slug,
+          'name': match?.name ?? slug,
+          'tagline': match?.tagline ?? '',
+        },
+        'duration_label': '~2 min',
+      };
+    }
+
+    todayPrimary = cardFor(drills.first, '01');
+    todayQueue = [
+      for (var i = 1; i < drills.length && i < 3; i++)
+        cardFor(drills[i], (i + 1).toString().padLeft(2, '0')),
+    ];
   }
 
   /// Coach voice used for suggested-answer TTS (male / female / non_binary).
@@ -1619,10 +1679,11 @@ class AppStateProvider extends ChangeNotifier {
         name: 'Cut It In Half',
         isMvp: true,
         tagline: 'Extreme information synthesis and brevity',
-        description: 'Review a lengthy brief in 60 seconds, then summarise the core point in 30 seconds with at least 50% rate compression.',
+        description:
+            'You get a longer passage and 60 seconds to summarise it out loud — keep the key points, cut the fluff.',
         cognitiveMechanism: 'Information distillation, compression, and high-density verbalization',
         prepDurationSeconds: 60,
-        defaultDurationSeconds: 30,
+        defaultDurationSeconds: 60,
         benefits: ['Forces deep information synthesis', 'Commands respect through brevity', 'Increases stakeholder retention'],
         successMeasures: ['Rate compression (50%+ reduction)', 'Time to value (BLUF)', 'Jargon translation'],
       ),
@@ -1787,7 +1848,7 @@ class AppStateProvider extends ChangeNotifier {
         exemplarResponse:
             'Office closed Friday from 1pm; take your laptop home; no access until Monday.',
         tags: ['brevity'],
-        durationSeconds: 30,
+        durationSeconds: 60,
         prepSeconds: 60,
       ),
       const PromptModel(
@@ -1801,7 +1862,7 @@ class AppStateProvider extends ChangeNotifier {
         exemplarResponse:
             'From Monday, nobody is expected to reply to Slack after 6pm. The aim is real downtime so daytime work stays focused.',
         tags: ['internal_comms', 'brevity'],
-        durationSeconds: 30,
+        durationSeconds: 60,
         prepSeconds: 60,
       ),
       const PromptModel(
@@ -1816,7 +1877,7 @@ class AppStateProvider extends ChangeNotifier {
             'Overnight: restless, obs mostly stable; oxygen need rose toward morning — doctor said continue and review later. Allergy note must stay on the chart before ward round.',
         tags: ['healthcare'],
         industries: ['healthcare_edu'],
-        durationSeconds: 30,
+        durationSeconds: 60,
         prepSeconds: 60,
       ),
 

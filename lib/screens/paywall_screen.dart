@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/constants/app_colors.dart';
+import '../core/navigation/guest_funnel_nav.dart';
 import '../core/services/analytics_service.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../core/services/iap_service.dart';
@@ -78,15 +79,11 @@ class _PaywallScreenState extends State<PaywallScreen> {
     return p?.price ?? fallback;
   }
 
-  void _dismissWithoutPurchase() {
+  /// Back / close: previous funnel screen, or Get started if this is root.
+  Future<void> _goBack() async {
     final state = context.read<AppStateProvider>();
     if (!state.isLoggedIn) {
-      unawaited(state.markGuestAwaitingAccount());
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => const SignupScreen()),
-        (route) => false,
-      );
+      await goBackInGuestFunnel(context, from: GuestFunnelStep.paywall);
       return;
     }
     // Settings / Profile "Manage" pushed this screen — return there.
@@ -94,7 +91,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
       Navigator.pop(context);
       return;
     }
-    // Root paywall (onboarding). Subscribed users go home; others stay locked.
     if (state.isSubscribed) {
       Navigator.pushAndRemoveUntil(
         context,
@@ -110,11 +106,29 @@ class _PaywallScreenState extends State<PaywallScreen> {
     );
   }
 
-  void _goAfterGuestPurchase() {
-    Navigator.pushAndRemoveUntil(
+  /// Logged-in "Done" on active plan — same as back when possible.
+  void _dismissWithoutPurchase() => unawaited(_goBack());
+
+  /// Right-side X: skip IAP for now → Create account (guest funnel).
+  Future<void> _goToCreateAccount() async {
+    final state = context.read<AppStateProvider>();
+    if (state.isLoggedIn) {
+      await _goBack();
+      return;
+    }
+    await state.markGuestAwaitingAccount();
+    if (!mounted) return;
+    Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const SignupScreen()),
-      (route) => false,
+    );
+  }
+
+  void _goAfterGuestPurchase() {
+    // Push so Create account can go back to paywall / Get started.
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const SignupScreen()),
     );
   }
 
@@ -527,7 +541,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _dismissWithoutPurchase();
+        if (!didPop && !_purchasing) unawaited(_goBack());
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF020617),
@@ -542,20 +556,36 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const HakkiriLogo(
-                          variant: HakkiriLogoVariant.paywallDarkLockup,
-                          size: 28,
+                        GestureDetector(
+                          onTap: _purchasing ? null : () => unawaited(_goBack()),
+                          child: const Padding(
+                            padding: EdgeInsets.only(right: 8, top: 4, bottom: 4),
+                            child: Icon(
+                              Icons.arrow_back_ios,
+                              color: Color(0xFFCBD5E1),
+                              size: 15,
+                            ),
+                          ),
+                        ),
+                        const Expanded(
+                          child: Center(
+                            child: HakkiriLogo(
+                              variant: HakkiriLogoVariant.paywallDarkLockup,
+                              size: 28,
+                            ),
+                          ),
                         ),
                         GestureDetector(
-                          onTap: _purchasing ? null : _dismissWithoutPurchase,
+                          onTap: _purchasing
+                              ? null
+                              : () => unawaited(_goToCreateAccount()),
                           child: const Padding(
                             padding: EdgeInsets.all(4.0),
                             child: Icon(
-                              Icons.close,
-                              color: Colors.white,
-                              size: 24,
+                              Icons.close_rounded,
+                              color: Color(0xFFCBD5E1),
+                              size: 22,
                             ),
                           ),
                         ),
@@ -863,6 +893,17 @@ class _PaywallScreenState extends State<PaywallScreen> {
                         alignment: WrapAlignment.center,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
+                          _buildFooterLink(
+                            'Restore',
+                            _restore,
+                          ),
+                          const Text(
+                            '  ·  ',
+                            style: TextStyle(
+                              color: Color(0xFF6B7280),
+                              fontSize: 11,
+                            ),
+                          ),
                           _buildFooterLink(
                             'Cancel anytime',
                             _showCancelAnytimeDialog,

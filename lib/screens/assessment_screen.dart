@@ -8,6 +8,7 @@ import '../widgets/action_pill_button.dart';
 import '../widgets/confidence_gauge_widget.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/hakkiri_logo.dart';
+import '../core/navigation/guest_funnel_nav.dart';
 import 'personalized_plan_screen.dart';
 
 class AssessmentScreen extends StatefulWidget {
@@ -426,7 +427,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       }
 
       if (!mounted) return;
-      Navigator.pushReplacement(
+      // Push (not replace) so Plan back returns to assessment.
+      Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const PersonalizedPlanScreen()),
       );
@@ -455,7 +457,8 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         curve: Curves.easeInOutCubic,
       );
     } else {
-      Navigator.pop(context);
+      // Step 0 → previous route (Get started) or Landing if this is root.
+      goBackInGuestFunnel(context, from: GuestFunnelStep.assessment);
     }
   }
 
@@ -475,9 +478,9 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
     final bottomGap = isIOS ? (safeBottom > 0 ? 20.0 : 12.0) : 14.0;
 
     // Android OS back: previous assessment step (same as UI chevron).
-    // Only leave assessment (→ onboarding) from step 0.
+    // Step 0 uses goBackInGuestFunnel (handles root restore from splash).
     return PopScope(
-      canPop: _currentStepIndex <= 0,
+      canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         _prevStep();
@@ -500,24 +503,23 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Category Tracker Row (with optional back arrow)
+              // Category Tracker Row (back on every step → previous / Get started)
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
-                      if (_currentStepIndex > 0)
-                        GestureDetector(
-                          onTap: _prevStep,
-                          child: const Padding(
-                            padding: EdgeInsets.only(right: 8),
-                            child: Icon(
-                              Icons.chevron_left_rounded,
-                              color: AppColors.textSecondary,
-                              size: 20,
-                            ),
+                      GestureDetector(
+                        onTap: _prevStep,
+                        child: const Padding(
+                          padding: EdgeInsets.only(right: 10, top: 2, bottom: 2),
+                          child: Icon(
+                            Icons.arrow_back_ios,
+                            color: Color(0xFFB8BFC9),
+                            size: 15,
                           ),
                         ),
+                      ),
                       Text(
                         step['tag'] as String,
                         style: const TextStyle(

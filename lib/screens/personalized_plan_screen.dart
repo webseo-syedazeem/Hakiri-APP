@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
+import '../core/navigation/guest_funnel_nav.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/week_calendar_strip.dart';
 import 'activity_detail_screen.dart';
@@ -97,7 +98,14 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     final bottomGap = isIOS ? (safeBottom > 0 ? 20.0 : 12.0) : 14.0;
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          goBackInGuestFunnel(context, from: GuestFunnelStep.plan);
+        }
+      },
+      child: Scaffold(
       backgroundColor: const Color(0xFFFBFBF9),
       body: SafeArea(
         bottom: !isIOS,
@@ -111,11 +119,14 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.pop(context),
+                    onTap: () => goBackInGuestFunnel(
+                      context,
+                      from: GuestFunnelStep.plan,
+                    ),
                     child: const Icon(
-                      Icons.chevron_left_rounded,
-                      color: AppColors.textPrimary,
-                      size: 28,
+                      Icons.arrow_back_ios,
+                      color: Color(0xFFB8BFC9),
+                      size: 15,
                     ),
                   ),
                   const HakkiriLogo(
@@ -336,12 +347,14 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 
   Widget _buildFocusCard({required String tag, required String title}) {
     return Container(
       width: 155,
+      height: 92,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -357,7 +370,6 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             tag,
@@ -369,15 +381,20 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 14.5,
-              fontWeight: FontWeight.w700,
-              height: 1.25,
+          Expanded(
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  height: 1.25,
+                ),
+              ),
             ),
           ),
         ],

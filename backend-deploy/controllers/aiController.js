@@ -70,10 +70,20 @@ const analyzeSpeech = async (req, res) => {
     const activitySlug = String(body.activity_slug || "").trim();
     const isRetry = Boolean(body.is_coached_retry || body.is_retry);
 
+    // App already sends prompt_text + exemplar — skip Prompt DB when complete.
+    const bodyHasPrompt =
+      String(body.prompt_text || "").trim().length >= 8 &&
+      String(body.exemplar_response || "").trim().length >= 8;
     const [activity, prompt] = await Promise.all([
-      activitySlug ? Activity.findOne({ slug: activitySlug }) : Promise.resolve(null),
-      body.prompt_id
+      activitySlug
+        ? Activity.findOne({ slug: activitySlug })
+            .select("slug name isMvp")
+            .lean()
+        : Promise.resolve(null),
+      body.prompt_id && !bodyHasPrompt
         ? Prompt.findOne({ code: String(body.prompt_id) })
+            .select("code promptText objective exemplarResponse difficulty")
+            .lean()
         : Promise.resolve(null),
     ]);
     if (activitySlug) {

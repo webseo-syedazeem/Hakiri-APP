@@ -753,11 +753,12 @@ final Map<String, _ActivitySpec> _activitySpecs = {
         ],
       ),
     ),
-    subtitle: 'Read a longer message and make it shorter, clearer and more impactful.',
+    subtitle:
+        'You get a longer passage and 60 seconds to summarise it — keep the key points, cut the fluff.',
     steps: const [
-      _Step(Icons.description_outlined, '1. Read', 'A longer text\nappears (60s).'),
+      _Step(Icons.description_outlined, '1. Passage', 'A longer passage\nappears.'),
       _Step(Icons.format_list_bulleted_rounded, '2. Find point', 'Identify what\nmatters.'),
-      _Step(Icons.mic_none_rounded, '3. Summarise', 'Speak your shorter\nversion (30s).'),
+      _Step(Icons.mic_none_rounded, '3. Summarise', 'Speak your shorter\nversion (60s).'),
       _feedbackStep,
     ],
     strategyTitle: 'CUT THE CLUTTER',
