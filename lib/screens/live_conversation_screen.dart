@@ -540,7 +540,7 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
           'English only.';
     } else {
       instruction =
-          'You are Hakkiri Live Coach for $name — a spoken workplace communication coach. '
+          'You are Hakkiri Coach for $name — a spoken workplace communication coach. '
           'Stay inside THEIR real work environment only. '
           'Work track: $career. Career stage: $stage. '
           'Typical situations: $workSetting. '
@@ -560,7 +560,7 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
           '"I am your English coach, so I will only train you in English. Please try that answer again in English." '
           'Then re-ask the practice question in English and wait. Accents are fine — other languages are not for practice.';
       kickoff =
-          'Start now. Greet me briefly as Hakkiri Live Coach. '
+          'Start now. Greet me briefly as Hakkiri Coach. '
           'My work setting is $career ($workSetting). '
           'Ask me this exact workplace practice question next, then wait for my spoken answer: "$focus". '
           'Keep the whole conversation in that work environment, and only in English.';
@@ -681,7 +681,7 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
             _cancelSilenceTimer();
           }
         } else if (type == 'error') {
-          _error = (event['message'] ?? 'Live voice failed.').toString();
+          _error = (event['message'] ?? 'Voice practice failed.').toString();
           _connecting = false;
           _listening = false;
           _awaitingUserSpeech = false;
@@ -728,7 +728,7 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
       setState(() {
         _connecting = false;
         _micDenied = isMic;
-        _error = e.message ?? 'Could not start native live voice.';
+        _error = e.message ?? 'Could not start voice practice.';
       });
     } catch (e) {
       if (!mounted) return;
@@ -839,7 +839,7 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
       message: 'Wrapping up your conversation…',
       detail: turns > 2
           ? 'Scoring the full back-and-forth exchange.'
-          : 'Reviewing what you said with the live coach.',
+          : 'Reviewing what you said in this practice.',
       action: () => state.evaluateCurrentSession(
         transcript: transcript,
         durationSeconds: spoken,
@@ -977,7 +977,7 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
                                 : (_ending
                                     ? 'SCORING'
                                     : (_listening
-                                        ? (debateMode ? 'REC' : 'LIVE')
+                                        ? (debateMode ? 'REC' : 'ON')
                                         : 'IDLE')),
                             style: TextStyle(
                               color: _listening
@@ -995,7 +995,7 @@ class _LiveConversationScreenState extends State<LiveConversationScreen>
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  debateMode ? 'DEBATE ME' : 'LIVE COACH',
+                  debateMode ? 'DEBATE ME' : 'VOICE PRACTICE',
                   style: const TextStyle(
                     color: Color(0xFF94A3B8),
                     fontSize: 11,

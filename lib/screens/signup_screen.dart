@@ -15,6 +15,7 @@ import 'assessment_screen.dart';
 import 'home_screen.dart';
 import 'locked_profile_screen.dart';
 import 'login_screen.dart';
+import 'signup_verify_otp_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -76,39 +77,29 @@ class _SignupScreenState extends State<SignupScreen> {
     setState(() => _isSubmitting = true);
     try {
       final state = context.read<AppStateProvider>();
-      late final bool syncedPending;
       await HakkiriLoadingOverlay.run(
         context,
-        message: 'Getting your information…',
-        detail: 'Creating your Hakkiri account.',
+        message: 'Sending code…',
+        detail: 'Check your email for a verification code.',
         action: () async {
-          await state.registerAccount(
-            name: name,
-            email: email,
-            password: password,
-          );
-          syncedPending = await state.syncPendingAssessmentIfNeeded();
+          await state.sendSignupOtp(name: name, email: email);
         },
       );
       if (!mounted) return;
-      // Guest already did assessment (+ maybe IAP) → home or locked. Else assessment.
-      final Widget next;
-      if (syncedPending) {
-        next = state.isSubscribed
-            ? const HomeScreen()
-            : const LockedProfileScreen();
-      } else {
-        next = const AssessmentScreen();
-      }
-      Navigator.pushAndRemoveUntil(
+      Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => next),
-        (route) => false,
+        MaterialPageRoute(
+          builder: (_) => SignupVerifyOtpScreen(
+            fullName: name,
+            email: email,
+            password: password,
+          ),
+        ),
       );
     } on HakkiriApiException catch (e) {
       _showMessage(e.message);
     } catch (_) {
-      _showMessage('Could not create the account. Check your connection.');
+      _showMessage('Could not send the code. Check your connection.');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

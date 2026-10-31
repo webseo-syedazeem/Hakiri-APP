@@ -5,8 +5,8 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 
 /// Play Store / App Store product IDs — create these exact IDs in both consoles.
 class IapProducts {
-  static const monthly = 'hakkiri_monthly_pro';
-  static const annual = 'hakkiri_annual_pro';
+  static const monthly = 'hakkiri_monthly_sub';
+  static const annual = 'hakkiri_yearly_sub';
 
   static const all = {monthly, annual};
 

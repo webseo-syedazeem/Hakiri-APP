@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 import '../../firebase_options.dart';
 import 'google_auth_service.dart';
@@ -15,11 +16,16 @@ class PushNotificationService {
   PushNotificationService._();
   static final PushNotificationService instance = PushNotificationService._();
 
+  static const _pushChannel = MethodChannel('hakkiri/push');
+
   String? _token;
   bool _ready = false;
   /// When false (Profile Reminder off), never sync tokens to the API.
   bool allowSync = true;
   bool _requestedThisSession = false;
+  bool _fetchInFlight = false;
+  Timer? _iosRetryTimer;
+  int _iosRetryCount = 0;
 
   String? get token => _token;
 
@@ -42,10 +48,12 @@ class PushNotificationService {
           badge: true,
           sound: true,
         );
+        await messaging.setAutoInitEnabled(true);
       }
 
       messaging.onTokenRefresh.listen((t) {
         _token = t;
+        _iosRetryTimer?.cancel();
         _logToken(t, source: 'refresh');
         unawaited(syncTokenToApi(forcedToken: t));
       });
@@ -79,6 +87,7 @@ class PushNotificationService {
       // If already authorized, ensure token is synced.
       if (currentSettings.authorizationStatus == AuthorizationStatus.authorized ||
           currentSettings.authorizationStatus == AuthorizationStatus.provisional) {
+        await _registerForRemoteNotificationsNative();
         await _fetchAndSyncToken(messaging);
         return;
       }
@@ -103,6 +112,9 @@ class PushNotificationService {
       print('FCM permission on Home: ${settings.authorizationStatus}');
       if (settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional) {
+        // iOS only delivers APNs after permission — re-register then wait.
+        await _registerForRemoteNotificationsNative();
+        await Future<void>.delayed(const Duration(milliseconds: 800));
         await _fetchAndSyncToken(messaging);
       } else {
         await clearTokenFromApi();
@@ -113,49 +125,100 @@ class PushNotificationService {
     }
   }
 
-  Future<void> _fetchAndSyncToken(FirebaseMessaging messaging) async {
-    // iOS: FCM token ONLY works after APNs token is set.
-    if (Platform.isIOS) {
-      final apns = await _waitForApnsToken(messaging);
-      if (apns == null) {
-        // ignore: avoid_print
-        print(
-          'FCM TOKEN: APNs still null. Use a real iPhone (not Simulator), '
-          'enable Push Notifications capability, and ensure network + Apple login.',
-        );
-      } else {
-        // ignore: avoid_print
-        print('APNs token OK (${apns.substring(0, apns.length.clamp(0, 12))}…)');
-      }
-    }
-
+  Future<void> _registerForRemoteNotificationsNative() async {
+    if (!Platform.isIOS) return;
     try {
-      _token = await messaging.getToken();
+      await _pushChannel.invokeMethod<void>('registerForRemoteNotifications');
     } catch (e) {
       // ignore: avoid_print
-      print('FCM getToken error (will retry via onTokenRefresh): $e');
-      _token = null;
-    }
-
-    if (_token != null && _token!.isNotEmpty) {
-      _logToken(_token!, source: 'token_ready');
-      await syncTokenToApi();
-    } else {
-      // ignore: avoid_print
-      print('FCM TOKEN: null at start — waiting for onTokenRefresh…');
+      print('FCM native APNs re-register skipped: $e');
     }
   }
 
+  Future<void> _fetchAndSyncToken(FirebaseMessaging messaging) async {
+    if (_fetchInFlight) return;
+    _fetchInFlight = true;
+    try {
+      if (Platform.isIOS) {
+        final apns = await _waitForApnsToken(messaging);
+        if (apns == null) {
+          // ignore: avoid_print
+          print(
+            'FCM: APNs not ready yet — will retry. '
+            '(Simulator has no APNs; use a real iPhone with Push capability.)',
+          );
+          _scheduleIosTokenRetry();
+          return; // Do NOT call getToken without APNs — that throws on iOS.
+        }
+        // ignore: avoid_print
+        print('APNs token OK (${apns.substring(0, apns.length.clamp(0, 12))}…)');
+      }
+
+      try {
+        _token = await messaging.getToken();
+      } catch (e) {
+        // ignore: avoid_print
+        print('FCM getToken error (will retry): $e');
+        _token = null;
+        if (Platform.isIOS) _scheduleIosTokenRetry();
+        return;
+      }
+
+      if (_token != null && _token!.isNotEmpty) {
+        _iosRetryTimer?.cancel();
+        _iosRetryCount = 0;
+        _logToken(_token!, source: 'token_ready');
+        await syncTokenToApi();
+      } else if (Platform.isIOS) {
+        // ignore: avoid_print
+        print('FCM TOKEN still null — scheduling retry…');
+        _scheduleIosTokenRetry();
+      } else {
+        // ignore: avoid_print
+        print('FCM TOKEN: null at start — waiting for onTokenRefresh…');
+      }
+    } finally {
+      _fetchInFlight = false;
+    }
+  }
+
+  void _scheduleIosTokenRetry() {
+    if (!Platform.isIOS) return;
+    if (_iosRetryCount >= 12) {
+      // ignore: avoid_print
+      print(
+        'FCM: stopped iOS retries. Confirm Push Notifications capability, '
+        'a physical device, and notification permission.',
+      );
+      return;
+    }
+    _iosRetryTimer?.cancel();
+    final delay = Duration(seconds: 2 + (_iosRetryCount * 2).clamp(0, 20));
+    _iosRetryCount += 1;
+    _iosRetryTimer = Timer(delay, () async {
+      try {
+        await _registerForRemoteNotificationsNative();
+        await _fetchAndSyncToken(FirebaseMessaging.instance);
+      } catch (e) {
+        // ignore: avoid_print
+        print('FCM iOS retry failed: $e');
+      }
+    });
+  }
+
   Future<String?> _waitForApnsToken(FirebaseMessaging messaging) async {
-    for (var i = 0; i < 20; i++) {
+    // Permission → APNs can take several seconds on a cold launch.
+    for (var i = 0; i < 30; i++) {
       try {
         final apns = await messaging.getAPNSToken();
         if (apns != null && apns.isNotEmpty) return apns;
       } catch (e) {
-        // ignore: avoid_print
-        print('FCM getAPNSToken attempt ${i + 1}: $e');
+        if (i == 0 || i % 5 == 4) {
+          // ignore: avoid_print
+          print('FCM getAPNSToken attempt ${i + 1}: $e');
+        }
       }
-      await Future<void>.delayed(const Duration(milliseconds: 400));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
     }
     return null;
   }
@@ -217,7 +280,12 @@ class PushNotificationService {
   /// Re-enable sync after user turns Reminder back on.
   Future<void> enableAndSync() async {
     allowSync = true;
-    await syncTokenToApi();
+    if (Platform.isIOS) {
+      await _registerForRemoteNotificationsNative();
+      await _fetchAndSyncToken(FirebaseMessaging.instance);
+    } else {
+      await syncTokenToApi();
+    }
   }
 
   bool get isReady => _ready;

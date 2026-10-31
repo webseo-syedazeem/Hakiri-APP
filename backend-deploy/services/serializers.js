@@ -79,6 +79,14 @@ function userJson(user) {
   };
 }
 
+function isComplimentaryActive(sub, now = new Date()) {
+  if (!sub || !sub.complimentary) return false;
+  if (sub.complimentaryUntil && new Date(sub.complimentaryUntil) < now) {
+    return false;
+  }
+  return true;
+}
+
 function subscriptionJson(sub) {
   if (!sub) return null;
   const now = new Date();
@@ -86,22 +94,51 @@ function subscriptionJson(sub) {
   // Legacy free trials are treated as expired — no practise without paid IAP.
   if (sub.tier === "free_trial") status = "expired";
   if (status === "trialing" && sub.trialEnd && sub.trialEnd < now) status = "expired";
-  if (status === "active" && sub.currentPeriodEnd && sub.currentPeriodEnd < now) status = "expired";
-  const price =
-    sub.tier === "annual_pro"
-      ? "£69.99/yr"
-      : sub.tier === "monthly_pro"
-        ? "£9.99/mo"
-        : "No active plan";
+  if (status === "active" && sub.currentPeriodEnd && sub.currentPeriodEnd < now) {
+    status = "expired";
+  }
+
+  // REVERT complimentary: delete this block + isComplimentaryActive; restore
+  // can_practise to only: status === "active" && paidTier
+  const complimentaryActive = isComplimentaryActive(sub, now);
+  if (complimentaryActive) {
+    status = "active";
+  }
+
   const paidTier = sub.tier === "monthly_pro" || sub.tier === "annual_pro";
+  const onYearlyTrial =
+    !complimentaryActive &&
+    paidTier &&
+    status === "trialing" &&
+    sub.trialEnd &&
+    new Date(sub.trialEnd) >= now;
+
+  const price = complimentaryActive
+    ? "Complimentary"
+    : onYearlyTrial
+      ? "7-day free trial"
+      : sub.tier === "annual_pro"
+        ? "£69.99/yr"
+        : sub.tier === "monthly_pro"
+          ? "£9.99/mo"
+          : "No active plan";
+
   return {
-    tier: sub.tier,
+    tier: complimentaryActive && sub.tier === "free_trial" ? "annual_pro" : sub.tier,
     status,
-    price_gbp: sub.priceGbp,
+    price_gbp: complimentaryActive || onYearlyTrial ? 0 : sub.priceGbp,
     price_label: price,
     trial_end: sub.trialEnd,
-    current_period_end: sub.currentPeriodEnd,
-    can_practise: status === "active" && paidTier,
+    current_period_end: complimentaryActive
+      ? sub.complimentaryUntil || sub.currentPeriodEnd
+      : sub.currentPeriodEnd,
+    complimentary: complimentaryActive,
+    yearly_trial_consumed: Boolean(sub.yearlyTrialConsumed),
+    on_yearly_trial: onYearlyTrial,
+    can_practise:
+      complimentaryActive ||
+      onYearlyTrial ||
+      (status === "active" && paidTier),
   };
 }
 

@@ -6,6 +6,7 @@ import '../core/services/analytics_service.dart';
 import '../models/session_model.dart';
 import '../providers/app_state_provider.dart';
 import '../core/services/coach_tts_service.dart';
+import '../widgets/ai_report_button.dart';
 import '../widgets/coach_play_button.dart';
 import '../widgets/hakkiri_loading_overlay.dart';
 import 'conversation_chat_screen.dart';
@@ -44,6 +45,19 @@ class FeedbackScreen extends StatelessWidget {
     );
   }
 
+  /// Combined AI text for the app-bar Report flag.
+  String _aiReportSnippet(EvaluationFeedback? feedback) {
+    if (feedback == null) return '';
+    final parts = <String>[
+      feedback.exemplarResponse.trim(),
+      feedback.oneStrength.trim(),
+      feedback.oneSpecificImprovement.trim(),
+      feedback.retryInstruction.trim(),
+      feedback.highlightedPhrase.critique.trim(),
+    ].where((s) => s.isNotEmpty);
+    return parts.join('\n\n');
+  }
+
   @override
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -74,11 +88,10 @@ class FeedbackScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Top Bar (< back, centered THINK FIRST)
+            // Top Bar (< back, centered title, report AI + optional delete)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   GestureDetector(
                     onTap: () {
@@ -94,19 +107,31 @@ class FeedbackScreen extends StatelessWidget {
                       size: 28,
                     ),
                   ),
-                  Text(
-                    activityTitle,
-                    style: const TextStyle(
-                      fontFamily: 'Inter',
-                      color: Color(0xFF0F172A),
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.6,
+                  Expanded(
+                    child: Text(
+                      activityTitle,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontFamily: 'Inter',
+                        color: Color(0xFF0F172A),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.6,
+                      ),
                     ),
                   ),
-                  if (activeSession != null && !isGuestTrial)
+                  AiReportButton(
+                    iconOnly: true,
+                    contentType: 'suggested_answer',
+                    contentSnippet: _aiReportSnippet(feedback),
+                    activitySlug: activeSession?.activitySlug ?? '',
+                    sessionId: activeSession?.id ?? '',
+                  ),
+                  if (activeSession != null && !isGuestTrial) ...[
+                    const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () => _confirmDeleteSession(context, state, activeSession),
+                      onTap: () =>
+                          _confirmDeleteSession(context, state, activeSession),
                       child: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
@@ -123,9 +148,8 @@ class FeedbackScreen extends StatelessWidget {
                           size: 18,
                         ),
                       ),
-                    )
-                  else
-                    const SizedBox(width: 32), // balance chevron
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -178,7 +202,7 @@ class FeedbackScreen extends StatelessWidget {
                     _buildWhatWorkedWellCard(feedback),
                     const SizedBox(height: 16),
 
-                    // Live coach only — hide on Debate Me (guided opening/rebuttal).
+                    // Voice-practice transcript only — hide on Debate Me (guided opening/rebuttal).
                     if (activeSession != null &&
                         activeSession.activitySlug != 'debate_me' &&
                         activeSession.activitySlug != 'debate') ...[
@@ -892,14 +916,33 @@ class FeedbackScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // Title
-          Text(
-            title,
-            style: const TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF0F172A),
+          // Title — shrink long labels so words don't split mid-letter.
+          SizedBox(
+            width: double.infinity,
+            height: 38,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.center,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 118),
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  softWrap: true,
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: title.trim().length > 18
+                        ? 10.5
+                        : title.trim().length > 12
+                            ? 11.5
+                            : 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF0F172A),
+                    height: 1.2,
+                  ),
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 2),

@@ -75,7 +75,36 @@ class HakkiriApp extends StatelessWidget {
           ),
           textTheme: GoogleFonts.interTextTheme(
             ThemeData.light().textTheme,
+          ).copyWith(
+            bodyLarge: GoogleFonts.inter(
+              fontSize: 17,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary,
+              height: 1.4,
+            ),
+            bodyMedium: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textPrimary,
+              height: 1.4,
+            ),
+            bodySmall: GoogleFonts.inter(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textSecondary,
+              height: 1.35,
+            ),
+            titleMedium: GoogleFonts.inter(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+            labelLarge: GoogleFonts.inter(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
           ),
+          fontFamily: GoogleFonts.inter().fontFamily,
           appBarTheme: const AppBarTheme(
             backgroundColor: Colors.transparent,
             elevation: 0,
@@ -95,7 +124,7 @@ class HakkiriApp extends StatelessWidget {
             ),
             contentTextStyle: const TextStyle(
               fontFamily: 'Inter',
-              fontSize: 13.5,
+              fontSize: 15,
               fontWeight: FontWeight.w600,
               color: AppColors.textPrimary,
             ),

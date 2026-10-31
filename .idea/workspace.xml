@@ -10,32 +10,51 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="5806d13a-207c-45e3-bc31-34302040450d" name="Changes" comment="initial commit">
-      <change afterPath="$PROJECT_DIR$/APP_STORE_REVIEW_CHECKLIST.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/lib/core/navigation/guest_funnel_nav.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.dart_tool/package_graph.json" beforeDir="false" afterPath="$PROJECT_DIR$/.dart_tool/package_graph.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.flutter-plugins-dependencies" beforeDir="false" afterPath="$PROJECT_DIR$/.flutter-plugins-dependencies" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/APP_STORE_REVIEW_CHECKLIST.txt" beforeDir="false" afterPath="$PROJECT_DIR$/APP_STORE_REVIEW_CHECKLIST.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-deploy/.env.example" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/.env.example" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend-deploy/config/ai.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/config/ai.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend-deploy/controllers/aiController.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/controllers/aiController.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-deploy/controllers/profileController.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/controllers/profileController.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-deploy/data/catalog.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/data/catalog.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend-deploy/services/plan.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/services/plan.js" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/docs/ACTIVITIES_AND_CURRICULUM.md" beforeDir="false" afterPath="$PROJECT_DIR$/docs/ACTIVITIES_AND_CURRICULUM.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-deploy/controllers/authController.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/controllers/authController.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-deploy/controllers/subscriptionController.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/controllers/subscriptionController.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-deploy/models/PracticeSession.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/models/PracticeSession.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-deploy/models/Subscription.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/models/Subscription.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-deploy/package-lock.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/package-lock.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-deploy/package.json" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/package.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-deploy/routes/index.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/routes/index.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend-deploy/services/serializers.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend-deploy/services/serializers.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ios/Runner.xcodeproj/project.pbxproj" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner.xcodeproj/project.pbxproj" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ios/Runner/AppDelegate.swift" beforeDir="false" afterPath="$PROJECT_DIR$/ios/Runner/AppDelegate.swift" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/services/analytics_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/services/analytics_service.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/services/hakkiri_api_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/services/hakkiri_api_service.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/services/iap_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/services/iap_service.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/services/live_voice_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/services/live_voice_service.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/core/services/push_notification_service.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/core/services/push_notification_service.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/main.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/main.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/models/session_model.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/models/session_model.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/providers/app_state_provider.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/providers/app_state_provider.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/activity_detail_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/activity_detail_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/assessment_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/assessment_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/conversation_chat_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/conversation_chat_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/debate_me_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/debate_me_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/feedback_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/feedback_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/home_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/home_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/landing_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/landing_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/live_conversation_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/live_conversation_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/locked_profile_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/locked_profile_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/login_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/login_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/paywall_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/paywall_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/personalized_plan_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/personalized_plan_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/privacy_permissions_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/privacy_permissions_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/profile_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/profile_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/progress_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/progress_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/recording_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/recording_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/settings_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/settings_screen.dart" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/lib/screens/signup_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/signup_screen.dart" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/lib/screens/splash_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/splash_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/lib/screens/targeted_retry_screen.dart" beforeDir="false" afterPath="$PROJECT_DIR$/lib/screens/targeted_retry_screen.dart" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/link-deploy/privacy.html" beforeDir="false" afterPath="$PROJECT_DIR$/link-deploy/privacy.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/link-deploy/public/privacy.html" beforeDir="false" afterPath="$PROJECT_DIR$/link-deploy/public/privacy.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/link-deploy/server.js" beforeDir="false" afterPath="$PROJECT_DIR$/link-deploy/server.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/link-deploy/vercel.json" beforeDir="false" afterPath="$PROJECT_DIR$/link-deploy/vercel.json" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/pubspec.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/pubspec.yaml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -113,10 +132,9 @@
   }
 }</component>
   <component name="RunManager">
-    <configuration default="true" type="AppleRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" IS_LOCATION_SIMULATION_SUPPORTED="false" IS_LOCATION_SIMULATION_ALLOWED="true" APPLICATION_LANGUAGE="IDELaunchSchemeLanguageUseSystemLanguage" APPLICATION_REGION="" DEVELOPMENT_TEAM="${TEAM_ID}" MAKE_ACTIVE="TRUE" SHOULD_DEBUG_EXTENSIONS="false">
-      <embedded_app_extension_list />
+    <configuration default="true" type="Application" factoryName="Application">
       <method v="2">
-        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+        <option name="Make" enabled="true" />
       </method>
     </configuration>
   </component>
@@ -232,7 +250,23 @@
       <option name="project" value="LOCAL" />
       <updated>1793159867867</updated>
     </task>
-    <option name="localTasksCounter" value="14" />
+    <task id="LOCAL-00014" summary="initial commit">
+      <option name="closed" value="true" />
+      <created>1793267605960</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1793267605960</updated>
+    </task>
+    <task id="LOCAL-00015" summary="initial commit">
+      <option name="closed" value="true" />
+      <created>1793267648872</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1793267648872</updated>
+    </task>
+    <option name="localTasksCounter" value="16" />
     <servers />
   </component>
   <component name="ToolWindowManager">

@@ -13,7 +13,6 @@ import 'landing_screen.dart';
 import 'main_tab_scaffold.dart';
 import 'paywall_screen.dart';
 import 'practice_context_screen.dart';
-import 'privacy_permissions_screen.dart';
 import 'profile_section_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -83,10 +82,19 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
   }
 
   Future<void> _openPrivacyPermissions() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const PrivacyPermissionsScreen()),
-    );
+    final uri = Uri.parse('https://hakkiriapp.vercel.app/privacy');
+    try {
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        AppSnackBar.showError(context, 'Could not open Privacy Policy.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      AppSnackBar.showError(context, 'Could not open Privacy Policy.');
+    }
   }
 
   Future<void> _openHelpAndFeedback() async {

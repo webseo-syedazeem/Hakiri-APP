@@ -14,7 +14,6 @@ import '../core/services/google_auth_service.dart';
 import '../core/services/hakkiri_api_service.dart';
 import '../core/services/push_notification_service.dart';
 import '../core/services/session_audio_store.dart';
-import '../core/services/speech_evaluator_service.dart';
 import '../core/services/supabase_service.dart';
 
 class ReflectionNote {
@@ -230,13 +229,20 @@ class AppStateProvider extends ChangeNotifier {
   }
 
   String get subscriptionTitle {
+    if (subscriptionStatus == 'trialing' &&
+        (subscriptionTier == 'annual_pro' || subscriptionTier == 'annual')) {
+      return 'HAKKIRI PRO · 7-DAY TRIAL';
+    }
     switch (subscriptionTier) {
       case 'annual_pro':
+      case 'annual':
         return 'HAKKIRI PRO · YEARLY';
       case 'monthly_pro':
+      case 'monthly':
         return 'HAKKIRI PRO · MONTHLY';
       default:
-        return 'HAKKIRI · FREE TRIAL';
+        // Not subscribed — never show "Free trial" as a fake plan name.
+        return 'HAKKIRI · NO PLAN';
     }
   }
 
@@ -559,18 +565,20 @@ class AppStateProvider extends ChangeNotifier {
     }).toList();
 
     if (todaySessions.isEmpty) {
+      // No invented score — callers should handle missing weakest data.
       return {
-        'slug': 'cut_it_in_half',
-        'name': 'Cut It in Half',
-        'weakestArea': 'Conciseness',
-        'score': 3.1,
-        'feedback':
-            'Your answers were clear, but you took too long to land the point.',
+        'slug': todayDrillSlugs.isNotEmpty
+            ? todayDrillSlugs.first
+            : 'cut_it_in_half',
+        'name': 'Today’s first drill',
+        'weakestArea': 'Practice',
+        'score': null,
+        'feedback': 'Complete a drill today to see your weakest area.',
         'stretchSlug': 'debate_me',
         'stretchName': 'Debate Me',
         'stretchArea': 'Response to pushback',
         'stretchFeedback':
-            'You held your position well, but your rebuttal could be sharper under pressure.',
+            'Finish today’s core drills to unlock a stretch suggestion.',
       };
     }
 
@@ -821,12 +829,20 @@ class AppStateProvider extends ChangeNotifier {
     ensureActivitySelected(slug);
     syncDifficultyForActivity(slug);
     await fetchNextPromptFromApi(excludeCurrent: true);
-    guestTrialUsed = true;
+    // Do not burn the free try until a scored take completes.
     guestFunnelStage = guestStageAwaitingIap;
     hasPendingLocalAssessment = true;
     await persistGuestFunnelToDisk();
     notifyListeners();
     return true;
+  }
+
+  Future<void> markGuestTrialConsumed() async {
+    if (isLoggedIn || guestTrialUsed) return;
+    guestTrialUsed = true;
+    guestFunnelStage = guestStageAwaitingIap;
+    await persistGuestFunnelToDisk();
+    notifyListeners();
   }
 
   /// Legacy alias — free try is no longer Think Fast only.
@@ -845,10 +861,18 @@ class AppStateProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> sendSignupOtp({
+    required String name,
+    required String email,
+  }) async {
+    await _api.sendSignupOtp(fullName: name, email: email);
+  }
+
   Future<void> registerAccount({
     required String name,
     required String email,
     required String password,
+    required String otp,
   }) async {
     // Keep guest assessment answers so we can sync after Create account.
     if (!hasPendingLocalAssessment) {
@@ -858,6 +882,7 @@ class AppStateProvider extends ChangeNotifier {
       fullName: name,
       email: email,
       password: password,
+      otp: otp,
     );
     _applyAuthPayload(data);
     unawaited(AnalyticsService.instance.logSignUp(method: 'email'));
@@ -1650,8 +1675,14 @@ class AppStateProvider extends ChangeNotifier {
     await refreshFromApi();
   }
 
-  Future<void> choosePlanFromApi(String tier) async {
-    final data = await _api.chooseSubscription(tier);
+  Future<void> choosePlanFromApi(
+    String tier, {
+    bool startTrial = false,
+  }) async {
+    final data = await _api.chooseSubscription(
+      tier,
+      startTrial: startTrial,
+    );
     _applySubscription((data['subscription'] as Map<String, dynamic>?) ?? {});
     unawaited(AnalyticsService.instance.logSelectPlan(
       planId: tier,
@@ -2166,18 +2197,20 @@ class AppStateProvider extends ChangeNotifier {
   }
 
   /// Call only after a verified Play/App Store purchase (or restore).
+  /// Yearly starts a 7-day trial on the server the first time; monthly is paid from day one.
   Future<void> activatePaidPlan(String tier) async {
     final normalized =
         tier == 'annual_pro' || tier == 'annual' ? 'annual_pro' : 'monthly_pro';
     final isAnnual = normalized == 'annual_pro';
     subscriptionTier = normalized;
-    subscriptionStatus = 'active';
-    subscriptionPriceFormatted = isAnnual ? '£69.99/yr' : '£9.99/mo';
+    subscriptionStatus = isAnnual ? 'trialing' : 'active';
+    subscriptionPriceFormatted =
+        isAnnual ? '7-day free trial' : '£9.99/mo';
     isSubscribed = true;
     _supabase.updateSubscription(
       userId: userId,
       tier: normalized,
-      priceGbp: isAnnual ? 69.99 : 9.99,
+      priceGbp: isAnnual ? 0 : 9.99,
     );
     // Guest bought before Create account — keep local, upload after signup.
     if (!isLoggedIn) {
@@ -2186,7 +2219,7 @@ class AppStateProvider extends ChangeNotifier {
       return;
     }
     try {
-      await choosePlanFromApi(normalized);
+      await choosePlanFromApi(normalized, startTrial: isAnnual);
     } catch (e) {
       debugPrint('[Hakkiri] Warning syncing subscription to API: $e');
     }
@@ -2480,6 +2513,7 @@ class AppStateProvider extends ChangeNotifier {
     String? localOpeningAudioTempPath,
     String? audioBase64,
     String audioMimeType = 'audio/mp4',
+    bool consumeGuestTrial = false,
   }) async {
     final prompt = selectedPrompt ?? promptBank.first;
     final mode =
@@ -2487,6 +2521,13 @@ class AppStateProvider extends ChangeNotifier {
     final resolvedPlanExtra = planExtra ?? pendingPlanExtra;
     final resolvedIsRetry =
         isRetry || resolvedPlanExtra == 'targeted_retry';
+
+    if ((audioBase64 == null || audioBase64.isEmpty) &&
+        transcript.trim().isEmpty) {
+      throw Exception(
+        'No audio to score. Check microphone permission and try again.',
+      );
+    }
 
     // Persist local audio in parallel with Gemini so the overlay feels faster.
     final localId = _uuid.v4();
@@ -2506,8 +2547,7 @@ class AppStateProvider extends ChangeNotifier {
               )
             : Future<String?>.value(null);
 
-    // Prefer Gemini Flash analysis via API (doc requirement).
-    // Fall back to on-device heuristic only if the AI call fails / offline.
+    // Prefer Gemini Flash analysis via API — never invent a placeholder score.
     EvaluationFeedback feedback;
     var resolvedTranscript = transcript.trim();
     try {
@@ -2524,47 +2564,10 @@ class AppStateProvider extends ChangeNotifier {
         resolvedTranscript = analyzed.transcript.trim();
       }
     } catch (err) {
-      // If we have a recording but scoring failed, do NOT pretend the user
-      // said nothing ("no clear speech") — that was a false local fallback.
-      if ((audioBase64 ?? '').isNotEmpty && resolvedTranscript.isEmpty) {
-        // Never surface raw AI/model errors in the coach UI.
-        feedback = EvaluationFeedback(
-          overallScore: 2,
-          pillars: const FourPillarsScore(
-            executiveScore: 2,
-            clarityScore: 2,
-            impactScore: 2,
-            engagementScore: 2,
-            crutchCount: 0,
-            powerPauseCount: 0,
-            pacingWpm: 0,
-            intelligibilityPercentage: 50,
-            actionVerbPercentage: 40,
-            isMonotoneWarning: false,
-          ),
-          oneStrength: 'Your voice recording was saved on this device.',
-          oneSpecificImprovement:
-              'We could not score this take yet. Tap Try again in a moment.',
-          highlightedPhrase: const HighlightedPhrase(
-            timestampRange: '00:00 - 00:05',
-            phrase: 'Your answer was recorded.',
-            critique:
-                'Scoring is temporarily unavailable. Please try once more.',
-          ),
-          retryInstruction:
-              'Tap Try again. Keep the answer under ~60 seconds.',
-          exemplarResponse: prompt.exemplarResponse,
-          isCoachedRetry: resolvedIsRetry,
-          withholdJudgement: true,
-        );
-      } else {
-        feedback = SpeechEvaluatorService.evaluateSpeech(
-          prompt: prompt,
-          transcript: resolvedTranscript,
-          durationSeconds: durationSeconds,
-          isRetry: resolvedIsRetry,
-        );
-      }
+      final msg = err is HakkiriApiException
+          ? err.message
+          : 'We could not score this take. Check your connection and try again.';
+      throw Exception(msg);
     }
 
     latestFeedback = feedback;
@@ -2612,6 +2615,9 @@ class AppStateProvider extends ChangeNotifier {
     );
     latestSession = record;
     sessionHistory.insert(0, record);
+    if (consumeGuestTrial) {
+      unawaited(markGuestTrialConsumed());
+    }
     _syncTodayPlanAfterLocalSession(
       activitySlug: prompt.activitySlug,
       isRetry: resolvedIsRetry,
@@ -2681,9 +2687,7 @@ class AppStateProvider extends ChangeNotifier {
     String? audioBase64,
     String audioMimeType = 'audio/mp4',
   }) async {
-    if (!_api.isLoggedIn) {
-      throw HakkiriApiException('Sign in required for AI scoring.');
-    }
+    // Guests use the same Gemini path for the one free try (no JWT), then IAP.
     selectedDifficulty = levelForActivity(prompt.activitySlug);
     final difficulty = selectedDifficulty == 'pro'
         ? 'professional'
@@ -2815,7 +2819,7 @@ class AppStateProvider extends ChangeNotifier {
           transcript: apiRecord.transcript.isNotEmpty
               ? apiRecord.transcript
               : transcript,
-          // Keep guided Debate / live coach chat if API echo is empty.
+          // Keep guided Debate / voice-practice chat if API echo is empty.
           conversationMode: apiRecord.isBackAndForth
               ? apiRecord.conversationMode
               : (conversationMode == 'back_and_forth'

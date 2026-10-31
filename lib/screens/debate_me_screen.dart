@@ -485,32 +485,31 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
     }
 
     try {
-      if (state.isLoggedIn && api.isLoggedIn) {
-        await HakkiriLoadingOverlay.run(
-          context,
-          message: 'Hakkiri is crafting a challenge…',
-          detail: hasClip
-              ? 'Listening to your opening, then pushing back.'
-              : 'Building a challenge from your topic…',
-          action: () async {
-            // Prefer audio so pushback is grounded in what the user said.
-            try {
-              await requestPushback(includeAudio: hasClip);
-            } catch (_) {
-              // Audio STT can fail; still try topic-only so the drill continues.
-              if (hasClip) {
-                await requestPushback(includeAudio: false);
-              } else {
-                rethrow;
-              }
-            }
-            // Empty transcript after audio pass → one more topic+transcript retry.
-            if (_openingTranscript.isEmpty && hasClip && !gotPushback) {
+      // Guests get the same AI pushback on the free try (no account yet).
+      await HakkiriLoadingOverlay.run(
+        context,
+        message: 'Hakkiri is crafting a challenge…',
+        detail: hasClip
+            ? 'Listening to your opening, then pushing back.'
+            : 'Building a challenge from your topic…',
+        action: () async {
+          // Prefer audio so pushback is grounded in what the user said.
+          try {
+            await requestPushback(includeAudio: hasClip);
+          } catch (_) {
+            // Audio STT can fail; still try topic-only so the drill continues.
+            if (hasClip) {
               await requestPushback(includeAudio: false);
+            } else {
+              rethrow;
             }
-          },
-        );
-      }
+          }
+          // Empty transcript after audio pass → one more topic+transcript retry.
+          if (_openingTranscript.isEmpty && hasClip && !gotPushback) {
+            await requestPushback(includeAudio: false);
+          }
+        },
+      );
     } catch (_) {
       // Fall through to topic-aware local challenge below.
     }
@@ -546,6 +545,16 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
       _busy = false;
       return;
     }
+    if (audioBase64 == null || audioBase64.isEmpty) {
+      _busy = false;
+      if (mounted) {
+        AppSnackBar.showInfo(
+          context,
+          'No usable audio was captured. Check microphone permission and try again.',
+        );
+      }
+      return;
+    }
 
     final state = context.read<AppStateProvider>();
     final api = HakkiriApiService.instance;
@@ -559,9 +568,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
         action: () async {
           // Recover opening words if pushback step never returned a transcript.
           if (_openingTranscript.isEmpty &&
-              (_openingAudioBase64 ?? '').isNotEmpty &&
-              state.isLoggedIn &&
-              api.isLoggedIn) {
+              (_openingAudioBase64 ?? '').isNotEmpty) {
             try {
               final data = await api.debatePushback({
                 'topic': _topic,
@@ -617,6 +624,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
             localOpeningAudioTempPath: _openingAudioPath,
             audioBase64: audioBase64,
             audioMimeType: 'audio/mp4',
+            consumeGuestTrial: widget.isGuestTrial,
           );
           final latest = state.latestSession;
           if (latest != null) {

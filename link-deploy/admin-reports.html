@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Hakkiri — AI Reports (Admin)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563EB;
+      --primary-dark: #1D4ED8;
+      --bg: #0B0F19;
+      --card-bg: #131B2E;
+      --text: #F8FAFC;
+      --muted: #94A3B8;
+      --border: #1E293B;
+      --danger: #EF4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+    .header {
+      background: radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.22), transparent 75%), linear-gradient(180deg, #101935 0%, var(--bg) 100%);
+      padding: 36px 20px 28px;
+      text-align: center;
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      display: inline-block;
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+      border-radius: 16px;
+      line-height: 56px;
+      font-size: 26px;
+      font-weight: 900;
+      color: white;
+      margin-bottom: 12px;
+      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.35);
+    }
+    .header h1 { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+    .header p { color: var(--muted); font-size: 13.5px; }
+    .container { max-width: 920px; margin: 0 auto; padding: 24px 16px 60px; }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 22px;
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .field { margin-bottom: 14px; }
+    input[type="email"],
+    input[type="password"] {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: #0B1220;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+    }
+    input:focus { border-color: var(--primary); }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+    button {
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 800;
+      border-radius: 999px;
+      padding: 12px 20px;
+      font-size: 14px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #3B82F6, #1D4ED8);
+      color: white;
+    }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: #FCA5A5;
+      border: 1px solid rgba(239, 68, 68, 0.35);
+      padding: 8px 14px;
+      font-size: 12.5px;
+    }
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.28); }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .count {
+      color: var(--muted);
+      font-size: 13.5px;
+      font-weight: 600;
+    }
+    .msg {
+      margin-top: 12px;
+      font-size: 13.5px;
+      font-weight: 600;
+    }
+    .msg.err { color: #FCA5A5; }
+    .msg.ok { color: #86EFAC; }
+    .hidden { display: none !important; }
+    .report {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      margin-bottom: 12px;
+    }
+    .report-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
+    .name { font-size: 16px; font-weight: 800; }
+    .email { color: #93C5FD; font-size: 13.5px; font-weight: 600; margin-top: 2px; word-break: break-all; }
+    .time { color: var(--muted); font-size: 12.5px; font-weight: 600; margin-top: 4px; }
+    .badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 10px; }
+    .badge {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(37, 99, 235, 0.18);
+      color: #93C5FD;
+      border: 1px solid rgba(37, 99, 235, 0.35);
+    }
+    .badge.reason { background: rgba(245, 158, 11, 0.12); color: #FCD34D; border-color: rgba(245, 158, 11, 0.3); }
+    .snippet, .detail {
+      background: #0B1220;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 13.5px;
+      color: #CBD5E1;
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin-top: 8px;
+    }
+    .meta-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 40px 16px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">H</div>
+    <h1>AI content reports</h1>
+    <p>Admin only — review user reports of AI coaching text</p>
+  </div>
+
+  <div class="container">
+    <div id="gate" class="card">
+      <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" placeholder="admin@gmail.com" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="password">Password</label>
+        <input id="password" type="password" placeholder="Enter password" autocomplete="current-password" />
+      </div>
+      <div class="row">
+        <button class="btn-primary" id="unlockBtn" type="button">Open reports</button>
+      </div>
+      <p id="gateMsg" class="msg err hidden"></p>
+    </div>
+
+    <div id="panel" class="hidden">
+      <div class="toolbar">
+        <div class="count" id="countLabel">Loading…</div>
+        <div class="row" style="margin:0">
+          <button class="btn-ghost" id="refreshBtn" type="button">Refresh</button>
+          <button class="btn-ghost" id="lockBtn" type="button">Log out</button>
+        </div>
+      </div>
+      <p id="panelMsg" class="msg hidden" style="margin-bottom:12px"></p>
+      <div id="list"></div>
+    </div>
+  </div>
+
+  <script>
+    const API = 'https://backend-deploy-seven-mauve.vercel.app/api';
+    const EMAIL_KEY = 'hakkiri_admin_email';
+    const PASS_KEY = 'hakkiri_admin_password';
+
+    const gate = document.getElementById('gate');
+    const panel = document.getElementById('panel');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const gateMsg = document.getElementById('gateMsg');
+    const panelMsg = document.getElementById('panelMsg');
+    const listEl = document.getElementById('list');
+    const countLabel = document.getElementById('countLabel');
+
+    function getCreds() {
+      return {
+        email: (sessionStorage.getItem(EMAIL_KEY) || '').trim(),
+        password: sessionStorage.getItem(PASS_KEY) || '',
+      };
+    }
+
+    function setCreds(email, password) {
+      sessionStorage.setItem(EMAIL_KEY, email);
+      sessionStorage.setItem(PASS_KEY, password);
+    }
+
+    function clearCreds() {
+      sessionStorage.removeItem(EMAIL_KEY);
+      sessionStorage.removeItem(PASS_KEY);
+    }
+
+    function showGateError(text) {
+      gateMsg.textContent = text;
+      gateMsg.classList.remove('hidden');
+    }
+
+    function showPanelMsg(text, ok) {
+      panelMsg.textContent = text;
+      panelMsg.className = 'msg ' + (ok ? 'ok' : 'err');
+      panelMsg.classList.remove('hidden');
+      setTimeout(() => panelMsg.classList.add('hidden'), 3200);
+    }
+
+    function escapeHtml(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function formatTime(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString(undefined, {
+          year: 'numeric', month: 'short', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+        });
+      } catch (_) {
+        return iso;
+      }
+    }
+
+    async function api(path, opts = {}) {
+      const { email, password } = getCreds();
+      const res = await fetch(API + path, {
+        ...opts,
+        headers: {
+          'Content-Type': 'application/json',
+          'x-admin-email': email,
+          'x-admin-password': password,
+          ...(opts.headers || {}),
+        },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || json.success === false) {
+        const err = new Error(json.message || ('HTTP ' + res.status));
+        err.status = res.status;
+        throw err;
+      }
+      return json;
+    }
+
+    function renderReports(reports) {
+      countLabel.textContent = reports.length === 1
+        ? '1 report'
+        : reports.length + ' reports';
+      if (!reports.length) {
+        listEl.innerHTML = '<div class="card empty">No reports yet.</div>';
+        return;
+      }
+      listEl.innerHTML = reports.map((r) => `
+        <article class="report" data-id="${escapeHtml(r.id)}">
+          <div class="report-top">
+            <div>
+              <div class="name">${escapeHtml(r.reporter_name || 'Guest')}</div>
+              <div class="email">${escapeHtml(r.reporter_email || 'No email')}</div>
+              <div class="time">${escapeHtml(formatTime(r.created_at))}</div>
+            </div>
+            <button class="btn-danger" type="button" data-delete="${escapeHtml(r.id)}">Delete</button>
+          </div>
+          <div class="badges">
+            <span class="badge reason">${escapeHtml(r.reason)}</span>
+            <span class="badge">${escapeHtml(r.content_type)}</span>
+            ${r.activity_slug ? `<span class="badge">${escapeHtml(r.activity_slug)}</span>` : ''}
+          </div>
+          ${r.detail ? `<div class="meta-label">USER NOTE</div><div class="detail">${escapeHtml(r.detail)}</div>` : ''}
+          <div class="meta-label">REPORTED AI TEXT</div>
+          <div class="snippet">${escapeHtml(r.content_snippet)}</div>
+        </article>
+      `).join('');
+
+      listEl.querySelectorAll('[data-delete]').forEach((btn) => {
+        btn.addEventListener('click', () => deleteReport(btn.getAttribute('data-delete')));
+      });
+    }
+
+    async function loadReports() {
+      countLabel.textContent = 'Loading…';
+      const data = await api('/admin/ai-reports?limit=200');
+      renderReports((data.data && data.data.reports) || []);
+    }
+
+    async function deleteReport(id) {
+      if (!id) return;
+      if (!confirm('Delete this report permanently?')) return;
+      try {
+        await api('/admin/ai-reports/' + encodeURIComponent(id), { method: 'DELETE' });
+        showPanelMsg('Report deleted.', true);
+        await loadReports();
+      } catch (e) {
+        showPanelMsg(e.message || 'Delete failed', false);
+      }
+    }
+
+    async function unlock() {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      if (!email || !password) {
+        showGateError('Enter email and password.');
+        return;
+      }
+      setCreds(email, password);
+      const btn = document.getElementById('unlockBtn');
+      btn.disabled = true;
+      try {
+        await loadReports();
+        gate.classList.add('hidden');
+        panel.classList.remove('hidden');
+        gateMsg.classList.add('hidden');
+      } catch (e) {
+        clearCreds();
+        showGateError(e.message || 'Invalid email or password.');
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+    function lock() {
+      clearCreds();
+      panel.classList.add('hidden');
+      gate.classList.remove('hidden');
+      emailInput.value = '';
+      passwordInput.value = '';
+      listEl.innerHTML = '';
+    }
+
+    document.getElementById('unlockBtn').addEventListener('click', unlock);
+    document.getElementById('refreshBtn').addEventListener('click', async () => {
+      try {
+        await loadReports();
+        showPanelMsg('Refreshed.', true);
+      } catch (e) {
+        if (e.status === 401) lock();
+        showPanelMsg(e.message || 'Refresh failed', false);
+      }
+    });
+    document.getElementById('lockBtn').addEventListener('click', lock);
+    passwordInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') unlock();
+    });
+    emailInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') passwordInput.focus();
+    });
+
+    const saved = getCreds();
+    if (saved.email && saved.password) {
+      emailInput.value = saved.email;
+      passwordInput.value = saved.password;
+      unlock();
+    }
+  </script>
+</body>
+</html>

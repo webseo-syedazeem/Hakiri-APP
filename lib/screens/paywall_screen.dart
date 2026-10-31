@@ -265,6 +265,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
     }
   }
 
+  // Kept for App Store restore flow; footer link removed from UI.
+  // ignore: unused_element
   Future<void> _restore() async {
     if (_purchasing) return;
     setState(() {
@@ -404,7 +406,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text(
-                  'You have total freedom. Your subscription will not be charged if cancelled at least 24 hours before the renewal date. Follow these steps to manage or cancel:',
+                  'Subscriptions renew automatically until cancelled. For the yearly plan, cancel at least 24 hours before the 7-day free trial ends to avoid being charged. Follow these steps to manage or cancel:',
                   style: TextStyle(
                     color: Color(0xFF94A3B8),
                     fontSize: 13,
@@ -549,9 +551,14 @@ class _PaywallScreenState extends State<PaywallScreen> {
           children: [
             const PaywallWaveBackground(),
             SafeArea(
+              bottom: false,
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  14,
+                  24,
+                  8 + MediaQuery.paddingOf(context).bottom.clamp(0.0, 10.0),
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -778,24 +785,37 @@ class _PaywallScreenState extends State<PaywallScreen> {
                               _buildPlanCard(
                                 id: 'annual_pro',
                                 title: 'Yearly',
-                                subtitle: '£0.19 per day · billed yearly',
+                                subtitle:
+                                    '7 days free, then ${_priceForTier('annual_pro', '£69.99')}/year',
                                 priceText: _priceForTier(
                                   'annual_pro',
                                   '£69.99',
                                 ),
-                                badgeText: 'BEST VALUE',
+                                badgeText: 'FREE TRIAL',
                                 isSelected: _selectedTier == 'annual_pro',
                               ),
                               const SizedBox(height: 12),
                               _buildPlanCard(
                                 id: 'monthly_pro',
                                 title: 'Monthly',
-                                subtitle: '£0.33 per day · billed monthly',
+                                subtitle: 'Starts today · billed monthly',
                                 priceText: _priceForTier(
                                   'monthly_pro',
                                   '£9.99',
                                 ),
                                 isSelected: _selectedTier == 'monthly_pro',
+                              ),
+                              const SizedBox(height: 14),
+                              Text(
+                                _selectedTier == 'annual_pro'
+                                    ? '7 days free, then ${_priceForTier('annual_pro', '£69.99')} a year. Renews automatically until you cancel. Cancel at least 24 hours before the trial ends to avoid being charged.'
+                                    : '${_priceForTier('monthly_pro', '£9.99')} a month. Renews automatically until you cancel. Cancel anytime in your phone’s subscription settings.',
+                                style: const TextStyle(
+                                  color: Color(0xFF94A3B8),
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.4,
+                                ),
                               ),
                               if (_statusMessage != null) ...[
                                 const SizedBox(height: 12),
@@ -866,9 +886,11 @@ class _PaywallScreenState extends State<PaywallScreen> {
                                   ),
                                 ] else ...[
                                   const Spacer(),
-                                  const Text(
-                                    'Unlock Hakkiri Pro',
-                                    style: TextStyle(
+                                  Text(
+                                    _selectedTier == 'annual_pro'
+                                        ? 'Start 7-day free trial'
+                                        : 'Unlock Hakkiri Pro',
+                                    style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
                                       fontWeight: FontWeight.w800,
@@ -887,23 +909,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Center(
                       child: Wrap(
                         alignment: WrapAlignment.center,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          _buildFooterLink(
-                            'Restore',
-                            _restore,
-                          ),
-                          const Text(
-                            '  ·  ',
-                            style: TextStyle(
-                              color: Color(0xFF6B7280),
-                              fontSize: 11,
-                            ),
-                          ),
                           _buildFooterLink(
                             'Cancel anytime',
                             _showCancelAnytimeDialog,
@@ -916,7 +927,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
                             ),
                           ),
                           _buildFooterLink(
-                            'Terms and condition',
+                            'Terms of Use',
                             () =>
                                 _openUrl('https://hakkiriapp.vercel.app/terms'),
                           ),
@@ -1033,19 +1044,23 @@ class _PaywallScreenState extends State<PaywallScreen> {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w800,
+                      Flexible(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                       if (badgeText != null) ...[
-                        const SizedBox(width: 8),
+                        const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
+                            horizontal: 6,
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
@@ -1054,11 +1069,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
                           ),
                           child: Text(
                             badgeText,
+                            maxLines: 1,
                             style: const TextStyle(
                               color: Colors.white,
-                              fontSize: 10,
+                              fontSize: 9,
                               fontWeight: FontWeight.w800,
-                              letterSpacing: 0.6,
+                              letterSpacing: 0.4,
                             ),
                           ),
                         ),
@@ -1068,29 +1084,27 @@ class _PaywallScreenState extends State<PaywallScreen> {
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Color(0xFF8B92A8),
-                      fontSize: 12.5,
+                      fontSize: 12,
                       fontWeight: FontWeight.w500,
+                      height: 1.25,
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 8),
             Text(
               priceText,
               style: const TextStyle(
                 color: Colors.white,
-                fontSize: 22,
+                fontSize: 18,
                 fontWeight: FontWeight.w900,
-                letterSpacing: -0.5,
+                letterSpacing: -0.4,
               ),
-            ),
-            const SizedBox(width: 4),
-            const Icon(
-              Icons.chevron_right_rounded,
-              color: Color(0xFF8B92A8),
-              size: 22,
             ),
           ],
         ),

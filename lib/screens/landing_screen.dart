@@ -12,7 +12,6 @@ import '../widgets/who_its_for_roadmap_view.dart';
 import '../widgets/twelve_months_roadmap_view.dart';
 import 'activity_detail_screen.dart';
 import 'assessment_screen.dart';
-import 'debate_me_screen.dart';
 import 'login_screen.dart';
 
 /// Onboarding experience.
@@ -757,22 +756,15 @@ class _LandingScreenState extends State<LandingScreen>
                             AppStateProvider.normalizeActivitySlug(type);
                         // Keep provider in sync so Begin → Recording uses this drill.
                         context.read<AppStateProvider>().selectActivity(slug);
-                        if (slug == 'debate_me') {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const DebateMeScreen(),
-                            ),
-                          );
-                        } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  ActivityDetailScreen(activitySlug: slug),
-                            ),
-                          );
-                        }
+                        // Same gate for every drill (including Debate Me) —
+                        // Activity Detail → guest trial / auth, never skip into app.
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                ActivityDetailScreen(activitySlug: slug),
+                          ),
+                        );
                       },
                       child: Align(
                         // Vertically center the card in the carousel slot.
@@ -1540,33 +1532,20 @@ class _LandingScreenState extends State<LandingScreen>
                 children: [
                   _buildTestimonialCard(
                     quote: '“It helps me organise my thoughts and get to the point faster.”',
-                    author: 'Eleanor R., BCG',
+                    author: 'Eleanor R., consultant',
                     avatarAsset: 'assets/images/avatar_consultant.png',
                   ),
                   const SizedBox(height: 10),
                   _buildTestimonialCard(
                     quote: '“This feedback is specific, practical and easy to apply.”',
-                    author: 'Priya S., The Economist',
+                    author: 'Priya S., communications lead',
                     avatarAsset: 'assets/images/avatar_economist.png',
                   ),
                   const SizedBox(height: 10),
                   _buildTestimonialCard(
                     quote: '“A smart way to practise speaking with more clarity and confidence.”',
-                    author: 'James T., Cambridge University',
+                    author: 'James T., graduate student',
                     avatarAsset: 'assets/images/avatar_student.png',
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Organization Pills Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildOrgPill('BCG'),
-                      const SizedBox(width: 8),
-                      _buildOrgPill('The Economist'),
-                      const SizedBox(width: 8),
-                      _buildOrgPill('Cambridge University'),
-                    ],
                   ),
                   const SizedBox(height: 6),
                 ],
@@ -1672,25 +1651,6 @@ class _LandingScreenState extends State<LandingScreen>
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildOrgPill(String title) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontFamily: 'Inter',
-          color: Color(0xFF475569),
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-        ),
       ),
     );
   }

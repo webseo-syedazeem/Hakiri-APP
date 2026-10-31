@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 import '../models/session_model.dart';
 
-/// Full chat transcript for a back-and-forth live coach session.
+/// Full chat transcript for a back-and-forth voice practice session.
 class ConversationChatScreen extends StatelessWidget {
   final List<ConversationTurn> turns;
   final String? title;

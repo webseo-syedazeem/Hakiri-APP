@@ -13,7 +13,8 @@ import '../widgets/hakkiri_logo.dart';
 import 'assessment_screen.dart';
 import 'home_screen.dart';
 import 'locked_profile_screen.dart';
-import 'signup_screen.dart';
+import 'forgot_password_screen.dart';
+import 'landing_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -287,9 +288,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: () {
-                        AppSnackBar.showSuccess(
+                        Navigator.push(
                           context,
-                          'Password reset link sent to your email.',
+                          MaterialPageRoute(
+                            builder: (_) => ForgotPasswordScreen(
+                              initialEmail: _emailController.text.trim(),
+                            ),
+                          ),
                         );
                       },
                       style: TextButton.styleFrom(
@@ -377,13 +382,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   const Spacer(),
 
-                  // Bottom Sign Up Prompt
+                  // Bottom Sign Up → same guest funnel as Get started
                   Center(
                     child: GestureDetector(
                       onTap: () {
-                        Navigator.pushReplacement(
+                        Navigator.pushAndRemoveUntil(
                           context,
-                          MaterialPageRoute(builder: (_) => const SignupScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const LandingScreen(),
+                          ),
+                          (route) => false,
                         );
                       },
                       child: RichText(

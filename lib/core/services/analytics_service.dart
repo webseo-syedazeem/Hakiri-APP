@@ -254,7 +254,7 @@ class AnalyticsService {
     );
   }
 
-  // ---------------- LIVE VOICE / DEBATE ----------------
+  // ---------------- VOICE PRACTICE / DEBATE ----------------
 
   Future<void> logLiveVoiceStarted() async {
     await logEvent(name: 'live_voice_started');

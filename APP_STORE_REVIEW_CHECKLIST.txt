@@ -90,8 +90,8 @@ production-ready state for submission to the Apple App Store Review team.
       * Integrated using standard in_app_purchase package with robust stream
         listeners for purchase updates and state transitions.
       * Configured Product Identifiers:
-        - Monthly Pro: "hakkiri_monthly_pro"
-        - Annual Pro:  "hakkiri_annual_pro"
+        - Monthly Pro: "hakkiri_monthly_sub"
+        - Annual Pro:  "hakkiri_yearly_sub"
       * Local and sandbox state handling tested: purchase success, pending,
         cancelled, and error states all handled gracefully.
     - Restore Purchases Mechanism (Apple Guideline 3.1.2 Compliant):

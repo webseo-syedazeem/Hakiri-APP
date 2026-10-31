@@ -1,6 +1,8 @@
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const PasswordReset = require("../models/PasswordReset");
+const SignupOtp = require("../models/SignupOtp");
 const Profile = require("../models/Profile");
 const Subscription = require("../models/Subscription");
 const Streak = require("../models/Streak");
@@ -11,8 +13,37 @@ const DailyPlanProgress = require("../models/DailyPlanProgress");
 const ChallengeProgress = require("../models/ChallengeProgress");
 const { success, error } = require("../helpers/response");
 const { userJson, profileJson, subscriptionJson, streakJson, settingsJson } = require("../services/serializers");
+const { sendPasswordResetOtp, sendSignupOtp } = require("../services/email");
 
 const generateToken = (id) => jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "30d" });
+
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+const RESET_TOKEN_TTL = "15m";
+
+function hashOtp(otp) {
+  return crypto.createHash("sha256").update(String(otp)).digest("hex");
+}
+
+function generateOtp() {
+  return String(crypto.randomInt(100000, 1000000));
+}
+
+function generateResetToken(email) {
+  return jwt.sign(
+    { email, purpose: "password_reset" },
+    process.env.JWT_SECRET,
+    { expiresIn: RESET_TOKEN_TTL }
+  );
+}
+
+function verifyResetToken(token) {
+  const payload = jwt.verify(token, process.env.JWT_SECRET);
+  if (payload.purpose !== "password_reset" || !payload.email) {
+    throw new Error("Invalid reset token");
+  }
+  return String(payload.email).toLowerCase();
+}
 
 /** Native iOS aud = bundle id. Optional Services ID via env for Android/web. */
 const APPLE_AUDIENCES = [
@@ -151,21 +182,110 @@ async function createAccountShell(userId) {
   return { profile, settings, subscription, streak };
 }
 
+/** Step 1: send signup OTP — account is created only after verify. */
+const sendSignupVerification = async (req, res) => {
+  try {
+    const fullName = String(req.body.full_name || req.body.fullName || "").trim();
+    const email = String(req.body.email || "").trim().toLowerCase();
+
+    if (!fullName || fullName.length < 2) {
+      return error(res, "Full name is required.");
+    }
+    if (!email || !email.includes("@")) {
+      return error(res, "A valid email is required.");
+    }
+
+    const existing = await User.findOne({ email, isDeleted: false });
+    if (existing) {
+      return error(res, "An account with this email already exists.", 400);
+    }
+
+    const otp = generateOtp();
+    await SignupOtp.deleteMany({ email });
+    await SignupOtp.create({
+      email,
+      fullName,
+      otpHash: hashOtp(otp),
+      attempts: 0,
+      expiresAt: new Date(Date.now() + OTP_TTL_MS),
+    });
+
+    try {
+      await sendSignupOtp({ to: email, otp, fullName });
+    } catch (mailErr) {
+      console.error("Signup OTP email failed:", mailErr.message);
+      await SignupOtp.deleteMany({ email });
+      if (mailErr.statusCode === 503) {
+        return error(
+          res,
+          "Email verification is not configured yet. Set GMAIL_USER and GMAIL_APP_PASSWORD.",
+          503
+        );
+      }
+      return error(res, "Could not send the verification code. Try again.", 500);
+    }
+
+    return success(res, "We sent a verification code to your email.", { sent: true });
+  } catch (err) {
+    console.error(err);
+    return error(res, "Could not send the verification code.", 500);
+  }
+};
+
+/** Step 2: verify OTP + create account. */
 const register = async (req, res) => {
   try {
     const fullName = String(req.body.full_name || req.body.fullName || "").trim();
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
+    const otp = String(req.body.otp || "").trim();
 
     if (!fullName) return error(res, "Full name is required.");
     if (!email || !email.includes("@")) return error(res, "A valid email is required.");
     if (password.length < 6) return error(res, "Password must be at least 6 characters.");
+    if (!/^\d{6}$/.test(otp)) {
+      return error(res, "Enter the 6-digit code from your email.");
+    }
+
+    const record = await SignupOtp.findOne({ email });
+    if (!record) {
+      return error(res, "Code expired or not found. Request a new one.", 400);
+    }
+    if (record.expiresAt.getTime() < Date.now()) {
+      await SignupOtp.deleteMany({ email });
+      return error(res, "Code expired. Request a new one.", 400);
+    }
+    if (record.attempts >= OTP_MAX_ATTEMPTS) {
+      await SignupOtp.deleteMany({ email });
+      return error(res, "Too many attempts. Request a new code.", 400);
+    }
+    if (record.otpHash !== hashOtp(otp)) {
+      record.attempts += 1;
+      await record.save();
+      const left = OTP_MAX_ATTEMPTS - record.attempts;
+      return error(
+        res,
+        left > 0
+          ? `Incorrect code. ${left} attempt${left === 1 ? "" : "s"} left.`
+          : "Too many attempts. Request a new code.",
+        400
+      );
+    }
 
     const existing = await User.findOne({ email, isDeleted: false });
-    if (existing) return error(res, "An account with this email already exists.", 400);
+    if (existing) {
+      await SignupOtp.deleteMany({ email });
+      return error(res, "An account with this email already exists.", 400);
+    }
     await User.deleteMany({ email, isDeleted: true });
 
-    const user = await User.create({ fullName, email, password });
+    const user = await User.create({
+      fullName: fullName || record.fullName,
+      email,
+      password,
+      authProvider: "password",
+    });
+    await SignupOtp.deleteMany({ email });
     const shell = await createAccountShell(user._id);
 
     return success(
@@ -393,4 +513,155 @@ const deleteAccount = async (req, res) => {
   }
 };
 
-module.exports = { register, login, googleAuth, appleAuth, me, deleteAccount };
+/** Step 1: email a 6-digit OTP to Gmail (App Password via env). */
+const forgotPassword = async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      return error(res, "A valid email is required.");
+    }
+
+    const user = await User.findOne({ email, isDeleted: false });
+    // Same response whether or not the account exists (avoid email enumeration).
+    const okMessage = "If an account exists for that email, we sent a reset code.";
+
+    if (!user) {
+      return success(res, okMessage, { sent: true });
+    }
+
+    if (!user.password && (user.authProvider === "google" || user.authProvider === "apple")) {
+      const provider = user.authProvider === "google" ? "Google" : "Apple";
+      return error(
+        res,
+        `This account uses ${provider} sign-in. Use Continue with ${provider} instead of a password.`,
+        400
+      );
+    }
+
+    const otp = generateOtp();
+    await PasswordReset.deleteMany({ email });
+    await PasswordReset.create({
+      email,
+      otpHash: hashOtp(otp),
+      attempts: 0,
+      expiresAt: new Date(Date.now() + OTP_TTL_MS),
+    });
+
+    try {
+      await sendPasswordResetOtp({
+        to: email,
+        otp,
+        fullName: user.fullName,
+      });
+    } catch (mailErr) {
+      console.error("Password reset email failed:", mailErr.message);
+      await PasswordReset.deleteMany({ email });
+      if (mailErr.statusCode === 503) {
+        return error(
+          res,
+          "Password reset email is not configured yet. Ask the team to set GMAIL_USER and GMAIL_APP_PASSWORD.",
+          503
+        );
+      }
+      return error(res, "Could not send the reset code. Try again in a moment.", 500);
+    }
+
+    return success(res, okMessage, { sent: true });
+  } catch (err) {
+    console.error(err);
+    return error(res, "Could not start password reset.", 500);
+  }
+};
+
+/** Step 2: verify OTP → short-lived reset_token for the new-password screen. */
+const verifyResetOtp = async (req, res) => {
+  try {
+    const email = String(req.body.email || "").trim().toLowerCase();
+    const otp = String(req.body.otp || "").trim();
+
+    if (!email || !email.includes("@")) return error(res, "A valid email is required.");
+    if (!/^\d{6}$/.test(otp)) return error(res, "Enter the 6-digit code from your email.");
+
+    const record = await PasswordReset.findOne({ email });
+    if (!record) {
+      return error(res, "Code expired or not found. Request a new one.", 400);
+    }
+    if (record.expiresAt.getTime() < Date.now()) {
+      await PasswordReset.deleteMany({ email });
+      return error(res, "Code expired. Request a new one.", 400);
+    }
+    if (record.attempts >= OTP_MAX_ATTEMPTS) {
+      await PasswordReset.deleteMany({ email });
+      return error(res, "Too many attempts. Request a new code.", 400);
+    }
+
+    if (record.otpHash !== hashOtp(otp)) {
+      record.attempts += 1;
+      await record.save();
+      const left = OTP_MAX_ATTEMPTS - record.attempts;
+      return error(
+        res,
+        left > 0 ? `Incorrect code. ${left} attempt${left === 1 ? "" : "s"} left.` : "Too many attempts. Request a new code.",
+        400
+      );
+    }
+
+    const resetToken = generateResetToken(email);
+    return success(res, "Code verified.", { reset_token: resetToken });
+  } catch (err) {
+    console.error(err);
+    return error(res, "Could not verify the code.", 500);
+  }
+};
+
+/** Step 3: set a new password with reset_token (after OTP verified). */
+const resetPassword = async (req, res) => {
+  try {
+    const resetToken = String(req.body.reset_token || req.body.resetToken || "").trim();
+    const password = String(req.body.password || req.body.new_password || "");
+
+    if (!resetToken) return error(res, "Reset session missing. Verify your code again.");
+    if (password.length < 6) return error(res, "Password must be at least 6 characters.");
+
+    let email;
+    try {
+      email = verifyResetToken(resetToken);
+    } catch (_) {
+      return error(res, "Reset session expired. Request a new code.", 401);
+    }
+
+    const record = await PasswordReset.findOne({ email });
+    if (!record) {
+      return error(res, "Reset session expired. Request a new code.", 400);
+    }
+
+    const user = await User.findOne({ email, isDeleted: false });
+    if (!user) {
+      await PasswordReset.deleteMany({ email });
+      return error(res, "Account not found.", 404);
+    }
+
+    user.password = password;
+    user.authProvider = "password";
+    await user.save();
+    await PasswordReset.deleteMany({ email });
+
+    return success(res, "Password updated. You can log in now.");
+  } catch (err) {
+    console.error(err);
+    return error(res, "Could not reset the password.", 500);
+  }
+};
+
+module.exports = {
+  sendSignupVerification,
+  register,
+  login,
+  googleAuth,
+  appleAuth,
+  me,
+  deleteAccount,
+  forgotPassword,
+  verifyResetOtp,
+  resetPassword,
+};

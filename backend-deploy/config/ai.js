@@ -16,7 +16,7 @@ const FLASH_MODEL_FALLBACKS = [
 ];
 
 const DEFAULT_COACH_INSTRUCTION =
-  "You are Hakkiri Live Coach. Help the user practise clear professional English speech. " +
+  "You are Hakkiri Coach. Help the user practise clear professional English speech. " +
   "Keep replies short, spoken, and practical. Ask one follow-up question at a time. " +
   "Do not penalise accents. Coach structure, clarity, calm pace, and confidence. " +
   "ENGLISH ONLY: if the user speaks another language, kindly say you are their English coach " +
@@ -721,7 +721,7 @@ async function createLiveSessionToken({ systemInstruction } = {}) {
     }
   }
 
-  const err = lastErr || new Error("Could not create a live voice token.");
+  const err = lastErr || new Error("Could not create a voice practice token.");
   err.statusCode = err.statusCode || 502;
   throw err;
 }
@@ -780,7 +780,7 @@ async function issueLiveAuthToken({
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      lastErr = new Error(data?.error?.message || "Could not create a live voice token.");
+      lastErr = new Error(data?.error?.message || "Could not create a voice practice token.");
       lastErr.statusCode = response.status >= 400 ? response.status : 502;
       continue;
     }
@@ -792,7 +792,7 @@ async function issueLiveAuthToken({
     }
     return { token: accessToken, locked: attempt.locked };
   }
-  throw lastErr || new Error("Could not create a live voice token.");
+  throw lastErr || new Error("Could not create a voice practice token.");
 }
 
 /**

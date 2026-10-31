@@ -18,7 +18,7 @@ const status = async (_req, res) => {
 const liveToken = async (req, res) => {
   try {
     if (!isGeminiConfigured()) {
-      return error(res, "Live voice is not configured. Set GEMINI_API_KEY on the server.", 503);
+      return error(res, "Voice practice is not configured. Set GEMINI_API_KEY on the server.", 503);
     }
 
     const systemInstruction =
@@ -27,12 +27,12 @@ const liveToken = async (req, res) => {
       undefined;
 
     const session = await createLiveSessionToken({ systemInstruction });
-    return success(res, "Live voice token ready.", {
+    return success(res, "Voice practice token ready.", {
       live: session,
     });
   } catch (err) {
     console.error("liveToken failed:", err.message);
-    return error(res, err.message || "Could not start live voice.", err.statusCode || 502);
+    return error(res, err.message || "Could not start voice practice.", err.statusCode || 502);
   }
 };
 

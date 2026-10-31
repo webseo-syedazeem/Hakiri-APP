@@ -5,7 +5,7 @@
   "packages": [
     {
       "name": "hakkiri_app",
-      "version": "1.0.8+8",
+      "version": "1.0.9+9",
       "dependencies": [
         "audioplayers",
         "crypto",

@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import FirebaseMessaging
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
@@ -22,6 +23,9 @@ import UIKit
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
+    // Explicitly hand APNs token to Firebase Messaging — swizzling alone
+    // is unreliable with SceneDelegate / FlutterImplicitEngine setups.
+    Messaging.messaging().apnsToken = deviceToken
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
     let hex = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
     NSLog("APNs device token registered (%d bytes): %@…", deviceToken.count, String(hex.prefix(16)))
@@ -45,6 +49,23 @@ import UIKit
     }
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "DrillRecorderPlugin") {
       drillRecorderPlugin = DrillRecorderPlugin(messenger: registrar.messenger())
+    }
+    // Dart can re-request APNs after notification permission is granted.
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "HakkiriPushPlugin") {
+      let channel = FlutterMethodChannel(
+        name: "hakkiri/push",
+        binaryMessenger: registrar.messenger()
+      )
+      channel.setMethodCallHandler { call, result in
+        if call.method == "registerForRemoteNotifications" {
+          DispatchQueue.main.async {
+            UIApplication.shared.registerForRemoteNotifications()
+          }
+          result(nil)
+        } else {
+          result(FlutterMethodNotImplemented)
+        }
+      }
     }
   }
 }

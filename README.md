@@ -2,7 +2,7 @@
 
 **Hakkiri** is a mobile app that trains professionals to think clearly and speak with purpose under real workplace pressure — timed drills, AI feedback, and a personalised daily plan.
 
-This repository is the **working MVP**. Core product loops are live and shipping. More features will keep being added and refined after MVP (levels, curriculum packs, live coaching depth, etc.).
+This repository is the **working MVP**. Core product loops are live and shipping. More features will keep being added and refined after MVP (levels, curriculum packs, coaching depth, etc.).
 
 | | |
 |---|---|
@@ -10,7 +10,7 @@ This repository is the **working MVP**. Core product loops are live and shipping
 | **Version** | See `pubspec.yaml` (`1.0.7+7` at time of writing) |
 | **Product status** | **MVP — functional end-to-end** |
 | **Backend** | Node.js API (`backend-deploy/`) on Vercel |
-| **AI** | Google Gemini (speech analysis + live coach); ElevenLabs / Gemini TTS for coach voice |
+| **AI** | Google Gemini (speech analysis + voice practice); ElevenLabs / Gemini TTS for coach voice |
 | **Auth** | Firebase Auth (email, Google, Apple) + app session |
 
 ---
@@ -71,9 +71,9 @@ Additional activities exist in catalog as **non-MVP / future** (`isMvp: false`) 
 - Profile: goals, practice context (industry), daily minutes, AI coach voice, reminders hooks
 - Settings: subscription manage entry, industry, AI coach voice, transparency links
 
-### 6. Live conversation (coach)
-- Live voice session token + WebSocket coach path (Gemini live models)
-- Used for open practice / live coach experiences in-app
+### 6. Voice practice conversation (coach)
+- Voice practice session token + WebSocket coach path (Gemini models)
+- Used for open practice / back-and-forth voice experiences in-app
 
 ### 7. Monetisation & accounts
 - Store IAP (monthly_pro / annual_pro)
@@ -139,7 +139,7 @@ Back is available through assessment → plan → paywall → create account, in
 - Personalised daily plan from goal + challenge
 - Progress skills UI, coach voice gender, settings calibration
 - Debate Me guided pushback flow
-- Live coach token path
+- Voice practice token path
 
 ### Continues after MVP (expected iteration — not “broken,” just next scope)
 - Deeper curriculum / more prompt banks and industries

@@ -112,10 +112,10 @@ class PrivacyPermissionsScreen extends StatelessWidget {
                               ),
                               SizedBox(height: 5),
                               Text(
-                                'Hakkiri is designed for executive practice. Your recordings are strictly confidential and never used for public AI training.',
+                                'Hakkiri is designed for executive practice. Recordings and transcripts are sent to Google Gemini for scoring and coaching, stay confidential, and are never used for public AI training.',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
-                                  fontSize: 12.5,
+                                  fontSize: 14,
                                   color: Color(0xFF94A3B8),
                                   height: 1.4,
                                 ),
@@ -182,6 +182,15 @@ class PrivacyPermissionsScreen extends StatelessWidget {
                       title: 'Sandboxed Local Storage',
                       description:
                           'Audio recordings are kept in the app’s isolated local sandbox directory. Other apps cannot read or access your recordings.',
+                      showDivider: true,
+                    ),
+                    _buildPrivacyItem(
+                      icon: Icons.cloud_outlined,
+                      iconColor: const Color(0xFF2563EB),
+                      iconBg: const Color(0xFFEFF6FF),
+                      title: 'Google Gemini for scoring',
+                      description:
+                          'When you finish a drill, your audio and/or transcript is sent securely to Google’s Gemini models to score clarity, structure, and delivery, and to generate coaching feedback. We do not use your recordings to train public AI models.',
                       showDivider: true,
                     ),
                     _buildPrivacyItem(

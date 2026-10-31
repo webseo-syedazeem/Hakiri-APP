@@ -13,7 +13,7 @@ const practiceSessionSchema = new mongoose.Schema(
     durationSeconds: { type: Number, default: 0 },
     isCoachedRetry: { type: Boolean, default: false },
     withholdJudgement: { type: Boolean, default: false },
-    // single = one-shot drill; back_and_forth = live coach / debate conversation
+    // single = one-shot drill; back_and_forth = voice practice / debate conversation
     conversationMode: {
       type: String,
       enum: ["single", "back_and_forth"],

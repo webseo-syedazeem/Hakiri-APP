@@ -200,15 +200,28 @@ class HakkiriApiService {
     return (decoded['data'] as Map<String, dynamic>?) ?? {};
   }
 
+  /// Sends a 6-digit signup verification OTP. Account is created after [register].
+  Future<void> sendSignupOtp({
+    required String fullName,
+    required String email,
+  }) async {
+    await _post('/auth/send-signup-otp', body: {
+      'full_name': fullName,
+      'email': email,
+    });
+  }
+
   Future<Map<String, dynamic>> register({
     required String fullName,
     required String email,
     required String password,
+    required String otp,
   }) async {
     final data = await _post('/auth/register', body: {
       'full_name': fullName,
       'email': email,
       'password': password,
+      'otp': otp,
     });
     final user = (data['user'] as Map<String, dynamic>?) ?? {};
     final token = (data['token'] ?? '').toString();
@@ -244,6 +257,37 @@ class HakkiriApiService {
       email: (user['email'] ?? email).toString(),
     );
     return data;
+  }
+
+  /// Sends a 6-digit OTP to the member's Gmail (password accounts only).
+  Future<void> forgotPassword({required String email}) async {
+    await _post('/auth/forgot-password', body: {'email': email});
+  }
+
+  /// Verifies the emailed OTP and returns a short-lived [reset_token].
+  Future<String> verifyResetOtp({
+    required String email,
+    required String otp,
+  }) async {
+    final data = await _post('/auth/verify-reset-otp', body: {
+      'email': email,
+      'otp': otp,
+    });
+    final resetToken = (data['reset_token'] ?? '').toString();
+    if (resetToken.isEmpty) {
+      throw HakkiriApiException('Code verified but no reset token was returned.');
+    }
+    return resetToken;
+  }
+
+  Future<void> resetPassword({
+    required String resetToken,
+    required String password,
+  }) async {
+    await _post('/auth/reset-password', body: {
+      'reset_token': resetToken,
+      'password': password,
+    });
   }
 
   Future<Map<String, dynamic>> loginWithGoogle({
@@ -348,8 +392,14 @@ class HakkiriApiService {
 
   Future<Map<String, dynamic>> plan() => _get('/plan', auth: true);
 
-  Future<Map<String, dynamic>> chooseSubscription(String tier) =>
-      _post('/subscription', auth: true, body: {'tier': tier});
+  Future<Map<String, dynamic>> chooseSubscription(
+    String tier, {
+    bool startTrial = false,
+  }) =>
+      _post('/subscription', auth: true, body: {
+        'tier': tier,
+        if (startTrial) 'start_trial': true,
+      });
 
   Future<Map<String, dynamic>> createSession(Map<String, dynamic> body) =>
       _post('/sessions', auth: true, body: body);
@@ -360,21 +410,50 @@ class HakkiriApiService {
           'system_instruction': systemInstruction.trim(),
       });
 
+  /// Google Play: report AI-generated coaching / suggested answer text.
+  Future<void> reportAiContent({
+    required String contentType,
+    required String reason,
+    required String contentSnippet,
+    String detail = '',
+    String activitySlug = '',
+    String sessionId = '',
+  }) async {
+    final name = (_fullName ?? '').trim();
+    final mail = (_email ?? '').trim();
+    await _post(
+      '/ai/report-content',
+      auth: isLoggedIn,
+      body: {
+        'content_type': contentType,
+        'reason': reason,
+        'content_snippet': contentSnippet,
+        if (detail.isNotEmpty) 'detail': detail,
+        if (activitySlug.isNotEmpty) 'activity_slug': activitySlug,
+        if (sessionId.isNotEmpty) 'session_id': sessionId,
+        if (name.isNotEmpty) 'reporter_name': name,
+        if (mail.isNotEmpty) 'reporter_email': mail,
+      },
+    );
+  }
+
   /// Gemini Flash scoring (optional audio base64 → transcribe + score).
+  /// Guests may call this for the one free try (no JWT); logged-in uses auth.
   Future<Map<String, dynamic>> analyzeSpeech(Map<String, dynamic> body) =>
       _post(
         '/ai/analyze-speech',
-        auth: true,
+        auth: isLoggedIn,
         body: body,
         // Audio transcription + scoring can take longer than text-only.
         timeout: const Duration(seconds: 90),
       );
 
   /// Guided Debate Me: opening audio/text → one AI pushback line.
+  /// Guests may call this during the free-try debate flow.
   Future<Map<String, dynamic>> debatePushback(Map<String, dynamic> body) =>
       _post(
         '/ai/debate-pushback',
-        auth: true,
+        auth: isLoggedIn,
         body: body,
         timeout: const Duration(seconds: 90),
       );

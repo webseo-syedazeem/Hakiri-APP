@@ -3,15 +3,24 @@ import 'package:provider/provider.dart';
 
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
+import '../widgets/app_snackbar.dart';
 import 'landing_screen.dart';
 import 'paywall_screen.dart';
 
 /// Shown when a logged-in user dismisses the paywall or returns without Pro.
-/// Only profile summary, Upgrade, and Logout — no app tabs.
-class LockedProfileScreen extends StatelessWidget {
+/// Profile summary, Upgrade, Logout, and Delete account — no app tabs.
+class LockedProfileScreen extends StatefulWidget {
   const LockedProfileScreen({super.key});
 
-  Future<void> _logout(BuildContext context) async {
+  @override
+  State<LockedProfileScreen> createState() => _LockedProfileScreenState();
+}
+
+class _LockedProfileScreenState extends State<LockedProfileScreen> {
+  bool _busy = false;
+
+  Future<void> _logout() async {
+    if (_busy) return;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -47,17 +56,84 @@ class LockedProfileScreen extends StatelessWidget {
         ],
       ),
     );
-    if (confirm != true || !context.mounted) return;
-    await context.read<AppStateProvider>().logout();
-    if (!context.mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LandingScreen()),
-      (route) => false,
-    );
+    if (confirm != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await context.read<AppStateProvider>().logout();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LandingScreen()),
+        (route) => false,
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
-  void _openPaywall(BuildContext context) {
+  Future<void> _deleteAccount() async {
+    if (_busy) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Delete Account?',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18),
+        ),
+        content: const Text(
+          'Are you sure you want to permanently delete your account? All your practice sessions, voice recordings, streaks, and personal data will be erased immediately. This action cannot be undone.',
+          style: TextStyle(
+            color: Color(0xFF64748B),
+            fontWeight: FontWeight.w600,
+            height: 1.4,
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Delete Forever',
+              style: TextStyle(
+                color: Color(0xFFDC2626),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      await context.read<AppStateProvider>().deleteAccount();
+      if (!mounted) return;
+      AppSnackBar.showSuccess(
+        context,
+        'Your account has been permanently deleted.',
+      );
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LandingScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (mounted) {
+        AppSnackBar.showError(context, e.toString());
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _openPaywall() {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const PaywallScreen()),
@@ -101,7 +177,7 @@ class LockedProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Subscribe to monthly or yearly Pro to use live coach, practice, and feedback.',
+                'Subscribe to monthly or yearly Pro to use practice and feedback.',
                 style: TextStyle(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w600,
@@ -184,14 +260,14 @@ class LockedProfileScreen extends StatelessWidget {
               const Spacer(),
               ActionPillButton(
                 label: 'Upgrade to Pro',
-                onTap: () => _openPaywall(context),
+                onTap: _busy ? null : _openPaywall,
               ),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 height: 52,
                 child: OutlinedButton(
-                  onPressed: () => _logout(context),
+                  onPressed: _busy ? null : _logout,
                   style: OutlinedButton.styleFrom(
                     foregroundColor: const Color(0xFF0F172A),
                     side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.4),
@@ -208,7 +284,18 @@ class LockedProfileScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: _busy ? null : _deleteAccount,
+                child: Text(
+                  _busy ? 'Please wait…' : 'Delete account',
+                  style: const TextStyle(
+                    color: Color(0xFFDC2626),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
               const Text(
                 'You can restore a previous purchase from the Pro screen.',
                 textAlign: TextAlign.center,

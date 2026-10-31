@@ -319,13 +319,16 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Other drills — same detail screens as Home; one shared trial.
+                      // Other drills — locked for everyone once the one free try is used.
                       for (int i = 0; i < focusOthers.length; i++) ...[
                         _buildDrillItem(
                           '0${i + 2}',
                           _drillNames[focusOthers[i]] ?? focusOthers[i],
-                          _drillSubtitles[focusOthers[i]] ??
-                              'Targeted daily practice',
+                          trialUsed
+                              ? 'Locked — subscribe to unlock this drill.'
+                              : (_drillSubtitles[focusOthers[i]] ??
+                                  'Targeted daily practice'),
+                          locked: trialUsed,
                           onTap: state.isLoggedIn
                               ? null
                               : () => _openDrillDetail(state, focusOthers[i]),
@@ -407,21 +410,30 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
     String title,
     String subtitle, {
     VoidCallback? onTap,
+    bool locked = false,
   }) {
+    final titleColor =
+        locked ? const Color(0xFF94A3B8) : AppColors.textPrimary;
+    final subColor =
+        locked ? const Color(0xFFB0B8C4) : AppColors.textMuted;
     final row = Row(
       children: [
         Container(
           width: 28,
           height: 28,
           decoration: BoxDecoration(
-            color: const Color(0xFFF1F0E9),
+            color: locked
+                ? const Color(0xFFE2E8F0)
+                : const Color(0xFFF1F0E9),
             borderRadius: BorderRadius.circular(8),
           ),
           alignment: Alignment.center,
           child: Text(
             num,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
+            style: TextStyle(
+              color: locked
+                  ? const Color(0xFF94A3B8)
+                  : AppColors.textSecondary,
               fontSize: 11,
               fontWeight: FontWeight.w800,
             ),
@@ -434,8 +446,8 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: titleColor,
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),
@@ -443,8 +455,8 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: const TextStyle(
-                  color: AppColors.textMuted,
+                style: TextStyle(
+                  color: subColor,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
@@ -452,9 +464,9 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
             ],
           ),
         ),
-        const Icon(
-          Icons.chevron_right_rounded,
-          color: Color(0xFFBDBCAF),
+        Icon(
+          locked ? Icons.lock_outline_rounded : Icons.chevron_right_rounded,
+          color: locked ? const Color(0xFF94A3B8) : const Color(0xFFBDBCAF),
           size: 22,
         ),
       ],

@@ -35,7 +35,7 @@ class TargetedRetryScreen extends StatelessWidget {
     final slug = weakest['slug'] as String? ?? 'cut_it_in_half';
     final name = weakest['name'] as String? ?? 'Cut It in Half';
     final weakestArea = weakest['weakestArea'] as String? ?? 'Conciseness';
-    final score = (weakest['score'] as num?)?.toDouble() ?? 3.1;
+    final score = (weakest['score'] as num?)?.toDouble();
     final feedback = weakest['feedback'] as String? ??
         'Your answers were clear, but you took too long to land the point.';
 
@@ -402,7 +402,7 @@ class TargetedRetryScreen extends StatelessWidget {
     required String slug,
     required String name,
     required String weakestArea,
-    required double score,
+    required double? score,
     required String feedback,
     required bool is15Min,
   }) {
@@ -548,7 +548,7 @@ class TargetedRetryScreen extends StatelessWidget {
                     border: Border.all(color: const Color(0xFFBFDBFE), width: 1.0),
                   ),
                   child: Text(
-                    '${score.toStringAsFixed(1)} / 5',
+                    score == null ? '— / 5' : '${score.toStringAsFixed(1)} / 5',
                     style: const TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 13,

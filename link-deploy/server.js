@@ -11,6 +11,7 @@ const routes = {
   "/privacy": "privacy.html",
   "/terms": "terms.html",
   "/delete-account": "delete-account.html",
+  "/admin-reports": "admin-reports.html",
 };
 
 const resolveFile = (fileName) => {

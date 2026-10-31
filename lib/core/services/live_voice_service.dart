@@ -58,7 +58,7 @@ class LiveVoiceService {
     }
     if (urls.isEmpty) {
       throw HakkiriApiException(
-        'Live voice token did not include a WebSocket URL.',
+        'Voice practice token did not include a WebSocket URL.',
       );
     }
 
@@ -92,7 +92,7 @@ class LiveVoiceService {
       final code = err.code;
       final message = (err.message ?? '').trim();
       if (code == 'setup_timeout') {
-        return 'Live coach could not finish connecting. Check your connection and try again.';
+        return 'Voice practice could not finish connecting. Check your connection and try again.';
       }
       if (code == 'mic_permission') {
         return message.isNotEmpty
@@ -101,7 +101,7 @@ class LiveVoiceService {
       }
       if (message.isNotEmpty) return message;
     }
-    final raw = err?.toString() ?? 'Could not start live voice.';
+    final raw = err?.toString() ?? 'Could not start voice practice.';
     return raw
         .replaceFirst('PlatformException(', '')
         .replaceAll(RegExp(r',\s*null,\s*null\)$'), '')

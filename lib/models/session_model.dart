@@ -259,7 +259,7 @@ class PracticeSessionRecord {
   final String promptTitle;
   final String promptText;
   final String transcript;
-  /// `single` = one-shot drill; `back_and_forth` = live coach conversation.
+  /// `single` = one-shot drill; `back_and_forth` = voice practice conversation.
   final String conversationMode;
   final List<ConversationTurn> conversationTurns;
   final DateTime timestamp;

@@ -16,6 +16,16 @@ const subscriptionSchema = new mongoose.Schema(
     priceGbp: { type: Number, default: 0 },
     trialEnd: Date,
     currentPeriodEnd: Date,
+    /**
+     * Complimentary Pro (testers / partners / App Review).
+     * REVERT: drop these three fields + related serializer/admin route if unused.
+     * Paid IAP / choosePlan logic is unchanged.
+     */
+    complimentary: { type: Boolean, default: false, index: true },
+    complimentaryUntil: { type: Date, default: null },
+    complimentaryNote: { type: String, default: "", trim: true },
+    /** One 7-day intro trial per account (yearly plan only). */
+    yearlyTrialConsumed: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

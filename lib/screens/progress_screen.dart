@@ -527,9 +527,8 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
         }
       }).toList();
       final avg = scores.reduce((a, b) => a + b) / scores.length;
-      final points = scores.length >= 3
-          ? scores.reversed.take(6).toList()
-          : [avg - 0.2, avg - 0.1, avg];
+      // Only plot real session scores — never invent a trend.
+      final points = scores.reversed.take(6).toList();
       return (
         avg.toStringAsFixed(1),
         false,
@@ -549,7 +548,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
   ) {
     final raw = state.pillarStats[key];
     if (raw is! Map) {
-      return ('Locked', true, '3 drills needed', null, const [2.0, 2.0, 2.0]);
+      return ('Locked', true, '3 drills needed', null, const <double>[]);
     }
     final map = Map<String, dynamic>.from(raw);
     final average = map['average'];
@@ -558,15 +557,16 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
     if (locked) {
       final needed = (3 - samples).clamp(1, 3);
       final msg = '$needed more drill${needed == 1 ? '' : 's'} needed';
-      return ('Locked', true, msg, null, const [2.0, 2.0, 2.0]);
+      return ('Locked', true, msg, null, const <double>[]);
     }
     final value = (average as num).toDouble();
+    // Server average only — no fabricated sparkline deltas.
     return (
       value.toStringAsFixed(1),
       false,
       '$samples samples',
       true,
-      [value - 0.3, value - 0.2, value - 0.1, value],
+      <double>[value],
     );
   }
 

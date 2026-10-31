@@ -685,13 +685,16 @@ class _RecordingScreenState extends State<RecordingScreen>
     // Do NOT pass partial on-device STT — that was truncating YOU SAID.
     final transcriptForScore = '';
 
-    if (!hasClip && mounted) {
-      AppSnackBar.showInfo(
-        context,
-        Platform.isIOS
-            ? 'No usable audio on this device. On Simulator the mic is often silent — try a real iPhone, or check Mic permission.'
-            : 'No usable audio was captured. Check microphone permission and try again.',
-      );
+    if (!hasClip) {
+      if (mounted) {
+        AppSnackBar.showInfo(
+          context,
+          Platform.isIOS
+              ? 'No usable audio on this device. On Simulator the mic is often silent — try a real iPhone, or check Mic permission.'
+              : 'No usable audio was captured. Check microphone permission and try again.',
+        );
+      }
+      return;
     }
 
     debugPrint(
@@ -699,23 +702,30 @@ class _RecordingScreenState extends State<RecordingScreen>
       'hasClip=$hasClip',
     );
 
-    await HakkiriLoadingOverlay.run(
-      context,
-      message: hasClip
-          ? 'Transcribing your answer…'
-          : 'Scoring your answer…',
-      detail: hasClip
-          ? 'Saving playback and scoring structure, pace, and fillers.'
-          : 'Matching your answer to the prompt — almost there.',
-      action: () => state.evaluateCurrentSession(
-        transcript: transcriptForScore,
-        durationSeconds: spoken,
-        conversationMode: 'single',
-        localAudioTempPath: hasClip ? audioPath : null,
-        audioBase64: widget.isGuestTrial ? null : audioBase64,
-        audioMimeType: 'audio/mp4',
-      ),
-    );
+    try {
+      await HakkiriLoadingOverlay.run(
+        context,
+        message: 'Transcribing your answer…',
+        detail: 'Saving playback and scoring structure, pace, and fillers.',
+        action: () => state.evaluateCurrentSession(
+          transcript: transcriptForScore,
+          durationSeconds: spoken,
+          conversationMode: 'single',
+          localAudioTempPath: audioPath,
+          audioBase64: audioBase64,
+          audioMimeType: 'audio/mp4',
+          consumeGuestTrial: widget.isGuestTrial,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        AppSnackBar.showError(
+          context,
+          e.toString().replaceFirst('Exception: ', ''),
+        );
+      }
+      return;
+    }
 
     if (!mounted) return;
     Navigator.pushReplacement(
