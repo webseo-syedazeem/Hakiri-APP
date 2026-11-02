@@ -101,9 +101,9 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
               style: TextStyle(
                 fontFamily: 'Inter',
                 color: AppColors.textPrimary,
-                fontSize: 28,
+                fontSize: 32,
                 fontWeight: FontWeight.w900,
-                letterSpacing: -0.6,
+                letterSpacing: -0.8,
                 height: 1.15,
               ),
             ),
@@ -113,7 +113,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
               style: TextStyle(
                 fontFamily: 'Inter',
                 color: AppColors.textSecondary,
-                fontSize: 14,
+                fontSize: 13,
                 height: 1.35,
                 fontWeight: FontWeight.w500,
               ),

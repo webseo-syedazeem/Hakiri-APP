@@ -77,7 +77,7 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                     style: TextStyle(
                       fontFamily: 'Inter',
                       color: Color(0xFF0F172A),
-                      fontSize: 34,
+                      fontSize: 32,
                       fontWeight: FontWeight.w900,
                       letterSpacing: -0.8,
                       height: 1.15,
@@ -322,7 +322,7 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   color: Color(0xFF0F172A),
-                                  fontSize: 14.5,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -374,7 +374,7 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
               style: const TextStyle(
                 fontFamily: 'Inter',
                 color: Color(0xFF0F172A),
-                fontSize: 16.5,
+                fontSize: 16,
                 fontWeight: FontWeight.w800,
               ),
             ),
