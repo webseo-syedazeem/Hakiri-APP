@@ -186,11 +186,11 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                   ),
                   _ActivityItem(
                     iconWidget: const Icon(
-                      Icons.chat_bubble_outline_rounded,
-                      color: Color(0xFF2563EB),
+                      Icons.chat_bubble_rounded,
+                      color: Color(0xFFF59E0B),
                       size: 24,
                     ),
-                    iconBgColor: const Color(0xFFEFF6FF),
+                    iconBgColor: const Color(0xFFFFFBEB),
                     title: 'Debate Me',
                     description: 'Build and defend your ideas',
                     onTap: () => _openActivity(state, 'debate_me'),
@@ -260,11 +260,11 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
                   ),
                   _ActivityItem(
                     iconWidget: const Icon(
-                      Icons.campaign_outlined,
-                      color: Color(0xFFF97316),
+                      Icons.lightbulb_rounded,
+                      color: Color(0xFF10B981),
                       size: 24,
                     ),
-                    iconBgColor: const Color(0xFFF8FAFC),
+                    iconBgColor: const Color(0xFFECFDF5),
                     title: 'Explain It Simply',
                     description: 'Make complex ideas easy to understand',
                     onTap: () => _openActivity(state, 'explain_it_simply'),
@@ -418,15 +418,15 @@ class _PracticeScreenContentState extends State<PracticeScreenContent> {
       case 'cut_it_in_half':
         return (Icons.content_cut_rounded, const Color(0xFFD97706), const Color(0xFFF8FAFC));
       case 'storytelling_gym':
-        return (Icons.menu_book_rounded, const Color(0xFF9333EA), const Color(0xFFF3E8FF));
+        return (Icons.auto_stories_rounded, const Color(0xFF8B5CF6), const Color(0xFFF5F3FF));
       case 'debate_me':
-        return (Icons.chat_bubble_outline_rounded, const Color(0xFF2563EB), const Color(0xFFEFF6FF));
+        return (Icons.chat_bubble_rounded, const Color(0xFFF59E0B), const Color(0xFFFFFBEB));
       case 'connect_the_dots':
-        return (Icons.hub_outlined, const Color(0xFF9333EA), const Color(0xFFF5F3FF));
+        return (Icons.hub_rounded, const Color(0xFF9333EA), const Color(0xFFF5F3FF));
       case 'explain_it_simply':
-        return (Icons.lightbulb_outline_rounded, const Color(0xFF10B981), const Color(0xFFECFDF5));
+        return (Icons.lightbulb_rounded, const Color(0xFF10B981), const Color(0xFFECFDF5));
       case 'one_minute_expert':
-        return (Icons.timer_outlined, const Color(0xFFEA580C), const Color(0xFFFEE2E2));
+        return (Icons.timer_rounded, const Color(0xFFEA580C), const Color(0xFFFFF1EC));
       case 'think_fast':
       default:
         return (Icons.bolt_rounded, const Color(0xFF2563EB), const Color(0xFFEFF6FF));

@@ -221,11 +221,11 @@ class AnalyticsService {
     required String activitySlug,
     required String activityName,
     required int durationSeconds,
-    required int overallScore,
-    int? executiveScore,
-    int? clarityScore,
-    int? impactScore,
-    int? engagementScore,
+    required num overallScore,
+    num? executiveScore,
+    num? clarityScore,
+    num? impactScore,
+    num? engagementScore,
     bool isRetry = false,
   }) async {
     await logEvent(

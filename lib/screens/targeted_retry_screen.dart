@@ -589,27 +589,27 @@ class TargetedRetryScreen extends StatelessWidget {
       case 'debate_me':
       case 'debate':
         return (
-          Icons.chat_bubble_outline_rounded,
+          Icons.chat_bubble_rounded,
           const Color(0xFFF59E0B),
           const Color(0xFFFFFBEB),
         );
       case 'storytelling_gym':
         return (
-          Icons.auto_stories_outlined,
+          Icons.auto_stories_rounded,
           const Color(0xFF8B5CF6),
           const Color(0xFFF5F3FF),
         );
       case 'explain_it_simply':
         return (
-          Icons.lightbulb_outline_rounded,
+          Icons.lightbulb_rounded,
           const Color(0xFF10B981),
           const Color(0xFFECFDF5),
         );
       case 'connect_the_dots':
         return (
           Icons.hub_rounded,
-          const Color(0xFF6366F1),
-          const Color(0xFFEEF2FF),
+          const Color(0xFF9333EA),
+          const Color(0xFFF5F3FF),
         );
       case 'think_fast':
       default:

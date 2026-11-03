@@ -97,7 +97,7 @@ class MetricRadarCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '${item.score}.0 / 5.0',
+                '${item.score.toStringAsFixed(1)} / 5.0',
                 style: TextStyle(
                   color: item.color,
                   fontSize: 13,
@@ -132,7 +132,7 @@ class MetricRadarCard extends StatelessWidget {
 
 class _MetricItem {
   final String label;
-  final int score;
+  final double score;
   final String subtitle;
   final Color color;
 

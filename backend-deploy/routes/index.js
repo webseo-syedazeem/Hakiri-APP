@@ -32,6 +32,7 @@ router.put("/coaching/level", verifyJWT, coaching.setLevel);
 router.get("/reflections", verifyJWT, reflections.list);
 router.post("/reflections", verifyJWT, reflections.create);
 router.get("/ai/status", ai.status);
+router.get("/ai/probe", ai.probe);
 router.post("/ai/live-token", verifyJWT, ai.liveToken);
 // Guest free-try after assessment can score once without an account (then IAP).
 router.post("/ai/analyze-speech", optionalJWT, ai.analyzeSpeech);

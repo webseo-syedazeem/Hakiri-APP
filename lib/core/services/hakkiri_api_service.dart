@@ -151,10 +151,14 @@ class HakkiriApiService {
     throw HakkiriApiException(message, statusCode: response.statusCode);
   }
 
-  Future<Map<String, dynamic>> _get(String path, {bool auth = false}) async {
+  Future<Map<String, dynamic>> _get(
+    String path, {
+    bool auth = false,
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
     final response = await _client
         .get(ApiConfig.api(path), headers: _headers(auth: auth))
-        .timeout(const Duration(seconds: 20));
+        .timeout(timeout);
     final body = _decode(response);
     return (body['data'] as Map<String, dynamic>?) ?? {};
   }
@@ -516,13 +520,14 @@ class HakkiriApiService {
   Future<Map<String, dynamic>> clearDeviceToken() =>
       _delete('/device-token', auth: true);
 
-  /// Next catalog prompt for an activity (server-chosen question).
+  /// Next practice question (AI-generated when Gemini is up; catalog fallback).
   /// Guests may call without auth — server rotates from the same Mongo catalog.
   Future<Map<String, dynamic>> nextPrompt({
     required String activitySlug,
     String? difficulty,
     String? careerType,
     String? excludePromptId,
+    String? excludePromptText,
     bool requireAuth = true,
   }) {
     final q = <String, String>{
@@ -531,10 +536,20 @@ class HakkiriApiService {
       if (careerType != null && careerType.isNotEmpty) 'career_type': careerType,
       if (excludePromptId != null && excludePromptId.isNotEmpty)
         'exclude': excludePromptId,
+      if (excludePromptText != null && excludePromptText.trim().isNotEmpty)
+        'exclude_text': excludePromptText.trim().length > 160
+            ? excludePromptText.trim().substring(0, 160)
+            : excludePromptText.trim(),
     };
     final query = q.entries
-        .map((e) => '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
+        .map((e) =>
+            '${Uri.encodeQueryComponent(e.key)}=${Uri.encodeQueryComponent(e.value)}')
         .join('&');
-    return _get('/prompts/next?$query', auth: requireAuth && isLoggedIn);
+    // Server races AI (~7s) then catalog — keep client wait tight.
+    return _get(
+      '/prompts/next?$query',
+      auth: requireAuth && isLoggedIn,
+      timeout: const Duration(seconds: 25),
+    );
   }
 }

@@ -184,7 +184,7 @@ class HowHakkiriWorksScreen extends StatelessWidget {
                       color: const Color(0xFF059669),
                       icon: Icons.account_tree_rounded,
                       description:
-                          'Bottom-Line Upfront (BLUF), clean categorization, transition words, and a strong, definitive conclusion.',
+                          'Bottom-Line Upfront (BLUF), clean categorisation, transition words, and a strong, definitive conclusion.',
                       showDivider: true,
                     ),
                     _buildPillarRow(
@@ -290,7 +290,7 @@ class HowHakkiriWorksScreen extends StatelessWidget {
                               ),
                               SizedBox(height: 3),
                               Text(
-                                'Hakkiri celebrates international and regional accents. You are judged strictly on structural rigor and communication effectiveness, never your native accent.',
+                                'Hakkiri celebrates international and regional accents. You are judged strictly on structural rigour and communication effectiveness, never your native accent.',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 12,

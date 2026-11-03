@@ -90,40 +90,69 @@ async function choosePrompt({ activitySlug, difficulty, careerType, excludeCodes
     }
     const specific = safe.filter((item) => matchesCareer(item, career));
     const general = safe.filter(isGeneralPrompt);
-    // When this career has its own prompts, use ONLY those (e.g. healthcare
-    // users should get clinical prompts — not generic "explain Wi‑Fi" fillers).
-    // Pure-general is a fallback only when the career pool is empty.
     if (specific.length) {
       return dedupePrompts(specific);
     }
     return dedupePrompts(general.length ? general : safe);
   };
 
-  let ranked = pickForCareer(pool);
+  let ranked = [];
+  const allDiff = await Prompt.find({ activitySlug });
 
-  // If this difficulty has no career/general prompts, widen difficulty but keep industry filter.
+  if (career) {
+    // Prefer career-tagged prompts, but if the pool is tiny (e.g. only
+    // "thunderstorm" for finance Connect the Dots) mix in general prompts
+    // so Begin exercise does not repeat the same question every time.
+    const diffSpecific = dedupePrompts(
+      pool.filter((item) => matchesCareer(item, career))
+    );
+    const anySpecific = dedupePrompts(
+      allDiff.filter((item) => matchesCareer(item, career))
+    );
+    const specific = diffSpecific.length ? diffSpecific : anySpecific;
+    const generalSafe = dedupePrompts(
+      [...pool, ...allDiff].filter((item) => isGeneralPrompt(item))
+    );
+    if (specific.length >= 4) {
+      ranked = specific;
+    } else if (specific.length) {
+      ranked = dedupePrompts([...specific, ...generalSafe]);
+    }
+  }
+
+  // Fallback to general/safe pool if no career-specific exists
   if (!ranked.length) {
-    const allDiff = await Prompt.find({ activitySlug });
+    ranked = pickForCareer(pool);
+  }
+  if (!ranked.length) {
     ranked = pickForCareer(allDiff);
   }
 
   // Last resort: still never leak another track's exclusive prompts.
   if (!ranked.length) {
-    const allDiff = await Prompt.find({ activitySlug });
     ranked = dedupePrompts(
       allDiff.filter((item) => allowedForCareer(item, career))
     );
   }
 
   const exclude = new Set((excludeCodes || []).filter(Boolean).map(String));
-  const fresh = ranked.filter((item) => !exclude.has(item.code));
+  const fresh = ranked.filter((item) => !exclude.has(String(item.code || "")));
   const list = fresh.length ? fresh : ranked;
   if (!list.length) return null;
 
-  const index =
-    seed && String(seed).includes(":stable:")
-      ? hashSeed(seed) % list.length
-      : Math.floor(Math.random() * list.length);
+  // Stable seed for daily anchor; otherwise true shuffle so Begin exercise varies.
+  let index;
+  if (seed && String(seed).includes(":stable:")) {
+    index = hashSeed(seed) % list.length;
+  } else {
+    for (let i = list.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = list[i];
+      list[i] = list[j];
+      list[j] = tmp;
+    }
+    index = 0;
+  }
   return { prompt: list[index], inferLevel: requested === "i_dont_know", servedDifficulty: storedDifficulty };
 }
 
@@ -187,8 +216,9 @@ const nextPrompt = async (req, res) => {
   const userId = req.user?._id;
   const { activityLevel, hydrateCoaching } = require("../services/coaching");
   let career = canonical("career_type", req.query.career_type) || "general";
-  let difficulty =
-    canonical("difficulty", req.query.difficulty) || "intermediary";
+  // Prefer the level the app is showing (per-activity coaching). Fall back to profile.
+  const queryDifficulty = canonical("difficulty", req.query.difficulty);
+  let difficulty = queryDifficulty || "intermediary";
 
   let recent = [];
   if (userId) {
@@ -201,7 +231,8 @@ const nextPrompt = async (req, res) => {
       confidence: profile?.speakingConfidence,
       drills: profile?.plan?.initialDrills,
     });
-    difficulty = activityLevel(coaching, activitySlug);
+    // Client sends the activity level it is practicing — trust that when present.
+    difficulty = queryDifficulty || activityLevel(coaching, activitySlug);
     recent = await PracticeSession.find({
       user: userId,
       activitySlug,
@@ -216,6 +247,12 @@ const nextPrompt = async (req, res) => {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+  const excludeTexts = String(
+    req.query.exclude_text || req.query.excludeText || ""
+  )
+    .split("||")
+    .map((s) => s.trim().toLowerCase())
+    .filter((s) => s.length >= 8);
   const excludeCodes = [
     ...new Set([
       ...recent.map((row) => row.promptCode).filter(Boolean),
@@ -223,23 +260,94 @@ const nextPrompt = async (req, res) => {
     ]),
   ];
 
-  const chosen = await choosePrompt({
+  // Dynamically generate a fresh prompt via AI tailored to the career track & activity
+  const { isGeminiConfigured, generateDynamicPromptWithGemini } = require("../config/ai");
+  const forceStatic = req.query.static === "true";
+
+  // Catalog loads in parallel with a short AI race — Begin exercise stays snappy
+  // even when Gemini is slow (scoring path is unchanged / separate).
+  const catalogPromise = choosePrompt({
     activitySlug,
     difficulty,
     careerType: career,
     excludeCodes,
-    // Random rotation each Begin exercise (daily-anchor still uses stable seed).
-    seed: `${userId || "guest"}:${activitySlug}:${difficulty}:${Date.now()}`,
+    seed: `${userId || "guest"}:${activitySlug}:${difficulty}:${Date.now()}:${Math.random()}`,
   });
+
+  let aiError = null;
+  if (!forceStatic && isGeminiConfigured()) {
+    try {
+      const aiPrompt = await Promise.race([
+        generateDynamicPromptWithGemini({
+          activitySlug,
+          careerType: career,
+          difficulty,
+          excludeTitles: [...excludeCodes, ...excludeTexts].slice(0, 12),
+        }),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error("AI prompt timed out (fast path).")),
+            7000
+          )
+        ),
+      ]);
+      if (aiPrompt?.promptText) {
+        const toStore = { ...aiPrompt };
+        delete toStore.isAiGenerated;
+        delete toStore.model;
+        Prompt.create(toStore).catch((err) =>
+          console.warn("[nextPrompt] AI prompt persist skipped:", err.message)
+        );
+        return success(res, "Next prompt.", {
+          activity: activityJson(activity),
+          prompt: promptJson(aiPrompt),
+          infer_level: false,
+          note: "AI dynamic question generated for your career track.",
+          source: "ai",
+        });
+      }
+      aiError = "Gemini returned no prompt text.";
+    } catch (aiErr) {
+      aiError = String(aiErr?.message || aiErr).slice(0, 240);
+      console.warn(
+        "[nextPrompt] Gemini dynamic prompt generation failed, falling back to catalog:",
+        aiError
+      );
+    }
+  } else if (!isGeminiConfigured()) {
+    aiError = "GEMINI_API_KEY missing on server.";
+  }
+
+  const chosen = await catalogPromise;
   if (!chosen) return error(res, "No prompt is available for this activity.", 404);
+
+  // Avoid serving the exact same wording the client just showed.
+  let promptDoc = chosen.prompt;
+  if (excludeTexts.length) {
+    const text = String(promptDoc.promptText || "").trim().toLowerCase();
+    if (excludeTexts.some((t) => text.includes(t) || t.includes(text.slice(0, 40)))) {
+      const retry = await choosePrompt({
+        activitySlug,
+        difficulty,
+        careerType: career,
+        excludeCodes: [...excludeCodes, promptDoc.code].filter(Boolean),
+        seed: `${userId || "guest"}:${activitySlug}:retry:${Date.now()}:${Math.random()}`,
+      });
+      if (retry?.prompt) promptDoc = retry.prompt;
+    }
+  }
 
   return success(res, "Next prompt.", {
     activity: activityJson(activity),
-    prompt: promptJson(chosen.prompt),
+    prompt: promptJson(promptDoc),
     infer_level: chosen.inferLevel,
+    source: "catalog",
+    ai_error: aiError,
     note: chosen.inferLevel
       ? "The member chose I don't know. The Flutter app should judge their level from the recording."
-      : null,
+      : aiError
+        ? `Catalog fallback — AI unavailable: ${aiError}`
+        : "Catalog fallback (AI question unavailable).",
   });
 };
 

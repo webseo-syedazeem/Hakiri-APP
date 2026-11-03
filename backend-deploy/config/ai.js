@@ -6,14 +6,55 @@ const {
 } = require("../services/scoringEngine");
 
 const DEFAULT_LIVE_MODEL = "gemini-3.8-live";
-// New Gemini keys cannot use 2.5 Flash — default to 3.8 Flash.
+// New Gemini keys block 2.5/2.0 Flash — use 3.8 Flash (Google's required update).
 const DEFAULT_FLASH_MODEL = "gemini-3.8-flash";
 
 const FLASH_MODEL_FALLBACKS = [
   "gemini-3.8-flash",
+  "gemini-3.6-flash",
   "gemini-3.5-flash",
-  "gemini-2.5-flash",
+  "gemini-3.5-flash-lite",
 ];
+
+/** Gemini 3.x Flash thinks by default; low maxOutputTokens → MAX_TOKENS + empty JSON. */
+function wantsLowThinking(model) {
+  const id = String(model || "").replace(/^models\//, "");
+  return (
+    id.startsWith("gemini-3.") ||
+    id.startsWith("gemini-4.") ||
+    id === "gemini-flash-latest" ||
+    id === "gemini-pro-latest"
+  );
+}
+
+/** Models Google no longer allows for new API keys — remap to 3.8 Flash. */
+const DEPRECATED_FLASH_MODELS = new Set([
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-001",
+  "gemini-2.5-flash-lite",
+  "gemini-2.0-flash-lite",
+  "models/gemini-2.5-flash",
+  "models/gemini-2.0-flash",
+]);
+
+function normalizeFlashModelId(raw) {
+  const id = String(raw || "")
+    .trim()
+    .replace(/^models\//, "");
+  if (!id) return DEFAULT_FLASH_MODEL;
+  if (DEPRECATED_FLASH_MODELS.has(id) || DEPRECATED_FLASH_MODELS.has(`models/${id}`)) {
+    return DEFAULT_FLASH_MODEL;
+  }
+  if (id.startsWith("gemini-2.5-flash") || id.startsWith("gemini-2.0-flash")) {
+    return DEFAULT_FLASH_MODEL;
+  }
+  // gemini-flash-latest often hits MAX_TOKENS / unstable JSON for short prompts.
+  if (id === "gemini-flash-latest" || id === "gemini-pro-latest") {
+    return DEFAULT_FLASH_MODEL;
+  }
+  return id;
+}
 
 const DEFAULT_COACH_INSTRUCTION =
   "You are Hakkiri Coach. Help the user practise clear professional English speech. " +
@@ -35,14 +76,16 @@ function liveModel() {
 }
 
 function flashModel() {
-  return String(process.env.GEMINI_FLASH_MODEL || DEFAULT_FLASH_MODEL).trim() || DEFAULT_FLASH_MODEL;
+  return normalizeFlashModelId(
+    process.env.GEMINI_FLASH_MODEL || DEFAULT_FLASH_MODEL
+  );
 }
 
 function flashModelCandidates() {
   const preferred = flashModel();
-  return [preferred, ...FLASH_MODEL_FALLBACKS].filter(
-    (v, i, arr) => v && arr.indexOf(v) === i
-  );
+  return [preferred, ...FLASH_MODEL_FALLBACKS]
+    .map(normalizeFlashModelId)
+    .filter((v, i, arr) => v && arr.indexOf(v) === i);
 }
 
 function geminiStatus() {
@@ -61,14 +104,16 @@ function geminiStatus() {
         ? "gemini"
         : "none",
     elevenlabs_configured: isElevenLabsConfigured(),
-    note: "Key stays on the server. Live uses ephemeral tokens. Drill scoring uses Flash with model fallbacks. Coach TTS prefers ElevenLabs.",
+    note:
+      "Uses gemini-3.8-flash (2.5/2.0 remapped — blocked for new Google AI keys). Live uses ephemeral tokens. Coach TTS prefers ElevenLabs.",
   };
 }
 
+/** Clamp to 1.0–5.0 at one decimal place (client: no misleading whole numbers). */
 function clampScore(value, fallback = 2) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
-  return Math.min(5, Math.max(1, Math.round(n)));
+  return Math.min(5, Math.max(1, Math.round(n * 10) / 10));
 }
 
 function extractJsonObject(text) {
@@ -144,7 +189,7 @@ function normalizeFeedback(parsed, {
     ? scored.overall_score
     : clampScore(
         parsed?.overall_score,
-        Math.round((executive + clarity + impact + engagement) / 4)
+        (executive + clarity + impact + engagement) / 4
       );
 
   const emptySpeech = words.length < 8;
@@ -262,8 +307,18 @@ async function geminiGenerateJson({
     responseMimeType: "application/json",
   };
   // Cap tokens so the model finishes sooner (no long essays / audio payloads).
+  // Floor is high enough that default "medium" thinking cannot wipe the JSON body.
   if (Number.isFinite(maxOutputTokens) && maxOutputTokens > 0) {
-    generationConfig.maxOutputTokens = Math.floor(maxOutputTokens);
+    generationConfig.maxOutputTokens = Math.max(
+      2048,
+      Math.floor(maxOutputTokens)
+    );
+  } else {
+    generationConfig.maxOutputTokens = 4096;
+  }
+  // 3.8 Flash defaults to medium thinking; keep it low for coach JSON / STT.
+  if (wantsLowThinking(model)) {
+    generationConfig.thinkingConfig = { thinkingLevel: "low" };
   }
   let response;
   try {
@@ -288,24 +343,32 @@ async function geminiGenerateJson({
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const err = new Error(data?.error?.message || "Gemini analysis failed.");
+    const err = new Error(
+      data?.error?.message || `Gemini analysis failed (${model}, HTTP ${response.status}).`
+    );
     err.statusCode = response.status >= 400 ? response.status : 502;
     throw err;
   }
+  const candidate = data?.candidates?.[0] || {};
+  const finishReason = String(candidate.finishReason || candidate.finish_reason || "");
   const text =
-    data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") ||
-    data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+    candidate?.content?.parts?.map((p) => p.text || "").join("") ||
+    candidate?.content?.parts?.[0]?.text ||
     "";
   const parsed = extractJsonObject(text);
   if (!parsed) {
-    const err = new Error("Gemini returned an unreadable analysis payload.");
+    const err = new Error(
+      finishReason && finishReason !== "STOP"
+        ? `Gemini blocked/empty JSON (${model}, finish=${finishReason}).`
+        : `Gemini returned unreadable JSON (${model}).`
+    );
     err.statusCode = 502;
     throw err;
   }
   return parsed;
 }
 
-/** Try preferred Flash model, then fallbacks (new keys often block 2.5). */
+/** Try preferred Flash model, then fallbacks (remap deprecated 2.5/2.0 → 3.8). */
 async function geminiGenerateJsonWithFallback({
   key,
   parts,
@@ -314,7 +377,9 @@ async function geminiGenerateJsonWithFallback({
   maxOutputTokens,
   timeoutMs,
 }) {
-  const list = models && models.length ? models : flashModelCandidates();
+  const list = (models && models.length ? models : flashModelCandidates())
+    .map(normalizeFlashModelId)
+    .filter((v, i, arr) => v && arr.indexOf(v) === i);
   let lastErr;
   for (const model of list) {
     try {
@@ -339,13 +404,17 @@ async function transcribeAudioWithGemini({
   key,
   audioBase64,
   audioMimeType,
+  timeoutMs = 12_000,
+  allowModelFallback = false,
 }) {
   // App always uploads AAC-in-MP4 — try primary mime once, then mp4 once.
   // Extra mime retries used to burn full Flash fallback chains.
   const primary = String(audioMimeType || "audio/mp4").slice(0, 80) || "audio/mp4";
   const mimes = primary === "audio/mp4" ? ["audio/mp4"] : [primary, "audio/mp4"];
-  // Prefer primary Flash only for STT — full fallback chain doubles latency.
-  const sttModels = flashModelCandidates().slice(0, 2);
+  // Debate openings can be longer — optional one-step fallback helps when primary Flash flakes.
+  const sttModels = allowModelFallback
+    ? flashModelCandidates().slice(0, 2)
+    : [flashModel()];
 
   let lastErr;
   for (const mime of mimes) {
@@ -354,8 +423,8 @@ async function transcribeAudioWithGemini({
         key,
         temperature: 0.1,
         models: sttModels,
-        maxOutputTokens: 512,
-        timeoutMs: 14_000,
+        maxOutputTokens: 2048,
+        timeoutMs,
         parts: [
           {
             inlineData: {
@@ -449,7 +518,7 @@ function buildScorePromptParts({
     `Catalog exemplar (preferred length/tone — stay close to this brevity): ${exemplarShort || "(none)"}`,
     `Duration spoken (seconds): ${Number(durationSeconds) || 0}`,
     `Coached retry: ${isRetry ? "yes" : "no"}`,
-    `Score these activity measures (1-5 or null). Weights are applied server-side — you only rate:`,
+    `Score these activity measures (1.0–5.0 to ONE decimal place, e.g. 2.6 / 3.0 / 4.2, or null). Weights are applied server-side — you only rate:`,
     JSON.stringify(measureDefs),
     `User transcript:"""`,
     spoken || "(empty — user did not produce usable speech)",
@@ -573,9 +642,10 @@ async function analyzeSpeechWithGemini({
       const { parsed, model } = await geminiGenerateJsonWithFallback({
         key,
         temperature: 0.25,
-        models: flashModelCandidates().slice(0, 2),
-        maxOutputTokens: hasCatalogExemplar ? 1400 : 1800,
-        timeoutMs: 28_000,
+        // One model: second Flash retry was adding ~20–28s when the first hung.
+        models: [flashModel()],
+        maxOutputTokens: hasCatalogExemplar ? 900 : 1200,
+        timeoutMs: 22_000,
         parts: oneShotParts,
       });
       let fromAudio = String(parsed.transcript || "").trim();
@@ -627,9 +697,9 @@ async function analyzeSpeechWithGemini({
   const { parsed, model } = await geminiGenerateJsonWithFallback({
     key,
     temperature: 0.3,
-    models: flashModelCandidates().slice(0, 2),
-    maxOutputTokens: hasCatalogExemplar ? 1000 : 1400,
-    timeoutMs: 18_000,
+    models: [flashModel()],
+    maxOutputTokens: hasCatalogExemplar ? 800 : 1100,
+    timeoutMs: 15_000,
     parts: buildScorePromptParts({ ...scoreOpts, spoken }),
   });
 
@@ -662,7 +732,6 @@ function liveModelCandidates() {
     "gemini-3.8-live",
     "gemini-2.5-flash-native-audio-preview-12-2025",
     "gemini-live-2.5-flash-preview",
-    "gemini-2.5-flash-preview-native-audio-dialog",
   ].filter((v, i, arr) => v && arr.indexOf(v) === i);
 }
 
@@ -816,25 +885,25 @@ async function generateDebatePushback({
   let opening = String(openingTranscript || "").trim();
   const hasAudio = Boolean(audioBase64 && String(audioBase64).length > 64);
   // Prefer a fresh STT from the opening clip whenever audio is present.
+  // Never hard-fail the whole pushback if STT blanks out — topic-fit challenge still works.
   if (hasAudio) {
     try {
       const heard = await transcribeAudioWithGemini({
         key,
         audioBase64,
         audioMimeType,
+        // Opening can be up to ~60s — give Flash more time than short drill clips.
+        timeoutMs: 25_000,
+        allowModelFallback: true,
       });
       if (heard && heard.trim().length >= 3) {
         opening = heard.trim();
       }
     } catch (err) {
-      // Keep any client-supplied transcript; pushback can still use topic.
-      if (!opening) {
-        const e = new Error(
-          err.message || "Could not transcribe the opening argument."
-        );
-        e.statusCode = err.statusCode || 502;
-        throw e;
-      }
+      console.warn(
+        "debatePushback STT failed; continuing with topic/opening text:",
+        err.message || err
+      );
     }
   }
 
@@ -846,9 +915,9 @@ async function generateDebatePushback({
   const { parsed, model } = await geminiGenerateJsonWithFallback({
     key,
     temperature: 0.55,
-    models: flashModelCandidates().slice(0, 2),
-    maxOutputTokens: 400,
-    timeoutMs: 14_000,
+    models: flashModelCandidates().slice(0, 3),
+    maxOutputTokens: 2048,
+    timeoutMs: 30_000,
     parts: [
       {
         text: [
@@ -892,10 +961,222 @@ async function generateDebatePushback({
   return { model, transcript: transcriptOut, pushback };
 }
 
+const CAREER_CONTEXT_DESCRIPTIONS = {
+  tech_product: "Tech, Software Engineering, Product Management, System Architecture, AI/Cloud",
+  corporate_finance: "Finance, Banking, Corporate Strategy, Private Equity, Accounting, Investor Relations",
+  sales_marketing: "B2B/B2C Sales, Marketing, Growth, Client Success, Enterprise Deal Negotiation",
+  healthcare_edu: "Healthcare, Medicine, Clinical Operations, Patient Care, Education, Public Health",
+  general: "General Corporate Management, Team Leadership, Cross-functional Communication",
+};
+
+const ACTIVITY_PROMPT_INSTRUCTIONS = {
+  debate_me:
+    "Debate Me: ONE short workplace disagreement. promptText = who disagrees + the claim (no multi-clause setup). Example shape: 'Your manager wants five office days. Defend a hybrid plan.'",
+  think_fast:
+    "Think Fast: ONE urgent ask the user answers in ~60s. Keep a single question or decision — no nested sub-questions.",
+  explain_it_simply:
+    "Explain it Simply: Name ONE concept to explain to a non-expert, with one clear ask for a simple analogy.",
+  cut_it_in_half:
+    "Cut it in Half: Give a short messy update and ask them to cut it to the bottom line in ~30s.",
+  one_minute_expert:
+    "One Minute Expert: ONE briefing topic for a 60-second mini-talk (thesis + 2 points). Keep the ask short.",
+  storytelling_gym:
+    "Storytelling Gym: ONE story prompt (setback, win, or tough conversation). One sentence ask.",
+  connect_the_dots:
+    "Connect the Dots: TWO short concepts. promptText asks to bridge them. secondaryText MUST be 'Concept A: [X] | Concept B: [Y]' with short names only.",
+};
+
+/** Hard caps so AI questions stay scannable on a phone (catalog ~10–20 words). */
+const PROMPT_LENGTH_BY_DIFFICULTY = {
+  beginner: { maxWords: 22, maxChars: 140 },
+  intermediary: { maxWords: 32, maxChars: 200 },
+  professional: { maxWords: 40, maxChars: 250 },
+};
+
+const DIFFICULTY_PROMPT_RULES = {
+  beginner:
+    "BEGINNER: Everyday language. Simple stake. One clear ask. No executive jargon stacks, no multi-party politics, no long role-play scripts.",
+  intermediary:
+    "INTERMEDIATE: Realistic workplace stake. Still one ask. Light domain terms OK. No paragraph-long setups.",
+  professional:
+    "PRO: Sharper stakeholder pressure or trade-off. Still concise — denser ideas, not longer sentences. One ask only.",
+};
+
+function trimPromptText(text, difficulty) {
+  const caps =
+    PROMPT_LENGTH_BY_DIFFICULTY[difficulty] ||
+    PROMPT_LENGTH_BY_DIFFICULTY.intermediary;
+  let clean = String(text || "").trim().replace(/\s+/g, " ");
+  if (!clean) return clean;
+  const words = clean.split(" ").filter(Boolean);
+  if (words.length > caps.maxWords) {
+    clean = words.slice(0, caps.maxWords).join(" ");
+    const lastStop = Math.max(
+      clean.lastIndexOf("."),
+      clean.lastIndexOf("!"),
+      clean.lastIndexOf("?")
+    );
+    if (lastStop > clean.length * 0.45) {
+      clean = clean.slice(0, lastStop + 1);
+    } else if (!/[.!?]$/.test(clean)) {
+      clean = `${clean}…`;
+    }
+  }
+  if (clean.length > caps.maxChars) {
+    clean = `${clean.slice(0, Math.max(40, caps.maxChars - 1)).trim()}…`;
+  }
+  return clean.trim();
+}
+
+function pickParsedField(parsed, ...keys) {
+  if (!parsed || typeof parsed !== "object") return "";
+  for (const key of keys) {
+    const v = parsed[key];
+    if (v != null && String(v).trim()) return String(v).trim();
+  }
+  return "";
+}
+
+async function generateDynamicPromptWithGemini({
+  activitySlug,
+  careerType = "general",
+  difficulty = "intermediary",
+  excludeTitles = [],
+}) {
+  const key = geminiApiKey();
+  if (!key) {
+    throw new Error("GEMINI_API_KEY is not configured.");
+  }
+
+  const difficultySafe = ["beginner", "intermediary", "professional"].includes(
+    String(difficulty)
+  )
+    ? String(difficulty)
+    : "intermediary";
+  const lengthCaps =
+    PROMPT_LENGTH_BY_DIFFICULTY[difficultySafe] ||
+    PROMPT_LENGTH_BY_DIFFICULTY.intermediary;
+  const careerDesc = CAREER_CONTEXT_DESCRIPTIONS[careerType] || CAREER_CONTEXT_DESCRIPTIONS.general;
+  const activityInstr = ACTIVITY_PROMPT_INSTRUCTIONS[activitySlug] || ACTIVITY_PROMPT_INSTRUCTIONS.think_fast;
+  const levelRules =
+    DIFFICULTY_PROMPT_RULES[difficultySafe] || DIFFICULTY_PROMPT_RULES.intermediary;
+  const excludeList = (excludeTitles || []).filter(Boolean).slice(0, 10);
+
+  const parts = [
+    {
+      text: [
+        "You are Hakkiri Master Coach. Write SHORT spoken drill questions for a phone screen.",
+        `Target Drill: ${activitySlug}`,
+        `Career/Industry Context: ${careerDesc} (${careerType})`,
+        `Difficulty Level: ${difficultySafe}`,
+        levelRules,
+        activityInstr,
+        `HARD LIMIT: promptText max ${lengthCaps.maxWords} words and ~${lengthCaps.maxChars} characters.`,
+        "promptText = 1 short sentence preferred, 2 max. Never a paragraph. Never nested clauses.",
+        "Do NOT open with long 'Act as a Principal … resistant to …' role essays.",
+        "Match difficulty strictly: beginner=simple, intermediary=solid workplace, professional=sharp trade-off — length still short.",
+        excludeList.length
+          ? `Do NOT repeat or closely resemble these existing topics: ${excludeList.join(" | ")}`
+          : "",
+        "Return ONLY a valid JSON object with these keys (camelCase OR snake_case is OK):",
+        "title, promptText (or prompt_text), secondaryText (or secondary_text),",
+        "objective, exemplarResponse (or exemplar_response), tags (array).",
+        "objective: one short coaching tip. exemplarResponse: 1-2 short spoken sentences.",
+        "CRITICAL: Tailor lightly to " +
+          careerType +
+          " — career flavor, not a long domain lecture.",
+        `Add a unique angle token: ${Date.now() % 9973}.`,
+      ].filter(Boolean).join("\n"),
+    },
+  ];
+
+  // One Flash model + short timeout — Begin exercise must not wait on long fallbacks.
+  const { parsed, model } = await geminiGenerateJsonWithFallback({
+    key,
+    temperature: 0.85,
+    models: [flashModel()],
+    maxOutputTokens: 900,
+    timeoutMs: 7_000,
+    parts,
+  });
+
+  const title =
+    pickParsedField(parsed, "title", "headline", "name") || "Workplace Challenge";
+  const promptText = pickParsedField(
+    parsed,
+    "promptText",
+    "prompt_text",
+    "prompt",
+    "question",
+    "instruction",
+    "text"
+  );
+  const secondaryRaw = pickParsedField(
+    parsed,
+    "secondaryText",
+    "secondary_text",
+    "secondary",
+    "bridge"
+  );
+  const secondaryText = secondaryRaw || null;
+  const objective =
+    pickParsedField(parsed, "objective", "coaching_tip", "tip") ||
+    "Deliver with clear structure and composure.";
+  const exemplarResponse =
+    pickParsedField(
+      parsed,
+      "exemplarResponse",
+      "exemplar_response",
+      "model_answer",
+      "example"
+    ) ||
+    "Lead with the point, give one reason, and close with a clear next step.";
+  const tags = Array.isArray(parsed.tags)
+    ? parsed.tags.map(String)
+    : [careerType, activitySlug];
+
+  if (!promptText || promptText.length < 12) {
+    throw new Error(
+      `Gemini produced an empty prompt text (model=${model}, keys=${Object.keys(parsed || {}).join(",")}).`
+    );
+  }
+
+  const timestamp = Date.now();
+  const rand = Math.floor(Math.random() * 9000) + 1000;
+  const code = `ai_${activitySlug.slice(0, 3)}_${String(careerType).slice(0, 4)}_${timestamp % 100000}_${rand}`;
+
+  const shortPrompt = trimPromptText(promptText, difficultySafe);
+  const shortSecondary = secondaryText
+    ? trimPromptText(secondaryText, difficultySafe)
+    : null;
+  const shortObjective = trimPromptText(objective, "beginner") || objective.slice(0, 120);
+  const shortExemplar = trimExemplarResponse(
+    exemplarResponse,
+    activitySlug
+  );
+
+  return {
+    code,
+    activitySlug,
+    difficulty: difficultySafe,
+    title: title.slice(0, 80),
+    promptText: shortPrompt,
+    secondaryText: shortSecondary,
+    objective: shortObjective.slice(0, 160),
+    exemplarResponse: shortExemplar.slice(0, 400),
+    tags,
+    industries: [careerType === "other" ? "general" : careerType || "general"],
+    prepSeconds: 5,
+    durationSeconds: 60,
+    isAiGenerated: true,
+    model,
+  };
+}
+
 // Flash-first for lower latency on suggested-answer playback.
 const TTS_MODEL_FALLBACKS = [
-  "gemini-2.5-flash-preview-tts",
   "gemini-3.1-flash-tts-preview",
+  "gemini-2.5-flash-preview-tts",
   "gemini-2.5-pro-preview-tts",
 ];
 
@@ -1303,6 +1584,7 @@ module.exports = {
   flashModel,
   analyzeSpeechWithGemini,
   generateDebatePushback,
+  generateDynamicPromptWithGemini,
   synthesizeCoachSpeech,
   createLiveSessionToken,
   DEFAULT_COACH_INSTRUCTION,

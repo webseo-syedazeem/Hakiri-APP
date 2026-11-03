@@ -11,6 +11,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 import '../core/services/analytics_service.dart';
 import '../core/services/ios_drill_recorder.dart';
 import '../core/services/session_audio_store.dart';
+import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/app_snackbar.dart';
@@ -194,7 +195,7 @@ class _RecordingScreenState extends State<RecordingScreen>
     // Prefer longer secondaryText when legacy prompts still store the brief there.
     _promptHeadline = _cutItInHalfPassage(prompt) ??
         prompt?.promptText ??
-        'How would you handle a difficult stakeholder?';
+        'Give your clearest answer to today’s practice prompt.';
     final nextWords =
         _promptHeadline.split(' ').where((w) => w.isNotEmpty).toList();
     _words = nextWords.isEmpty ? ['Ready', 'when', 'you', 'are.'] : nextWords;
@@ -705,8 +706,8 @@ class _RecordingScreenState extends State<RecordingScreen>
     try {
       await HakkiriLoadingOverlay.run(
         context,
-        message: 'Transcribing your answer…',
-        detail: 'Saving playback and scoring structure, pace, and fillers.',
+        message: 'Scoring your answer…',
+        detail: 'Transcribing and checking structure, pace, and fillers.',
         action: () => state.evaluateCurrentSession(
           transcript: transcriptForScore,
           durationSeconds: spoken,
@@ -793,10 +794,10 @@ class _RecordingScreenState extends State<RecordingScreen>
     final name = (activity?.name ?? 'Think Fast').toUpperCase();
     final icon = switch (slug) {
       'cut_it_in_half' => Icons.content_cut_rounded,
-      'debate_me' || 'debate' => Icons.forum_outlined,
-      'one_minute_expert' => Icons.school_outlined,
-      'explain_it_simply' => Icons.lightbulb_outline_rounded,
-      'storytelling_gym' => Icons.auto_stories_outlined,
+      'debate_me' || 'debate' => Icons.chat_bubble_rounded,
+      'one_minute_expert' => Icons.timer_rounded,
+      'explain_it_simply' => Icons.lightbulb_rounded,
+      'storytelling_gym' => Icons.auto_stories_rounded,
       'connect_the_dots' => Icons.hub_rounded,
       _ => Icons.bolt_rounded,
     };
@@ -804,8 +805,12 @@ class _RecordingScreenState extends State<RecordingScreen>
   }
 
   Widget _buildActivityTagBadge({bool boxed = false}) {
+    final state = Provider.of<AppStateProvider>(context, listen: false);
+    final activity = state.selectedActivity;
+    final slug = activity?.slug ?? 'think_fast';
+    final visual = ActivityVisual.forSlug(slug);
     final (tagIcon, activityName) = _activityTagParts();
-    final icon = Icon(tagIcon, color: const Color(0xFF2563EB), size: 22);
+    final icon = Icon(tagIcon, color: visual.color, size: 22);
     return Row(
       children: [
         if (boxed)
@@ -813,9 +818,9 @@ class _RecordingScreenState extends State<RecordingScreen>
             width: 38,
             height: 38,
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
+              color: visual.bgColor,
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFDBEAFE), width: 1),
+              border: Border.all(color: visual.color.withValues(alpha: 0.25), width: 1),
             ),
             child: icon,
           )

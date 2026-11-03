@@ -142,7 +142,7 @@ class HomeScreenContent extends StatelessWidget {
       progressSub = 'from ${state.overallSamples} scored sessions.';
     } else if (latest != null) {
       progressHeadline =
-          'Last session ${latest.feedback.overallScore}/5';
+          'Last session ${latest.feedback.overallScore.toStringAsFixed(1)}/5';
       progressSub = latest.feedback.pillars.crutchCount > 0
           ? '${latest.feedback.pillars.crutchCount} filler habits flagged.'
           : 'Keep building your streak.';

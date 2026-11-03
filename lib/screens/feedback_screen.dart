@@ -259,7 +259,7 @@ class FeedbackScreen extends StatelessWidget {
                         color: Colors.transparent,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(28),
-                          onTap: () {
+                          onTap: () async {
                             if (isGuestTrial) {
                               unawaited(_exitGuestTrialToPaywall(context));
                               return;
@@ -273,6 +273,20 @@ class FeedbackScreen extends StatelessWidget {
                             final liveAgain =
                                 !isDebate &&
                                 activeSession?.isBackAndForth == true;
+                            // Fresh question every Try again (all drills).
+                            await HakkiriLoadingOverlay.run(
+                              context,
+                              message: isDebate
+                                  ? 'Setting up your debate…'
+                                  : 'Getting a new question…',
+                              detail: 'Loading a fresh prompt for this retry.',
+                              action: () async {
+                                await state.fetchNextPromptFromApi(
+                                  excludeCurrent: true,
+                                );
+                              },
+                            );
+                            if (!context.mounted) return;
                             final topic =
                                 state.selectedPrompt?.promptText.trim();
                             Navigator.pushReplacement(
@@ -291,8 +305,8 @@ class FeedbackScreen extends StatelessWidget {
                                   if (liveAgain) {
                                     return const LiveConversationScreen();
                                   }
-                                  return RecordingScreen(
-                                    promptAlreadyLoaded: !fromHistory,
+                                  return const RecordingScreen(
+                                    promptAlreadyLoaded: true,
                                   );
                                 },
                               ),
@@ -473,7 +487,7 @@ class FeedbackScreen extends StatelessWidget {
     }
   }
 
-  String _effortLabel(int score) {
+  String _effortLabel(num score) {
     if (score >= 5) return 'EXCELLENT';
     if (score >= 4) return 'STRONG';
     if (score >= 3) return 'GOOD EFFORT';
@@ -559,8 +573,8 @@ class FeedbackScreen extends StatelessWidget {
                               scoreFraction: (measure.score ?? 0) / 5.0,
                               title: measure.label,
                               score: measure.score == null
-                                  ? '0/5'
-                                  : '${measure.score}/5',
+                                  ? '0.0/5'
+                                  : '${measure.score!.toStringAsFixed(1)}/5',
                               desc: measure.isHeaviest
                                   ? 'Heaviest weight'
                                   : '${(measure.weight * 100).round()}% weight',
@@ -826,7 +840,9 @@ class FeedbackScreen extends StatelessWidget {
             ringColor: const Color(0xFF2563EB),
             scoreFraction: impact / 5.0,
             title: 'Content',
-            score: feedback == null ? '0/5' : '$impact/5',
+            score: feedback == null
+                ? '0.0/5'
+                : '${impact.toStringAsFixed(1)}/5',
             desc: feedback == null
                 ? 'Waiting for your first scored answer.'
                 : impact <= 1
@@ -844,7 +860,9 @@ class FeedbackScreen extends StatelessWidget {
             ringColor: const Color(0xFF059669),
             scoreFraction: clarity / 5.0,
             title: 'Structure',
-            score: feedback == null ? '0/5' : '$clarity/5',
+            score: feedback == null
+                ? '0.0/5'
+                : '${clarity.toStringAsFixed(1)}/5',
             desc: feedback == null
                 ? 'Waiting for your first scored answer.'
                 : clarity <= 1
@@ -862,7 +880,9 @@ class FeedbackScreen extends StatelessWidget {
             ringColor: const Color(0xFFDC2626),
             scoreFraction: fluency / 5.0,
             title: 'Fluency',
-            score: feedback == null ? '0/5' : '$fluency/5',
+            score: feedback == null
+                ? '0.0/5'
+                : '${fluency.toStringAsFixed(1)}/5',
             desc: feedback == null
                 ? 'Waiting for your first scored answer.'
                 : fluency <= 1

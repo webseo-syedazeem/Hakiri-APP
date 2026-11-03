@@ -314,7 +314,7 @@ class _VoiceCoachScreenState extends State<VoiceCoachScreen> {
                           ),
                         ),
                         Text(
-                          'Select your personalized speaking guide',
+                          'Select your personalised speaking guide',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 12,

@@ -51,7 +51,8 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
   Timer? _countdownTimer;
   Timer? _topicRevealTimer;
   Timer? _pushbackRevealTimer;
-  static const _karaokeMs = 400;
+  /// Faster word reveal so the challenge stays readable (was 400ms → ghost text).
+  static const _karaokeMs = 180;
   int _thinkSecondsRemaining = 10;
   int _openingSecondsRemaining = 60;
   int _prepSecondsRemaining = 10;
@@ -87,23 +88,35 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
   String? _openingAudioPath;
   int _openingSpokenSeconds = 0;
   int _rebuttalSpokenSeconds = 0;
+  /// Peak mic level during opening — distinguishes silent clip vs AI/network fail.
+  double _openingPeakMic = 0;
 
   @override
   void initState() {
     super.initState();
-    _topic = widget.topic?.trim().isNotEmpty == true
-        ? widget.topic!.trim()
-        : "Should companies require employees to work in the office three days a week?";
+    final state = context.read<AppStateProvider>();
+    final fromPrompt = state.selectedPrompt?.promptText.trim();
+    if (widget.topic?.trim().isNotEmpty == true) {
+      _topic = widget.topic!.trim();
+    } else if (fromPrompt != null &&
+        fromPrompt.isNotEmpty &&
+        state.selectedPrompt?.activitySlug == 'debate_me') {
+      _topic = fromPrompt;
+    } else {
+      _topic =
+          "Should companies require employees to work in the office three days a week?";
+    }
     AnalyticsService.instance.logScreenView(screenName: 'DebateMe_Overview');
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final state = context.read<AppStateProvider>();
-      final fromPrompt = state.selectedPrompt?.promptText.trim();
+      final liveState = context.read<AppStateProvider>();
+      final freshPrompt = liveState.selectedPrompt?.promptText.trim();
       if ((widget.topic == null || widget.topic!.trim().isEmpty) &&
-          fromPrompt != null &&
-          fromPrompt.isNotEmpty) {
-        setState(() => _topic = fromPrompt);
+          freshPrompt != null &&
+          freshPrompt.isNotEmpty &&
+          liveState.selectedPrompt?.activitySlug == 'debate_me') {
+        setState(() => _topic = freshPrompt);
       }
       if (widget.startAtPrompt) {
         _goToStep(2);
@@ -187,6 +200,9 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
         final path = await IosDrillRecorder.instance.start(
           onAmplitude: (level) {
             _micLevel.value = level;
+            if (_currentStep == 3 && level > _openingPeakMic) {
+              _openingPeakMic = level;
+            }
           },
         );
         _audioTempPath = path;
@@ -250,8 +266,12 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
           .onAmplitudeChanged(const Duration(milliseconds: 55))
           .listen((amp) {
         final raw = ((amp.current + 50) / 50).clamp(0.0, 1.0);
-        _micLevel.value =
+        final level =
             math.pow(raw, 0.72).toDouble().clamp(0.08, 1.0);
+        _micLevel.value = level;
+        if (_currentStep == 3 && level > _openingPeakMic) {
+          _openingPeakMic = level;
+        }
       });
       _recorderLive = true;
       if (mounted) setState(() {});
@@ -400,6 +420,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
     if (!mounted || _currentStep != 3) return;
 
     _openingSecondsRemaining = _openingTotal;
+    _openingPeakMic = 0;
     await _startRecorder();
     if (!mounted || _currentStep != 3) return;
 
@@ -452,6 +473,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
     }
 
     final hasClip = audioBase64 != null && audioBase64.isNotEmpty;
+    final heardVoice = _openingPeakMic >= 0.28;
     if (!hasClip && mounted) {
       AppSnackBar.showInfo(
         context,
@@ -462,6 +484,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
     final state = context.read<AppStateProvider>();
     final api = HakkiriApiService.instance;
     var gotPushback = false;
+    var apiFailed = false;
 
     Future<void> requestPushback({required bool includeAudio}) async {
       final data = await api.debatePushback({
@@ -504,24 +527,43 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
               rethrow;
             }
           }
-          // Empty transcript after audio pass → one more topic+transcript retry.
+          // Empty transcript after audio pass → one more topic-only retry.
           if (_openingTranscript.isEmpty && hasClip && !gotPushback) {
             await requestPushback(includeAudio: false);
           }
         },
       );
     } catch (_) {
-      // Fall through to topic-aware local challenge below.
+      apiFailed = true;
     }
 
     if (!gotPushback) {
       _pushbackQuote = _topicAwareFallbackPushback();
       if (mounted) {
-        AppSnackBar.showInfo(
-          context,
-          'Could not hear your opening clearly. Pushback is based on the topic — try speaking closer to the mic next time.',
-        );
+        final String info;
+        if (!hasClip) {
+          info =
+              'Mic did not capture audio. Check permission, then try the opening again.';
+        } else if (apiFailed || !heardVoice) {
+          info = apiFailed
+              ? 'Challenge used your topic only — coach was briefly unavailable. Your rebuttal still counts.'
+              : 'Could not catch clear words in the opening. Challenge is based on the topic — keep the phone closer next time.';
+        } else {
+          // Mic moved (voice detected) but STT/API returned no grounded pushback.
+          info =
+              'Heard your opening, but could not transcribe it this round. Challenge is based on the topic.';
+        }
+        AppSnackBar.showInfo(context, info);
       }
+    } else if (hasClip &&
+        _openingTranscript.isEmpty &&
+        mounted) {
+      AppSnackBar.showInfo(
+        context,
+        heardVoice
+            ? 'Heard you, but words were unclear to transcribe — challenge is based on the topic.'
+            : 'Opening was quiet on the mic — challenge is based on the topic. Speak a bit closer next time.',
+      );
     }
 
     if (!mounted) {
@@ -1207,8 +1249,7 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                                 _topicSpeaking;
                             Color wordColor;
                             if (!isRevealed) {
-                              wordColor = const Color(0xFFCBD5E1)
-                                  .withValues(alpha: 0.5);
+                              wordColor = const Color(0xFF94A3B8);
                             } else if (isCurrent) {
                               wordColor = const Color(0xFF2563EB);
                             } else {
@@ -1681,10 +1722,10 @@ class _DebateMeScreenState extends State<DebateMeScreen> {
                                 final isCurrent = index ==
                                         _pushbackRevealedCount - 1 &&
                                     _pushbackRevealing;
+                                // Keep unread words readable (ghost alpha looked "broken").
                                 Color wordColor;
                                 if (!isRevealed) {
-                                  wordColor = const Color(0xFFCBD5E1)
-                                      .withValues(alpha: 0.5);
+                                  wordColor = const Color(0xFF94A3B8);
                                 } else if (isCurrent) {
                                   wordColor = const Color(0xFF2563EB);
                                 } else {

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -13,16 +15,23 @@ import 'recording_screen.dart';
 
 /// Activity detail screen rendered pixel-perfect matching Image 2 ("Think Fast.")
 /// and Image 5 ("Connect the Dots.").
-class ActivityDetailScreen extends StatelessWidget {
+class ActivityDetailScreen extends StatefulWidget {
   final String? activitySlug;
 
   const ActivityDetailScreen({super.key, this.activitySlug});
 
   @override
+  State<ActivityDetailScreen> createState() => _ActivityDetailScreenState();
+}
+
+class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
+  String? _prefetchedForSlug;
+
+  @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
     final slug = AppStateProvider.normalizeActivitySlug(
-      activitySlug ?? state.selectedActivity?.slug ?? 'think_fast',
+      widget.activitySlug ?? state.selectedActivity?.slug ?? 'think_fast',
     );
     final spec = _activitySpecs[slug] ?? _activitySpecs['think_fast']!;
     final isDebateMe = slug == 'debate_me';
@@ -33,9 +42,15 @@ class ActivityDetailScreen extends StatelessWidget {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // Detail UI slug must match provider — otherwise Begin loads Think Fast prompts.
       state.ensureActivitySelected(slug);
+      state.syncDifficultyForActivity(slug);
       AnalyticsService.instance.logScreenView(
         screenName: 'ActivityDetailScreen_$slug',
       );
+      // Warm the next question while the user reads the brief — Begin feels instant.
+      if (_prefetchedForSlug != slug && !state.guestTrialUsed) {
+        _prefetchedForSlug = slug;
+        unawaited(state.fetchNextPromptFromApi(excludeCurrent: true));
+      }
     });
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -132,14 +147,14 @@ class ActivityDetailScreen extends StatelessWidget {
                                   width: 78,
                                   height: 78,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFEFF6FF),
+                                    color: spec.iconBgColor,
                                     borderRadius: BorderRadius.circular(22),
                                   ),
                                   alignment: Alignment.center,
                                   child: spec.customIconWidget ??
                                       Icon(
                                         spec.icon,
-                                        color: const Color(0xFF2563EB),
+                                        color: spec.iconColor,
                                         size: 44,
                                       ),
                                 ),
@@ -183,7 +198,7 @@ class ActivityDetailScreen extends StatelessWidget {
                                           const SizedBox(width: 4),
                                           Transform.translate(
                                             offset: const Offset(0, -6),
-                                            child: const BlueAccentRays(size: 24),
+                                            child: BlueAccentRays(size: 24, color: spec.iconColor),
                                           ),
                                         ],
                                       ),
@@ -208,7 +223,7 @@ class ActivityDetailScreen extends StatelessWidget {
                             const SizedBox(height: 14),
 
                             // 3. Card: HOW IT WORKS
-                            _buildHowItWorksCard(spec.steps),
+                            _buildHowItWorksCard(spec.steps, accentColor: spec.iconColor),
                             const SizedBox(height: 12),
                             // 4. Card: Strategy (USE YOUR 5 SECONDS / BUILD THE CONNECTION)
                             _buildStrategyCard(spec.strategyTitle, spec.strategy),
@@ -303,20 +318,21 @@ class ActivityDetailScreen extends StatelessWidget {
                             return;
                           }
 
+                          // Always fetch a NEW prompt (exclude current) — skipping reuse
+                          // left Debate Me / drills stuck on the same assigned topic.
                           await HakkiriLoadingOverlay.run(
                             context,
                             message: isDebateMe
                                 ? 'Setting up your debate…'
                                 : 'Getting your question…',
                             detail: isDebateMe
-                                ? 'Loading a workplace topic for opening + pushback.'
+                                ? 'Loading a fresh workplace topic for opening + pushback.'
                                 : 'Picking a fresh prompt for this drill.',
                             action: () async {
                               app.ensureActivitySelected(slug);
                               await app.fetchNextPromptFromApi(
                                 excludeCurrent: true,
                               );
-                              // Retry once if a stale Think Fast (etc.) prompt stuck.
                               if (!app.promptMatchesActivity(slug)) {
                                 app.ensureActivitySelected(slug);
                                 await app.fetchNextPromptFromApi(
@@ -372,7 +388,7 @@ class ActivityDetailScreen extends StatelessWidget {
   }
 
   /// CARD 1: HOW IT WORKS — connected 4-step horizontal timeline
-  Widget _buildHowItWorksCard(List<_Step> steps) {
+  Widget _buildHowItWorksCard(List<_Step> steps, {Color accentColor = const Color(0xFF2563EB)}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
@@ -413,7 +429,7 @@ class ActivityDetailScreen extends StatelessWidget {
                 top: 22,
                 left: 28,
                 right: 28,
-                child: Container(height: 2, color: const Color(0xFFDBEAFE)),
+                child: Container(height: 2, color: accentColor.withValues(alpha: 0.25)),
               ),
               Row(
                 mainAxisAlignment: steps.length == 3
@@ -427,6 +443,7 @@ class ActivityDetailScreen extends StatelessWidget {
                       title: s.title,
                       subtitle: s.sub,
                       width: steps.length == 3 ? 100 : 78,
+                      accentColor: accentColor,
                     ),
                 ],
               ),
@@ -442,6 +459,7 @@ class ActivityDetailScreen extends StatelessWidget {
     required String title,
     required String subtitle,
     required double width,
+    Color accentColor = const Color(0xFF2563EB),
   }) {
     return SizedBox(
       width: width,
@@ -453,16 +471,16 @@ class ActivityDetailScreen extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFBFDBFE), width: 1.5),
+              border: Border.all(color: accentColor.withValues(alpha: 0.35), width: 1.5),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                  color: accentColor.withValues(alpha: 0.08),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
               ],
             ),
-            child: Icon(icon, color: const Color(0xFF2563EB), size: 23),
+            child: Icon(icon, color: accentColor, size: 23),
           ),
           const SizedBox(height: 8),
           Text(
@@ -618,6 +636,8 @@ class _Step {
 class _ActivitySpec {
   final IconData icon;
   final Widget? customIconWidget;
+  final Color iconColor;
+  final Color iconBgColor;
   final String label;
   final String title;
   final Widget? titleWidget;
@@ -629,6 +649,8 @@ class _ActivitySpec {
   const _ActivitySpec({
     required this.icon,
     this.customIconWidget,
+    this.iconColor = const Color(0xFF2563EB),
+    this.iconBgColor = const Color(0xFFEFF6FF),
     required this.label,
     required this.title,
     this.titleWidget,
@@ -646,6 +668,8 @@ final Map<String, _ActivitySpec> _activitySpecs = {
   // Screen 1: Think Fast. (Matching Image 2)
   'think_fast': _ActivitySpec(
     icon: Icons.bolt_rounded,
+    iconColor: const Color(0xFF2563EB),
+    iconBgColor: const Color(0xFFEFF6FF),
     customIconWidget: SizedBox(
       width: 38,
       height: 38,
@@ -681,6 +705,8 @@ final Map<String, _ActivitySpec> _activitySpecs = {
   // Screen 2: Connect the Dots. (Matching Image 5)
   'connect_the_dots': _ActivitySpec(
     icon: Icons.hub_rounded,
+    iconColor: const Color(0xFF9333EA),
+    iconBgColor: const Color(0xFFF5F3FF),
     customIconWidget: SizedBox(
       width: 38,
       height: 38,
@@ -699,7 +725,7 @@ final Map<String, _ActivitySpec> _activitySpecs = {
         ),
         children: [
           TextSpan(text: 'Connect\n', style: TextStyle(color: Color(0xFF0F172A))),
-          TextSpan(text: 'the Dots.', style: TextStyle(color: Color(0xFF2563EB))),
+          TextSpan(text: 'the Dots.', style: TextStyle(color: Color(0xFF9333EA))),
         ],
       ),
     ),
@@ -716,7 +742,9 @@ final Map<String, _ActivitySpec> _activitySpecs = {
 
   // Screen 3: Explain It Simply.
   'explain_it_simply': _ActivitySpec(
-    icon: Icons.lightbulb_outline_rounded,
+    icon: Icons.lightbulb_rounded,
+    iconColor: const Color(0xFF10B981),
+    iconBgColor: const Color(0xFFECFDF5),
     label: '3. EXPLAIN IT SIMPLY',
     title: 'Explain\nIt Simply.',
     titleWidget: RichText(
@@ -724,7 +752,7 @@ final Map<String, _ActivitySpec> _activitySpecs = {
         style: TextStyle(fontFamily: 'Inter', fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: -0.8, height: 1.15),
         children: [
           TextSpan(text: 'Explain\n', style: TextStyle(color: Color(0xFF0F172A))),
-          TextSpan(text: 'It Simply.', style: TextStyle(color: Color(0xFF2563EB))),
+          TextSpan(text: 'It Simply.', style: TextStyle(color: Color(0xFF10B981))),
         ],
       ),
     ),
@@ -742,6 +770,8 @@ final Map<String, _ActivitySpec> _activitySpecs = {
   // Screen 4: Cut It in Half.
   'cut_it_in_half': _ActivitySpec(
     icon: Icons.content_cut_rounded,
+    iconColor: const Color(0xFFD97706),
+    iconBgColor: const Color(0xFFFFFBEB),
     label: '4. CUT IT IN HALF',
     title: 'Cut It\nin Half.',
     titleWidget: RichText(
@@ -749,7 +779,7 @@ final Map<String, _ActivitySpec> _activitySpecs = {
         style: TextStyle(fontFamily: 'Inter', fontSize: 30, fontWeight: FontWeight.w900, letterSpacing: -0.8, height: 1.15),
         children: [
           TextSpan(text: 'Cut It\n', style: TextStyle(color: Color(0xFF0F172A))),
-          TextSpan(text: 'in Half.', style: TextStyle(color: Color(0xFF2563EB))),
+          TextSpan(text: 'in Half.', style: TextStyle(color: Color(0xFFD97706))),
         ],
       ),
     ),
@@ -771,7 +801,9 @@ final Map<String, _ActivitySpec> _activitySpecs = {
 
   // Screen 5: Storytelling Gym.
   'storytelling_gym': const _ActivitySpec(
-    icon: Icons.menu_book_rounded,
+    icon: Icons.auto_stories_rounded,
+    iconColor: Color(0xFF8B5CF6),
+    iconBgColor: Color(0xFFF5F3FF),
     label: '5. STORYTELLING GYM',
     title: 'Storytelling\nGym.',
     subtitle: 'Turn a scenario into a clear, memorable story.',
@@ -786,7 +818,9 @@ final Map<String, _ActivitySpec> _activitySpecs = {
 
   // Screen 6: One Minute Expert.
   'one_minute_expert': const _ActivitySpec(
-    icon: Icons.school_outlined,
+    icon: Icons.timer_rounded,
+    iconColor: Color(0xFFEA580C),
+    iconBgColor: Color(0xFFFFF1EC),
     label: '6. ONE MINUTE EXPERT',
     title: 'One Minute\nExpert.',
     subtitle: 'A topic is presented and you explain it clearly, confidently and coherently in 60 seconds.',
@@ -802,11 +836,13 @@ final Map<String, _ActivitySpec> _activitySpecs = {
 
   // Screen 7: Debate Me. — overview only; Begin starts live back-and-forth.
   'debate_me': const _ActivitySpec(
-    icon: Icons.forum_outlined,
+    icon: Icons.chat_bubble_rounded,
+    iconColor: Color(0xFFF59E0B),
+    iconBgColor: Color(0xFFFFFBEB),
     label: '7. DEBATE ME',
     title: 'Debate Me.',
     subtitle:
-        'Practice. Respond. Improve. A guided debate to help you think clearly, respond with confidence, and get better.',
+        'Practise. Respond. Improve. A guided debate to help you think clearly, respond with confidence, and get better.',
     steps: [
       _Step(Icons.description_outlined, '1. Prompt', 'A debate\ntopic appears.'),
       _thinkStep,
@@ -914,7 +950,7 @@ class _AssignedLevelLabel extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  'You’ll practice at this level. Hakkiri may suggest a change after a week.',
+                  'You’ll practise at this level. Hakkiri may suggest a change after a week.',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -933,6 +969,14 @@ class _AssignedLevelLabel extends StatelessWidget {
 
 /// Crisp custom painter for the connected nodes icon matching Image 5
 class _ConnectedNodesPainter extends CustomPainter {
+  final Color color;
+  final Color fill;
+
+  const _ConnectedNodesPainter({
+    this.color = const Color(0xFF9333EA),
+    this.fill = const Color(0xFFF5F3FF),
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
@@ -943,7 +987,7 @@ class _ConnectedNodesPainter extends CustomPainter {
     final rightNode = Offset(w * 0.78, h * 0.78);
 
     final linePaint = Paint()
-      ..color = const Color(0xFF2563EB)
+      ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.4
       ..strokeCap = StrokeCap.round;
@@ -953,11 +997,11 @@ class _ConnectedNodesPainter extends CustomPainter {
     canvas.drawLine(leftNode, rightNode, linePaint);
 
     final nodeOutline = Paint()
-      ..color = const Color(0xFF2563EB)
+      ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = 2.4;
 
-    final nodeFill = Paint()..color = const Color(0xFFEFF6FF);
+    final nodeFill = Paint()..color = fill;
 
     for (final node in [topNode, leftNode, rightNode]) {
       canvas.drawCircle(node, 4.5, nodeFill);

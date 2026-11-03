@@ -1712,7 +1712,7 @@ class AppStateProvider extends ChangeNotifier {
         tagline: 'Extreme information synthesis and brevity',
         description:
             'You get a longer passage and 60 seconds to summarise it out loud — keep the key points, cut the fluff.',
-        cognitiveMechanism: 'Information distillation, compression, and high-density verbalization',
+        cognitiveMechanism: 'Information distillation, compression, and high-density verbalisation',
         prepDurationSeconds: 60,
         defaultDurationSeconds: 60,
         benefits: ['Forces deep information synthesis', 'Commands respect through brevity', 'Increases stakeholder retention'],
@@ -1823,7 +1823,7 @@ class AppStateProvider extends ChangeNotifier {
         activitySlug: 'think_fast',
         difficulty: 'intermediary',
         promptText: 'How would you deliver critical feedback to an anxious team member?',
-        objective: 'Lead with empathy, separate behavior from character, and co-design a concrete next step.',
+        objective: 'Lead with empathy, separate behaviour from character, and co-design a concrete next step.',
         exemplarResponse: 'I appreciate your dedication to the team. To help you thrive on this project, I want to address one specific area of clarity in communication, and discuss how we can support you.',
         tags: ['healthcare_edu', 'people_management'],
         industries: ['healthcare_edu'],
@@ -1860,7 +1860,7 @@ class AppStateProvider extends ChangeNotifier {
         difficulty: 'professional',
         promptText: 'Our company’s core software platform just went offline globally, and clients are panicking on social media. Give an immediate 60-second update to the board of directors.',
         objective: 'Command total authority, communicate triage status (BLUF), and outline communication protocol.',
-        exemplarResponse: 'Board members: at 14:10 UTC, European and US data centers experienced an unexpected cascade. Triage is active; DNS rollback is at 60% completion. Recovery target is 35 minutes. Public status page has been updated.',
+        exemplarResponse: 'Board members: at 14:10 UTC, European and US data centres experienced an unexpected cascade. Triage is active; DNS rollback is at 60% completion. Recovery target is 35 minutes. Public status page has been updated.',
         tags: ['crisis', 'boardroom'],
         industries: ['tech_product', 'corporate_finance'],
         durationSeconds: 60,
@@ -1944,22 +1944,127 @@ class AppStateProvider extends ChangeNotifier {
         prepSeconds: 5,
       ),
 
-      // Explain It Simply
+      // Explain It Simply — career-tailored fallbacks
+      const PromptModel(
+        id: 'eis_tp_01',
+        activitySlug: 'explain_it_simply',
+        difficulty: 'intermediary',
+        title: 'APIs to a Restaurant Manager',
+        promptText: 'Explain what an API is to a restaurant manager who wants to integrate delivery apps with their point-of-sale system.',
+        objective: 'Use a waiter or order slip analogy without coding jargon.',
+        exemplarResponse: 'Think of an API like a waiter in your restaurant. The customer orders at the table, the waiter takes the exact order to the kitchen, and brings back the cooked meal. An API does the exact same thing between Deliveroo and your till — taking the digital order and handing back the confirmation.',
+        tags: ['technology', 'software'],
+        industries: ['tech_product'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'eis_cf_01',
+        activitySlug: 'explain_it_simply',
+        difficulty: 'intermediary',
+        title: 'Compound Interest to a High Schooler',
+        promptText: 'Explain compound interest to a 16-year-old student who has just opened their first savings account.',
+        objective: 'Use a snowball analogy to demystify compounding.',
+        exemplarResponse: 'Compound interest is earning money on money you already earned. Imagine rolling a tiny snowball down a hill — as it moves, the sticky snow gathers more snow, getting exponentially bigger with every turn. That snowball is your interest earning its own interest year after year.',
+        tags: ['finance', 'wealth'],
+        industries: ['corporate_finance'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'eis_sm_01',
+        activitySlug: 'explain_it_simply',
+        difficulty: 'intermediary',
+        title: 'Sales Funnel to a Local Tradesperson',
+        promptText: 'Explain the concept of a sales conversion funnel to an independent electrician who relies on word-of-mouth.',
+        objective: 'Demystify conversion stages with a storefront analogy.',
+        exemplarResponse: 'Imagine 100 people walk past your shop window. Fifty pause to read your flyer, twenty ask for a quote, and five hire you for a job. That tapering cone is a sales funnel. Marketing gets people to the window; great service turns the five into repeat business.',
+        tags: ['marketing', 'sales'],
+        industries: ['sales_marketing'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'eis_he_01',
+        activitySlug: 'explain_it_simply',
+        difficulty: 'beginner',
+        title: 'Blood Pressure to a Patient',
+        promptText: 'Explain high blood pressure to an anxious patient who thinks it means they are overly stressed or hyperactive.',
+        objective: 'Reassure the patient using a garden hose analogy.',
+        exemplarResponse: 'Blood pressure is not about how stressed you feel right now. Think of your blood vessels like a garden hose. If the tap is turned too high or the hose is narrow, the water pushes too hard against the rubber walls. Keeping that pressure gentle protects your heart and organs over decades.',
+        tags: ['healthcare', 'clinical'],
+        industries: ['healthcare_edu'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
       const PromptModel(
         id: 'eis_01',
         activitySlug: 'explain_it_simply',
         difficulty: 'intermediary',
         title: 'SEO to a Traditional Pastry Chef',
-        promptText: 'Explain Search Engine Optimization (SEO) to a traditional pastry chef who wants more foot traffic into their local bakery.',
+        promptText: 'Explain Search Engine Optimisation (SEO) to a traditional pastry chef who wants more foot traffic into their local bakery.',
         objective: 'Use baking and street signage metaphors without digital jargon.',
         exemplarResponse:
             'Chef, think of Google as the person on the corner giving directions. SEO is making your bakery the clearest answer — right name, right street, and proof people like what you bake — so that guide points hungry customers to your door.',
         tags: ['marketing', 'local_business'],
+        industries: ['general'],
         durationSeconds: 60,
         prepSeconds: 5,
       ),
 
-      // Storytelling Gym
+      // Storytelling Gym — career-tailored fallbacks
+      const PromptModel(
+        id: 'stg_tp_01',
+        activitySlug: 'storytelling_gym',
+        difficulty: 'intermediary',
+        title: 'The Production Outage Crisis',
+        promptText: 'Tell a 60-second story about a major system outage or technical crisis, how you kept leadership calm, and how the incident was resolved.',
+        objective: 'Structure: Setup (20s), Friction & Composure (20s), Resolution & Takeaway (20s).',
+        exemplarResponse: 'During Black Friday, our payment gateway collapsed under 400% unexpected traffic. Notifications flooded in and leadership joined the emergency war room in a panic. I muted unnecessary chatter, isolated the failing microservice, and rolled back the deployment within twelve minutes. That crisis proved to me that leadership under pressure is mostly about absorbing panic so engineers can focus on the fix.',
+        tags: ['incident_management', 'engineering'],
+        industries: ['tech_product'],
+        durationSeconds: 60,
+        prepSeconds: 10,
+      ),
+      const PromptModel(
+        id: 'stg_cf_01',
+        activitySlug: 'storytelling_gym',
+        difficulty: 'intermediary',
+        title: 'The Unforgiving Audit',
+        promptText: 'Tell a 60-second story about an intense financial audit or unexpected budget shortfall where you uncovered a critical discrepancy.',
+        objective: 'Highlight analytical diligence and structured problem-solving.',
+        exemplarResponse: 'Two days before our annual board pack was due, our reconciliation showed an unexplained £250k variance. Rather than papering over the number, I spent the night tracing nine months of manual supplier journals until I found a duplicated FX conversion. Presenting the corrected ledger to the audit committee turned a potential crisis into a masterclass in accounting rigor.',
+        tags: ['audit', 'finance_resilience'],
+        industries: ['corporate_finance'],
+        durationSeconds: 60,
+        prepSeconds: 10,
+      ),
+      const PromptModel(
+        id: 'stg_sm_01',
+        activitySlug: 'storytelling_gym',
+        difficulty: 'intermediary',
+        title: 'Saving the At-Risk Enterprise Client',
+        promptText: 'Tell a 60-second story about an enterprise client who was moments from cancelling their contract, and how you turned the relationship around.',
+        objective: 'Highlight active listening, commercial empathy, and decisive action.',
+        exemplarResponse: 'Our top enterprise account issued a termination notice after a botched integration. Instead of defending our SLA over email, I flew to their office the next morning to hear their operational frustration in person. We restructured their deployment timeline and embedded a dedicated engineer on site. Two quarters later, they expanded their annual contract by 40%.',
+        tags: ['client_retention', 'negotiation'],
+        industries: ['sales_marketing'],
+        durationSeconds: 60,
+        prepSeconds: 10,
+      ),
+      const PromptModel(
+        id: 'stg_he_01',
+        activitySlug: 'storytelling_gym',
+        difficulty: 'intermediary',
+        title: 'The Emergency Department Surge',
+        promptText: 'Tell a 60-second story about managing an unexpected clinical surge or critical patient transition under heavy constraints.',
+        objective: 'Vocal composure, clear prioritization, and team empathy.',
+        exemplarResponse: 'During a severe winter flu outbreak, our triage queue doubled within two hours while three nurses called in sick. As lead, I redistributed non-urgent documentation, personally managed family briefings in the waiting room, and established a rapid reassessment bay. Every critical case was stabilized safely because we chose communication over chaos.',
+        tags: ['clinical_leadership', 'triage'],
+        industries: ['healthcare_edu'],
+        durationSeconds: 60,
+        prepSeconds: 10,
+      ),
       const PromptModel(
         id: 'stg_01',
         activitySlug: 'storytelling_gym',
@@ -1967,15 +2072,30 @@ class AppStateProvider extends ChangeNotifier {
         title: 'The Morning Disaster & Recovery',
         promptText: 'Tell a 60-second story about a time an unexpected morning disaster derailed your schedule, and how you recovered.',
         objective: 'Execute a clean 3-part timeline (Setup 20s, Obstacle 20s, Recovery & Lesson 20s).',
-        exemplarResponse: 'Last November, I had our biggest client pitch scheduled at 9 AM. At 8:15, my espresso machine exploded across my suit while my train was canceled. Instead of spiraling, I bought a fresh shirt at the nearest retail shop and dialed into the audio bridge from the taxi. We closed the deal, and I learned that composure under friction is the real differentiator in any crisis.',
+        exemplarResponse: 'Last November, I had our biggest client pitch scheduled at 9 AM. At 8:15, my espresso machine exploded across my suit while my train was cancelled. Instead of spiralling, I bought a fresh shirt at the nearest retail shop and dialled into the audio bridge from the taxi. We closed the deal, and I learned that composure under friction is the real differentiator in any crisis.',
         tags: ['resilience', 'leadership'],
+        industries: ['general'],
         durationSeconds: 60,
         prepSeconds: 10,
       ),
 
-      // Connect the Dots
+      // Connect the Dots — career-tailored fallbacks
       const PromptModel(
-        id: 'ctd_01',
+        id: 'ctd_tp_01',
+        activitySlug: 'connect_the_dots',
+        difficulty: 'intermediary',
+        title: 'Traffic Roundabouts 🔗 Microservices',
+        promptText: 'Build a seamless metaphorical bridge between [Traffic Roundabouts] and [Microservice Architecture].',
+        secondaryText: 'Concept A: Traffic Roundabouts | Concept B: Microservices',
+        objective: 'Transition smoothly around the 30s mark; avoid abrupt leaps.',
+        exemplarResponse: 'Traffic roundabouts replace central traffic lights with decentralized flow, letting each vehicle navigate its exit independently without a single point of failure. Microservice architecture relies on that exact principle. Instead of routing all software operations through a rigid monolith, independent services communicate via message queues, keeping traffic moving even when one road is congested.',
+        tags: ['tech_analogy', 'architecture'],
+        industries: ['tech_product'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'ctd_cf_01',
         activitySlug: 'connect_the_dots',
         difficulty: 'intermediary',
         title: 'Winter Gardening 🔗 Venture Capital',
@@ -1984,20 +2104,202 @@ class AppStateProvider extends ChangeNotifier {
         objective: 'Introduce transition around the 30s mark; avoid jarring non-sequiturs.',
         exemplarResponse: 'To an untrained observer, winter gardening looks lifeless—the soil is frozen and trees appear bare. Yet beneath the frost, roots are deepening and preparing nutrient reserves for spring. Venture capital investing operates on the exact same paradox. During macroeconomic downturns and funding winters, the most resilient founders build foundational infrastructure quietly. True venture capital isn’t about chasing the summer bloom; it’s about investing in the roots that survive the frost.',
         tags: ['lateral_thinking', 'metaphor'],
+        industries: ['corporate_finance'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'ctd_sm_01',
+        activitySlug: 'connect_the_dots',
+        difficulty: 'intermediary',
+        title: 'Fly Fishing 🔗 Account-Based Marketing',
+        promptText: 'Build a seamless metaphorical bridge between [Fly Fishing] and [Account-Based Enterprise Sales].',
+        secondaryText: 'Concept A: Fly Fishing | Concept B: Account-Based Marketing',
+        objective: 'Demonstrate patience, custom lure craft, and tailored approach.',
+        exemplarResponse: 'Commercial fishermen cast vast indiscriminate trawling nets into the ocean, catching whatever swims by. Fly fishermen do the polar opposite — studying the exact water current, tying an artisanal lure that matches the insect of the day, and presenting it delicately to one prize fish. Enterprise account-based sales is pure fly fishing. You don’t blast spam to thousands; you tailor bespoke value propositions for five high-value executive targets.',
+        tags: ['sales_strategy', 'metaphor'],
+        industries: ['sales_marketing'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'ctd_he_01',
+        activitySlug: 'connect_the_dots',
+        difficulty: 'intermediary',
+        title: 'Air Traffic Control 🔗 Hospital Triage',
+        promptText: 'Build a seamless metaphorical bridge between [Air Traffic Control] and [Emergency Hospital Triage].',
+        secondaryText: 'Concept A: Air Traffic Control | Concept B: Hospital Triage',
+        objective: 'Emphasize prioritization, bandwidth management, and life-safety protocols.',
+        exemplarResponse: 'Air traffic controllers do not land planes on a first-come, first-served basis; they prioritize based on fuel levels, mechanical faults, and runway clearance. Hospital emergency triage functions on identical life-critical logic. Clinicians assess acuity rather than arrival time, preserving precious resuscitation bays for unstable cases while guiding stable patients to care pathways.',
+        tags: ['clinical_operations', 'analogy'],
+        industries: ['healthcare_edu'],
         durationSeconds: 60,
         prepSeconds: 5,
       ),
 
-      // Debate Me
+      // Debate Me — rich career-tailored prompts
+      // Tech / Product
+      const PromptModel(
+        id: 'deb_tp_01',
+        activitySlug: 'debate_me',
+        difficulty: 'intermediary',
+        title: 'Delay Launch for Technical Debt',
+        promptText: 'Act as a skeptical VP of Engineering. Debate why we should delay the Q4 feature release by three weeks to refactor architectural debt. Push back when I present my risk analysis.',
+        objective: 'Defend technical stability without sounding dismissive of commercial deadlines.',
+        exemplarResponse: 'I understand the board wants this shipped before year-end. However, launching on our current degraded database layer will cause cascading outages during our peak marketing campaign. Taking three weeks now protects our SLA, avoids emergency midnight patches, and preserves client trust.',
+        tags: ['tech_product', 'engineering_leadership'],
+        industries: ['tech_product'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'deb_tp_02',
+        activitySlug: 'debate_me',
+        difficulty: 'intermediary',
+        title: 'Bespoke Enterprise Customization',
+        promptText: 'Act as an ambitious enterprise sales director. Debate why we should build a bespoke feature for our biggest tier-one client rather than sticking to the core product roadmap. Push back on my roadmap defense.',
+        objective: 'Hold product boundaries firmly while respecting enterprise revenue goals.',
+        exemplarResponse: 'Signing this tier-one logo is huge, but bending the roadmap into bespoke engineering turns us into an outsourced consultancy. If we build this custom module, we delay core features promised to thirty other clients. Let us offer an API webhook instead so their internal team can build the integration.',
+        tags: ['tech_product', 'product_management'],
+        industries: ['tech_product'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+
+      // Corporate / Finance
+      const PromptModel(
+        id: 'deb_cf_01',
+        activitySlug: 'debate_me',
+        difficulty: 'intermediary',
+        title: 'Q4 CapEx Freeze Pushback',
+        promptText: 'Act as a cost-focused CFO. Debate my request for a £1.2M CapEx software infrastructure spend during an economic slowdown. Push back on payback time and demand we wait two quarters.',
+        objective: 'Defend investment with concrete ROI and operational risk mitigation.',
+        exemplarResponse: 'I respect the cash-preservation mandate in this climate. However, our legacy hosting architecture is already generating £40,000 in monthly overage penalties and single-point-of-failure risks. This expenditure pays for itself within nine months and de-risks our core revenue engine.',
+        tags: ['corporate_finance', 'budgeting'],
+        industries: ['corporate_finance'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'deb_cf_02',
+        activitySlug: 'debate_me',
+        difficulty: 'intermediary',
+        title: 'Debt vs Equity Financing',
+        promptText: 'Act as a risk-averse board member. Debate why we should take on mezzanine debt rather than diluting equity for our upcoming expansion. Push back on interest rate exposure.',
+        objective: 'Deliver composed financial reasoning balancing cost of capital and dilution.',
+        exemplarResponse: 'While interest rates are currently higher, equity dilution is permanent. At our current valuation, raising equity surrenders 15% of enterprise upside forever. Mezzanine debt allows us to fund the facility, retain full equity value for founders and shareholders, and refinance once cash flow stabilizes.',
+        tags: ['corporate_finance', 'capital_structure'],
+        industries: ['corporate_finance'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+
+      // Sales / Marketing
+      const PromptModel(
+        id: 'deb_sm_01',
+        activitySlug: 'debate_me',
+        difficulty: 'intermediary',
+        title: '30% Enterprise Discount Demand',
+        promptText: 'Act as a tough procurement lead. Debate why our software must offer a 30% discount to secure the contract today, threatening to sign with our chief competitor. Push back on my value pitch.',
+        objective: 'Protect deal margin and pricing integrity without losing the client.',
+        exemplarResponse: 'I understand you have competing proposals on your desk. However, our platform includes dedicated multi-region failover and concierge onboarding that the competitor bills as separate add-ons. Instead of discounting the license fee, I can extend your initial payment terms to 60 days to match your procurement cycle.',
+        tags: ['sales_marketing', 'deal_negotiation'],
+        industries: ['sales_marketing'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'deb_sm_02',
+        activitySlug: 'debate_me',
+        difficulty: 'intermediary',
+        title: 'Brand Marketing vs Direct Response',
+        promptText: 'Act as an impatient CEO. Debate why every penny of marketing spend should go into Google and Meta direct-response ads instead of brand awareness campaigns. Push back on intangible ROI.',
+        objective: 'Argue for balanced acquisition economics and diminishing performance returns.',
+        exemplarResponse: 'Direct-response channels are vital, but their customer acquisition cost rises sharply once you exhaust bottom-of-funnel searchers. Investing 25% of our budget into brand awareness creates the organic demand that lowers blended CPA across every paid campaign we run.',
+        tags: ['sales_marketing', 'growth_strategy'],
+        industries: ['sales_marketing'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+
+      // Healthcare / Education
+      const PromptModel(
+        id: 'deb_he_01',
+        activitySlug: 'debate_me',
+        difficulty: 'intermediary',
+        title: 'Mandatory Clinical Overtime Pushback',
+        promptText: 'Act as a hospital operations director. Debate why we should mandate nursing overtime during flu season instead of approving agency locum spend. Push back when I raise staff burnout concerns.',
+        objective: 'Advocate for patient safety and clinical sustainability with calm authority.',
+        exemplarResponse: 'I hear the urgent need to balance staffing budgets. But mandating back-to-back overtime directly increases clinical medication errors and nurse resignations. A short-term locum contract is significantly cheaper than settling adverse incidents or having to recruit and train replacement permanent staff.',
+        tags: ['healthcare_edu', 'clinical_advocacy'],
+        industries: ['healthcare_edu'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'deb_he_02',
+        activitySlug: 'debate_me',
+        difficulty: 'intermediary',
+        title: 'In-Person Attendance Mandate',
+        promptText: 'Act as a traditional faculty dean. Debate why all university lectures must mandate 100% in-person physical attendance with zero recorded options. Push back on my hybrid flexibility proposal.',
+        objective: 'Articulate educational accessibility and modern student outcomes.',
+        exemplarResponse: 'In-person seminars and peer discussions are invaluable, and we should protect them. However, rigid lecture attendance disproportionately penalizes working students and neurodivergent learners. Providing recorded foundational lectures while keeping interactive workshops in-person maximizes both mastery and engagement.',
+        tags: ['healthcare_edu', 'academic_policy'],
+        industries: ['healthcare_edu'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+
+      // General / Workplace — several local fallbacks so Debate Me never sticks on one topic.
       const PromptModel(
         id: 'deb_01',
         activitySlug: 'debate_me',
         difficulty: 'beginner',
-        title: 'Office Mandate Pushback',
-        promptText: 'Act as a friendly colleague. Debate me on why working from the office five days a week is better than working from home. Push back when I give my reasons.',
+        title: 'Five Days in the Office',
+        promptText: 'Act as a senior manager. Debate why all employees must be present in the physical office five days a week. Push back when I give my reasons for hybrid flexibility.',
         objective: 'Maintain lung support, avoid defensive pitch spikes, and deliver a composed counter-perspective.',
         exemplarResponse: 'I understand the value of spontaneous hallway chats and face-to-face camaraderie. However, forcing five days in the office conflates physical presence with actual productivity. By allowing hybrid autonomy, we retain top talent, eliminate exhausting commutes, and preserve focused deep-work time while still gathering intentionally for collaborative sprint planning.',
         tags: ['workplace', 'hybrid_work'],
+        industries: ['general'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'deb_g_02',
+        activitySlug: 'debate_me',
+        difficulty: 'intermediary',
+        title: 'Meeting-Free Fridays',
+        promptText: 'Act as a sceptical COO. Debate why the company should ban internal meetings every Friday. Push back when I defend focus time.',
+        objective: 'Stay calm, give one clear principle, then one practical exception.',
+        exemplarResponse: 'Focus time matters, and Friday quiet hours help people close work. A total ban still breaks client emergencies and handovers. Protect deep work with defaults, not an absolute rule that staff then ignore.',
+        tags: ['workplace', 'meetings'],
+        industries: ['general'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'deb_g_03',
+        activitySlug: 'debate_me',
+        difficulty: 'intermediary',
+        title: 'AI Tools for All Staff',
+        promptText: 'Act as a risk-averse legal counsel. Debate why we should delay company-wide AI writing tools for six months. Push back when I argue for speed and literacy.',
+        objective: 'Separate real risk from fear, and propose a controlled pilot.',
+        exemplarResponse: 'I share the concern about confidential data leaking into public models. Delay is not the only control: a vetted vendor, clear data rules, and a 30-person pilot gives us learning without freezing the whole company.',
+        tags: ['workplace', 'ai_policy'],
+        industries: ['general'],
+        durationSeconds: 60,
+        prepSeconds: 5,
+      ),
+      const PromptModel(
+        id: 'deb_g_04',
+        activitySlug: 'debate_me',
+        difficulty: 'intermediary',
+        title: 'Performance Rankings',
+        promptText: 'Act as an HR director who wants forced ranking of the bottom 10% every year. Debate my view that coaching beats stack ranking. Push back hard on fairness.',
+        objective: 'Defend development without sounding soft on standards.',
+        exemplarResponse: 'Standards matter, and weak performance cannot sit untouched. Forced ranking still rewards politics and punishes collaborative teams. Clear goals, timed coaching, and exit only after a fair window raises the bar without the theatre.',
+        tags: ['workplace', 'performance'],
+        industries: ['general'],
         durationSeconds: 60,
         prepSeconds: 5,
       ),
@@ -2013,7 +2315,13 @@ class AppStateProvider extends ChangeNotifier {
         answers.careerStage = value;
         break;
       case 'careerType':
+        final oldCareer = answers.careerType;
         answers.careerType = value;
+        if (oldCareer != value) {
+          selectedPrompt = null;
+          _updateSelectedPrompt(forceRotate: true);
+          unawaited(fetchNextPromptFromApi(excludeCurrent: false));
+        }
         break;
       case 'confidence':
         answers.confidence = value;
@@ -2036,6 +2344,7 @@ class AppStateProvider extends ChangeNotifier {
     String? problem,
     String? goal,
   }) {
+    final careerChanged = careerType != null && answers.careerType != careerType;
     if (gender != null) answers.voiceProfile = gender;
     if (careerStage != null) answers.careerStage = careerStage;
     if (careerType != null) answers.careerType = careerType;
@@ -2048,7 +2357,13 @@ class AppStateProvider extends ChangeNotifier {
     // Step 2: Career stage and confidence set starting level (Beginner vs Intermediary). No one starts at Pro.
     computeAssessmentPlan();
 
-    _updateSelectedPrompt();
+    if (careerChanged) {
+      selectedPrompt = null;
+    }
+    _updateSelectedPrompt(forceRotate: careerChanged);
+    if (careerChanged) {
+      unawaited(fetchNextPromptFromApi(excludeCurrent: false));
+    }
     completeAssessment();
   }
 
@@ -2167,7 +2482,7 @@ class AppStateProvider extends ChangeNotifier {
     final secondaryName = activityNames[topDrills[1]] ?? 'Cut it in Half';
 
     personalizedPlan = PersonalizedPlanModel(
-      headline: '$primaryName & $secondaryName Focus Program',
+      headline: '$primaryName & $secondaryName Focus Programme',
       summary: 'A curated daily routine tailored for ${careerStageLabels[careerStage] ?? 'your career'} to speak with clarity and confidence.',
       recommendedTrack: careerType,
       primaryRoadblock: challenge,
@@ -2283,9 +2598,7 @@ class AppStateProvider extends ChangeNotifier {
     }
     _updateSelectedPrompt();
     notifyListeners();
-    if (isLoggedIn) {
-      unawaited(fetchNextPromptFromApi());
-    }
+    unawaited(fetchNextPromptFromApi());
   }
 
   Future<void> decideCoachingPrompt(String choice) async {
@@ -2350,9 +2663,7 @@ class AppStateProvider extends ChangeNotifier {
     selectedDifficulty = diff;
     _updateSelectedPrompt();
     notifyListeners();
-    if (isLoggedIn) {
-      unawaited(fetchNextPromptFromApi());
-    }
+    unawaited(fetchNextPromptFromApi());
   }
 
   /// Pull the next practice question from the API catalog (Mongo prompts).
@@ -2371,15 +2682,20 @@ class AppStateProvider extends ChangeNotifier {
               : selectedDifficulty;
       final excludeId = excludeCurrent &&
               selectedPrompt != null &&
-              selectedPrompt!.activitySlug == requestSlug &&
-              _looksLikeCatalogPromptId(selectedPrompt!.id)
+              selectedPrompt!.activitySlug == requestSlug
           ? selectedPrompt!.id
+          : null;
+      final excludeText = excludeCurrent &&
+              selectedPrompt != null &&
+              selectedPrompt!.activitySlug == requestSlug
+          ? selectedPrompt!.promptText
           : null;
       final data = await _api.nextPrompt(
         activitySlug: requestSlug,
         difficulty: difficulty,
         careerType: answers.careerType,
         excludePromptId: excludeId,
+        excludePromptText: excludeText,
         requireAuth: _api.isLoggedIn,
       );
       // Ignore stale responses if the user switched drills mid-flight.
@@ -2460,8 +2776,12 @@ class AppStateProvider extends ChangeNotifier {
           .toList();
       final specific = safe.where((p) => p.matchesCareer(career)).toList();
       final general = safe.where((p) => p.isGeneralIndustry).toList();
-      if (specific.isNotEmpty) {
+      // Tiny career-only pools (1 prompt) caused the same Debate/CTD topic forever.
+      if (specific.length >= 3) {
         pool = specific;
+      } else if (specific.isNotEmpty) {
+        pool = [...specific, ...general];
+        if (pool.isEmpty) pool = safe;
       } else if (general.isNotEmpty) {
         pool = general;
       } else {

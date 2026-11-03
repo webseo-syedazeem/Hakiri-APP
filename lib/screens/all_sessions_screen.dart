@@ -190,7 +190,7 @@ class _AllSessionsScreenState extends State<AllSessionsScreen> {
                     color: Color(0xFF0F172A),
                   ),
                   decoration: InputDecoration(
-                    hintText: 'Search sessions by drill name...',
+                    hintText: 'Search sessions by exercise name...',
                     hintStyle: const TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 13,
@@ -366,7 +366,7 @@ class _AllSessionsScreenState extends State<AllSessionsScreen> {
                       ),
                     ),
                     Text(
-                      '$score/5',
+                      '${score.toStringAsFixed(1)}/5',
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         color: Colors.white,
@@ -491,7 +491,7 @@ class _AllSessionsScreenState extends State<AllSessionsScreen> {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Complete a practice drill or adjust your search filter to see sessions here.',
+              'Complete a practice exercise or adjust your search filter to see sessions here.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'Inter',

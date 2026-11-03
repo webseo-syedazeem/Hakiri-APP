@@ -155,35 +155,35 @@ class SpeechEvaluatorService {
     // Offline Think Fast: spreadsheet weights (structure 0.4, latency 0.3, fillers 0.3)
     // + heaviest-low cap ≤ 3 when structure ≤ 2.
     final activityMeasures = <ActivityMeasureScore>[];
-    int overall;
+    double overall;
     var capped = false;
     String? scoringReason;
 
     if (prompt.activitySlug == 'think_fast') {
       final structure = isNonAnswer
-          ? 1
+          ? 1.0
           : isThin
-              ? (overlap >= 0.08 ? 2 : 1)
-              : clarityScore;
+              ? (overlap >= 0.08 ? 2.0 : 1.0)
+              : clarityScore.toDouble();
       final latency = isNonAnswer
-          ? 1
+          ? 1.0
           : isThin
-              ? 2
-              : engagementScore;
+              ? 2.0
+              : engagementScore.toDouble();
       final fillers = isNonAnswer
-          ? 1
+          ? 1.0
           : detectedCrutches.isEmpty
-              ? execScore
-              : (execScore - 1).clamp(1, 5);
+              ? execScore.toDouble()
+              : (execScore - 1).clamp(1, 5).toDouble();
 
       var raw = structure * 0.4 + latency * 0.3 + fillers * 0.3;
       if (structure <= 2 && raw > 3) {
         raw = 3;
         capped = true;
         scoringReason =
-            'Capped at 3 because Structure scored $structure.';
+            'Capped at 3 because Structure scored ${structure.toStringAsFixed(1)}.';
       }
-      overall = raw.round().clamp(1, 5);
+      overall = (raw.clamp(1.0, 5.0) * 10).roundToDouble() / 10.0;
       activityMeasures.addAll([
         ActivityMeasureScore(
           key: 'structure',
@@ -209,15 +209,17 @@ class SpeechEvaluatorService {
         ),
       ]);
       // Keep pillars aligned with measures for dashboard.
-      clarityScore = structure;
-      impactScore = structure;
-      engagementScore = latency;
-      execScore = fillers;
+      clarityScore = structure.round();
+      impactScore = structure.round();
+      engagementScore = latency.round();
+      execScore = fillers.round();
     } else {
-      overall = ((execScore + clarityScore + impactScore + engagementScore) /
-              4.0)
-          .round()
-          .clamp(1, 5);
+      overall =
+          (((execScore + clarityScore + impactScore + engagementScore) / 4.0)
+                      .clamp(1.0, 5.0) *
+                  10)
+              .roundToDouble() /
+          10.0;
     }
 
     final spokenSnippet = _snippet(words, maxWords: 10);
@@ -284,10 +286,10 @@ class SpeechEvaluatorService {
         isNonAnswer || isThin ? 0 : (durationSeconds > 25 ? 2 : 1);
 
     final pillars = FourPillarsScore(
-      executiveScore: execScore,
-      clarityScore: clarityScore,
-      impactScore: impactScore,
-      engagementScore: engagementScore,
+      executiveScore: execScore.toDouble(),
+      clarityScore: clarityScore.toDouble(),
+      impactScore: impactScore.toDouble(),
+      engagementScore: engagementScore.toDouble(),
       crutchCount: detectedCrutches.length,
       powerPauseCount: powerPauseCount,
       pacingWpm: wpm,

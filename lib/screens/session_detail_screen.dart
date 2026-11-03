@@ -208,7 +208,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                   Row(
                     children: [
                       Text(
-                        '${s.feedback.overallScore}',
+                        s.feedback.overallScore.toStringAsFixed(1),
                         style: const TextStyle(
                           color: AppColors.royalBlue,
                           fontSize: 40,
@@ -380,7 +380,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
     );
   }
 
-  Widget _scoreRow(String label, int score) {
+  Widget _scoreRow(String label, num score) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
@@ -396,7 +396,7 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
             ),
           ),
           Text(
-            '$score/5',
+            '${score.toStringAsFixed(1)}/5',
             style: const TextStyle(
               color: AppColors.textPrimary,
               fontSize: 13,

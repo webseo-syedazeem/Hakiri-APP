@@ -44,3 +44,70 @@ class AppColors {
   static const Color surface = surfaceWhite;
   static const Color metricTrack = Color(0xFFE2E8F0);
 }
+
+/// Single source of truth for all activity icon visuals & colors across Hakiri.
+class ActivityVisual {
+  final IconData icon;
+  final Color color;
+  final Color bgColor;
+
+  const ActivityVisual({
+    required this.icon,
+    required this.color,
+    required this.bgColor,
+  });
+
+  static ActivityVisual forSlug(String slug) {
+    switch (slug) {
+      case 'think_fast':
+        return const ActivityVisual(
+          icon: Icons.bolt_rounded,
+          color: Color(0xFF2563EB),
+          bgColor: Color(0xFFEFF6FF),
+        );
+      case 'debate_me':
+      case 'debate':
+        return const ActivityVisual(
+          icon: Icons.chat_bubble_rounded,
+          color: Color(0xFFF59E0B),
+          bgColor: Color(0xFFFFFBEB),
+        );
+      case 'connect_the_dots':
+        return const ActivityVisual(
+          icon: Icons.hub_rounded,
+          color: Color(0xFF9333EA),
+          bgColor: Color(0xFFF5F3FF),
+        );
+      case 'cut_it_in_half':
+        return const ActivityVisual(
+          icon: Icons.content_cut_rounded,
+          color: Color(0xFFD97706),
+          bgColor: Color(0xFFFFFBEB),
+        );
+      case 'one_minute_expert':
+        return const ActivityVisual(
+          icon: Icons.timer_rounded,
+          color: Color(0xFFEA580C),
+          bgColor: Color(0xFFFFF1EC),
+        );
+      case 'storytelling_gym':
+        return const ActivityVisual(
+          icon: Icons.auto_stories_rounded,
+          color: Color(0xFF8B5CF6),
+          bgColor: Color(0xFFF5F3FF),
+        );
+      case 'explain_it_simply':
+        return const ActivityVisual(
+          icon: Icons.lightbulb_rounded,
+          color: Color(0xFF10B981),
+          bgColor: Color(0xFFECFDF5),
+        );
+      default:
+        return const ActivityVisual(
+          icon: Icons.bolt_rounded,
+          color: Color(0xFF2563EB),
+          bgColor: Color(0xFFEFF6FF),
+        );
+    }
+  }
+}

@@ -9,10 +9,39 @@ const {
   analyzeSpeechWithGemini,
   generateDebatePushback,
   synthesizeCoachSpeech,
+  generateDynamicPromptWithGemini,
 } = require("../config/ai");
 
 const status = async (_req, res) => {
   return success(res, "AI status.", { ai: geminiStatus() });
+};
+
+/** GET /ai/probe — live check that Gemini can generate a practice question. */
+const probe = async (_req, res) => {
+  if (!isGeminiConfigured()) {
+    return error(res, "GEMINI_API_KEY is not configured on the server.", 503);
+  }
+  try {
+    const prompt = await generateDynamicPromptWithGemini({
+      activitySlug: "think_fast",
+      careerType: "general",
+      difficulty: "intermediary",
+      excludeTitles: [],
+    });
+    return success(res, "Gemini prompt generation OK.", {
+      ok: true,
+      model: prompt.model || null,
+      prompt_preview: String(prompt.promptText || "").slice(0, 160),
+      code: prompt.code,
+    });
+  } catch (err) {
+    console.error("AI probe failed:", err.message);
+    return error(
+      res,
+      err.message || "Gemini probe failed.",
+      err.statusCode || 502
+    );
+  }
 };
 
 const liveToken = async (req, res) => {
@@ -232,6 +261,7 @@ const coachSpeak = async (req, res) => {
 
 module.exports = {
   status,
+  probe,
   liveToken,
   analyzeSpeech,
   debatePushback,

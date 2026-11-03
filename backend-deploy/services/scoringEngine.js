@@ -62,9 +62,9 @@ function parseMeasureScore(raw) {
   }
   const n = Number(raw);
   if (!Number.isFinite(n)) return null;
-  const rounded = Math.round(n);
-  if (rounded < 1 || rounded > 5) return null;
-  return rounded;
+  // Keep one decimal (2.6, 3.0) — whole-number rounding misled users vs overall avg.
+  if (n < 0.5 || n > 5.5) return null;
+  return Math.min(5, Math.max(1, Math.round(n * 10) / 10));
 }
 
 /**
@@ -147,12 +147,12 @@ function computeActivityScore(activitySlug, measureScores = {}) {
     capped = true;
   }
 
-  // Store as whole number 1-5 for app compatibility, keep decimal in meta
-  const overallInt = Math.min(5, Math.max(1, Math.round(overall)));
+  // One decimal place 1.0–5.0 (same precision as measure cards / overall ring).
+  const overallOneDp = Math.min(5, Math.max(1, Math.round(overall * 10) / 10));
 
   return {
     ok: true,
-    overall_score: overallInt,
+    overall_score: overallOneDp,
     overall_score_raw: overall,
     capped,
     withhold_judgement: false,
@@ -201,7 +201,9 @@ function measuresToPillars(activitySlug, measureScores, fallbackPillars = {}) {
     .map(parseMeasureScore)
     .filter((v) => v != null);
   const avg = vals.length
-    ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length)
+    ? Math.round(
+        (vals.reduce((a, b) => a + b, 0) / vals.length) * 10
+      ) / 10
     : 3;
   return {
     executive_score: avg,
@@ -219,7 +221,7 @@ function measurePromptForActivity(activitySlug) {
     weight: d.weight,
     heaviest: Boolean(d.heaviest),
     score_hint:
-      "Integer 1-5, or null if not_assessed (poor audio / cannot judge).",
+      "Number 1.0–5.0 to one decimal place, or null if not_assessed (poor audio / cannot judge).",
   }));
 }
 

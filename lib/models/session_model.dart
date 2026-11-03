@@ -1,8 +1,9 @@
 class FourPillarsScore {
-  final int executiveScore; // 1 to 5
-  final int clarityScore;
-  final int impactScore;
-  final int engagementScore;
+  /// 1.0–5.0 at one decimal place.
+  final double executiveScore;
+  final double clarityScore;
+  final double impactScore;
+  final double engagementScore;
 
   final int crutchCount;
   final int powerPauseCount;
@@ -39,9 +40,12 @@ class FourPillarsScore {
 
   factory FourPillarsScore.fromJson(Map<String, dynamic>? json) {
     final map = json ?? const <String, dynamic>{};
-    int read(String key, [int fallback = 3]) {
+    double read(String key, [double fallback = 3.0]) {
       final value = map[key];
-      if (value is num) return value.round().clamp(1, 5);
+      if (value is num) {
+        final v = value.toDouble();
+        return (v.clamp(1.0, 5.0) * 10).roundToDouble() / 10.0;
+      }
       return fallback;
     }
 
@@ -99,7 +103,8 @@ class ActivityMeasureScore {
   final String key;
   final String label;
   final double weight;
-  final int? score;
+  /// 1.0–5.0 at one decimal place when assessed.
+  final double? score;
   final bool included;
   final double effectiveWeight;
   final bool isHeaviest;
@@ -129,7 +134,11 @@ class ActivityMeasureScore {
         key: (json['key'] ?? '').toString(),
         label: (json['label'] ?? json['key'] ?? '').toString(),
         weight: (json['weight'] is num) ? (json['weight'] as num).toDouble() : 0,
-        score: json['score'] is num ? (json['score'] as num).round() : null,
+        score: json['score'] is num
+            ? ((((json['score'] as num).toDouble().clamp(1.0, 5.0)) * 10)
+                    .roundToDouble() /
+                10.0)
+            : null,
         included: json['included'] != false && json['score'] != null,
         effectiveWeight: (json['effective_weight'] is num)
             ? (json['effective_weight'] as num).toDouble()
@@ -139,7 +148,8 @@ class ActivityMeasureScore {
 }
 
 class EvaluationFeedback {
-  final int overallScore; // 1 to 5
+  /// 1.0–5.0 at one decimal place.
+  final double overallScore;
   final FourPillarsScore pillars;
   final String oneStrength;
   final String oneSpecificImprovement;
@@ -223,7 +233,7 @@ class EvaluationFeedback {
               key: entry.key.toString(),
               label: entry.key.toString(),
               weight: 0,
-              score: v.round(),
+              score: (v.toDouble().clamp(1.0, 5.0) * 10).roundToDouble() / 10.0,
             ),
           );
         }
@@ -231,7 +241,9 @@ class EvaluationFeedback {
     }
 
     return EvaluationFeedback(
-      overallScore: overall is num ? overall.round().clamp(1, 5) : 3,
+      overallScore: overall is num
+          ? (overall.toDouble().clamp(1.0, 5.0) * 10).roundToDouble() / 10.0
+          : 3.0,
       pillars: FourPillarsScore.fromJson(map['pillars'] as Map<String, dynamic>?),
       oneStrength: (map['one_strength'] ?? '').toString(),
       oneSpecificImprovement: (map['one_specific_improvement'] ?? '').toString(),

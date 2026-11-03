@@ -375,7 +375,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _buildRecentSessionCard(
-                    scoreFraction: '$score/5',
+                    scoreFraction: '${score.toStringAsFixed(1)}/5',
                     scoreFractionValue: score / 5,
                     ringColor: score >= 4
                         ? const Color(0xFF10B981)
