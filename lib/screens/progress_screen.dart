@@ -357,7 +357,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Complete a drill to see your progress here.',
+                      'Complete an exercise to see your progress here.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: AppColors.textSecondary,
@@ -532,8 +532,8 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
       return (
         avg.toStringAsFixed(1),
         false,
-        '${scores.length} ${scores.length == 1 ? 'drill' : 'drills'}',
-        true,
+        null,
+        null,
         points,
       );
     }
@@ -548,7 +548,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
   ) {
     final raw = state.pillarStats[key];
     if (raw is! Map) {
-      return ('Locked', true, '3 drills needed', null, const <double>[]);
+      return ('Locked', true, '3 exercises needed', null, const <double>[]);
     }
     final map = Map<String, dynamic>.from(raw);
     final average = map['average'];
@@ -556,7 +556,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
     final locked = map['status'] == 'need_more' || average == null || samples < 3;
     if (locked) {
       final needed = (3 - samples).clamp(1, 3);
-      final msg = '$needed more drill${needed == 1 ? '' : 's'} needed';
+      final msg = '$needed more exercise${needed == 1 ? '' : 's'} needed';
       return ('Locked', true, msg, null, const <double>[]);
     }
     final value = (average as num).toDouble();
@@ -564,8 +564,8 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
     return (
       value.toStringAsFixed(1),
       false,
-      '$samples samples',
-      true,
+      null,
+      null,
       <double>[value],
     );
   }

@@ -936,203 +936,225 @@ class _RecordingScreenState extends State<RecordingScreen>
     return Scaffold(
       backgroundColor: const Color(0xFFFBFBF9),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Back Button
-              GestureDetector(
-                onTap: () => unawaited(_onBack()),
-                child: const Icon(
-                  Icons.chevron_left_rounded,
-                  color: Color(0xFF0F172A),
-                  size: 32,
-                ),
-              ),
-              const SizedBox(height: 24),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isShort = constraints.maxHeight < 680;
+            // Responsive timer size: stays 220 on normal mobile, scales smoothly on fold/short screens
+            final timerSize = (constraints.maxHeight * 0.28).clamp(135.0, 220.0);
+            final numberSize = (timerSize * 0.29).clamp(38.0, 64.0);
 
-              _buildActivityTagBadge(boxed: true),
-              const SizedBox(height: 12),
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: SingleChildScrollView(
+                physics: isShort
+                    ? const BouncingScrollPhysics()
+                    : const NeverScrollableScrollPhysics(),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: math.max(0, constraints.maxHeight - 20)),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Back Button
+                        GestureDetector(
+                          onTap: () => unawaited(_onBack()),
+                          child: const Icon(
+                            Icons.chevron_left_rounded,
+                            color: Color(0xFF0F172A),
+                            size: 32,
+                          ),
+                        ),
+                        SizedBox(height: isShort ? 12 : 24),
 
-              if (_isCutInHalf)
-                // Readable passage size first; timer uses leftover space (capped).
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final wordCount = _promptHeadline
-                          .split(RegExp(r'\s+'))
-                          .where((w) => w.isNotEmpty)
-                          .length;
-                      // Slightly smaller type only for very long passages.
-                      final passageSize = wordCount > 100
-                          ? 16.0
-                          : wordCount > 70
-                              ? 17.5
-                              : 19.0;
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'CUT THIS TEXT',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              color: Color(0xFF2563EB),
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1.4,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            _promptHeadline,
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: passageSize,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF0F172A),
-                              letterSpacing: -0.25,
-                              height: 1.38,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
+                        _buildActivityTagBadge(boxed: true),
+                        SizedBox(height: isShort ? 8 : 12),
+
+                        if (_isCutInHalf)
+                          // Readable passage size first; timer uses leftover space (capped).
                           Expanded(
                             child: LayoutBuilder(
-                              builder: (context, timerBox) {
-                                // Cap timer so short passages don't look tiny vs a giant ring.
-                                final timerSize = math
-                                    .min(
-                                      timerBox.maxWidth * 0.62,
-                                      timerBox.maxHeight * 0.88,
-                                    )
-                                    .clamp(120.0, 188.0);
-                                final numberSize =
-                                    (timerSize * 0.30).clamp(32.0, 54.0);
-                                final labelSize =
-                                    (timerSize * 0.052).clamp(9.0, 11.0);
-                                return Center(
-                                  child: SizedBox(
-                                    width: timerSize,
-                                    height: timerSize,
-                                    child: AnimatedBuilder(
-                                      animation: _prepArcController,
-                                      builder: (context, child) {
-                                        return CustomPaint(
-                                          painter: _CountdownCirclePainter(
-                                            progress: 1.0 -
-                                                _prepArcController.value,
-                                          ),
-                                          child: Center(
-                                            child: Padding(
-                                              padding: EdgeInsets.symmetric(
-                                                horizontal: timerSize * 0.14,
-                                              ),
-                                              child: Column(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Text(
-                                                    '$_prepSecondsRemaining',
-                                                    style: TextStyle(
-                                                      fontFamily: 'Inter',
-                                                      fontSize: numberSize,
-                                                      fontWeight:
-                                                          FontWeight.w900,
-                                                      color: const Color(
-                                                          0xFF0F172A),
-                                                      letterSpacing: -1.0,
-                                                      height: 1.0,
+                              builder: (context, innerConstraints) {
+                                final wordCount = _promptHeadline
+                                    .split(RegExp(r'\s+'))
+                                    .where((w) => w.isNotEmpty)
+                                    .length;
+                                // Slightly smaller type only for very long passages.
+                                final passageSize = wordCount > 100
+                                    ? 16.0
+                                    : wordCount > 70
+                                        ? 17.5
+                                        : 19.0;
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'CUT THIS TEXT',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        color: Color(0xFF2563EB),
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: 1.4,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      _promptHeadline,
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: passageSize,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF0F172A),
+                                        letterSpacing: -0.25,
+                                        height: 1.38,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Expanded(
+                                      child: LayoutBuilder(
+                                        builder: (context, timerBox) {
+                                          // Cap timer so short passages don't look tiny vs a giant ring.
+                                          final cihTimerSize = math
+                                              .min(
+                                                timerBox.maxWidth * 0.62,
+                                                timerBox.maxHeight * 0.88,
+                                              )
+                                              .clamp(110.0, 188.0);
+                                          final cihNumberSize =
+                                              (cihTimerSize * 0.30).clamp(30.0, 54.0);
+                                          final cihLabelSize =
+                                              (cihTimerSize * 0.052).clamp(8.5, 11.0);
+                                          return Center(
+                                            child: SizedBox(
+                                              width: cihTimerSize,
+                                              height: cihTimerSize,
+                                              child: AnimatedBuilder(
+                                                animation: _prepArcController,
+                                                builder: (context, child) {
+                                                  return CustomPaint(
+                                                    painter: _CountdownCirclePainter(
+                                                      progress: 1.0 -
+                                                          _prepArcController.value,
                                                     ),
-                                                  ),
-                                                  const SizedBox(height: 3),
-                                                  Text(
-                                                    'SEC TO READ',
-                                                    textAlign: TextAlign.center,
-                                                    maxLines: 1,
-                                                    softWrap: false,
-                                                    style: TextStyle(
-                                                      fontFamily: 'Inter',
-                                                      fontSize: labelSize,
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      letterSpacing: 1.1,
-                                                      color: const Color(
-                                                          0xFF64748B),
-                                                      height: 1.0,
+                                                    child: Center(
+                                                      child: Padding(
+                                                        padding: EdgeInsets.symmetric(
+                                                          horizontal: cihTimerSize * 0.14,
+                                                        ),
+                                                        child: Column(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            Text(
+                                                              '$_prepSecondsRemaining',
+                                                              style: TextStyle(
+                                                                fontFamily: 'Inter',
+                                                                fontSize: cihNumberSize,
+                                                                fontWeight:
+                                                                    FontWeight.w900,
+                                                                color: const Color(
+                                                                    0xFF0F172A),
+                                                                letterSpacing: -1.0,
+                                                                height: 1.0,
+                                                              ),
+                                                            ),
+                                                            const SizedBox(height: 3),
+                                                            Text(
+                                                              'SEC TO READ',
+                                                              textAlign: TextAlign.center,
+                                                              maxLines: 1,
+                                                              softWrap: false,
+                                                              style: TextStyle(
+                                                                fontFamily: 'Inter',
+                                                                fontSize: cihLabelSize,
+                                                                fontWeight:
+                                                                    FontWeight.w800,
+                                                                letterSpacing: 1.1,
+                                                                color: const Color(
+                                                                    0xFF64748B),
+                                                                height: 1.0,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      ),
                                                     ),
-                                                  ),
-                                                ],
+                                                  );
+                                                },
                                               ),
                                             ),
-                                          ),
-                                        );
-                                      },
+                                          );
+                                        },
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 );
                               },
                             ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                )
-              else ...[
-                _buildPromptHeadlineRichText(),
-                Expanded(
-                  child: Center(
-                    child: SizedBox(
-                      width: 220,
-                      height: 220,
-                      child: AnimatedBuilder(
-                        animation: _prepArcController,
-                        builder: (context, child) {
-                          return CustomPaint(
-                            painter: _CountdownCirclePainter(
-                              progress: 1.0 - _prepArcController.value,
-                            ),
+                          )
+                        else ...[
+                          _buildPromptHeadlineRichText(isShort: isShort),
+                          Expanded(
                             child: Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    '$_prepSecondsRemaining',
-                                    style: const TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 64,
-                                      fontWeight: FontWeight.w900,
-                                      color: Color(0xFF0F172A),
-                                      letterSpacing: -1.0,
-                                    ),
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(vertical: isShort ? 10 : 20),
+                                child: SizedBox(
+                                  width: timerSize,
+                                  height: timerSize,
+                                  child: AnimatedBuilder(
+                                    animation: _prepArcController,
+                                    builder: (context, child) {
+                                      return CustomPaint(
+                                        painter: _CountdownCirclePainter(
+                                          progress: 1.0 - _prepArcController.value,
+                                        ),
+                                        child: Center(
+                                          child: Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Text(
+                                                '$_prepSecondsRemaining',
+                                                style: TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: numberSize,
+                                                  fontWeight: FontWeight.w900,
+                                                  color: const Color(0xFF0F172A),
+                                                  letterSpacing: -1.0,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              const Text(
+                                                'SECONDS',
+                                                style: TextStyle(
+                                                  fontFamily: 'Inter',
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w800,
+                                                  letterSpacing: 1.6,
+                                                  color: Color(0xFF64748B),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
-                                  const SizedBox(height: 2),
-                                  const Text(
-                                    'SECONDS',
-                                    style: TextStyle(
-                                      fontFamily: 'Inter',
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: 1.6,
-                                      color: Color(0xFF64748B),
-                                    ),
-                                  ),
-                                ],
+                                ),
                               ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        ],
+                        ActionPillButton(
+                          label: 'Stop clock · Start recording',
+                          onTap: _skipPrepToRecording,
+                        ),
+                        const SizedBox(height: 8),
+                      ],
                     ),
                   ),
                 ),
-              ],
-              ActionPillButton(
-                label: 'Stop clock · Start recording',
-                onTap: _skipPrepToRecording,
               ),
-              const SizedBox(height: 8),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -1150,249 +1172,292 @@ class _RecordingScreenState extends State<RecordingScreen>
     return Scaffold(
       backgroundColor: const Color(0xFF0B101D),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Top bar: back + selected drill name (not hardcoded Think Fast)
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      GestureDetector(
-                        onTap: () => unawaited(_onBack()),
-                        child: const Icon(
-                          Icons.chevron_left_rounded,
-                          color: Colors.white,
-                          size: 28,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isShort = constraints.maxHeight < 720;
+            final isVeryShort = constraints.maxHeight < 600;
+
+            final timerSize = isVeryShort
+                ? 135.0
+                : (isShort ? (constraints.maxHeight * 0.25).clamp(145.0, 185.0) : 210.0);
+            final timeFontSize = (timerSize * 0.25).clamp(34.0, 52.0);
+
+            final questionFontSize = _isCutInHalf
+                ? 15.5
+                : (isVeryShort ? 18.0 : (isShort ? 21.0 : 24.0));
+            final questionMaxLines = _isCutInHalf
+                ? 8
+                : (isVeryShort ? 3 : (isShort ? 4 : 6));
+
+            final gapTopQuestion = isShort ? 14.0 : 22.0;
+            final gapQuestionToTimer = isShort ? 14.0 : 36.0;
+            final gapTimerToRec = isShort ? 14.0 : 24.0;
+            final gapRecToWave = isShort ? 10.0 : 20.0;
+            final waveHeight = isShort ? 36.0 : 48.0;
+
+            return SingleChildScrollView(
+              physics: isShort
+                  ? const BouncingScrollPhysics()
+                  : const NeverScrollableScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minHeight: math.max(0, constraints.maxHeight),
+                ),
+                child: IntrinsicHeight(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Top bar: back + selected drill name (not hardcoded Think Fast)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                GestureDetector(
+                                  onTap: () => unawaited(_onBack()),
+                                  child: const Icon(
+                                    Icons.chevron_left_rounded,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
+                                ),
+                                Flexible(
+                                  child: Text(
+                                    activityTitle,
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontFamily: 'Inter',
+                                      color: Color(0xFFA0A3B5),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.6,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 28), // balance chevron
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Horizontal Progress Bar
+                            Stack(
+                              children: [
+                                Container(
+                                  height: 2.5,
+                                  width: double.infinity,
+                                  color: const Color(0xFF1E293B),
+                                ),
+                                Container(
+                                  height: 2.5,
+                                  width: MediaQuery.of(context).size.width * 0.40,
+                                  color: const Color(0xFF818CF8),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                      ),
-                      Flexible(
-                        child: Text(
-                          activityTitle,
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        SizedBox(height: gapTopQuestion),
+
+                        // Cut It In Half shows a passage to compress, not a Q&A question.
+                        Text(
+                          Provider.of<AppStateProvider>(context, listen: false)
+                                      .selectedActivity
+                                      ?.slug ==
+                                  'cut_it_in_half'
+                              ? 'CUT THIS TEXT'
+                              : 'YOUR QUESTION',
                           style: const TextStyle(
                             fontFamily: 'Inter',
-                            color: Color(0xFFA0A3B5),
-                            fontSize: 11,
+                            color: Color(0xFF818CF8),
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: 1.6,
+                            letterSpacing: 1.4,
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 28), // balance chevron
-                    ],
-                  ),
-                  const SizedBox(height: 12),
+                        const SizedBox(height: 8),
 
-                  // Horizontal Progress Bar
-                  Stack(
-                    children: [
-                      Container(
-                        height: 2.5,
-                        width: double.infinity,
-                        color: const Color(0xFF1E293B),
-                      ),
-                      Container(
-                        height: 2.5,
-                        width: MediaQuery.of(context).size.width * 0.40,
-                        color: const Color(0xFF818CF8),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 22),
-
-              // Cut It In Half shows a passage to compress, not a Q&A question.
-              Text(
-                Provider.of<AppStateProvider>(context, listen: false)
-                            .selectedActivity
-                            ?.slug ==
-                        'cut_it_in_half'
-                    ? 'CUT THIS TEXT'
-                    : 'YOUR QUESTION',
-                style: const TextStyle(
-                  fontFamily: 'Inter',
-                  color: Color(0xFF818CF8),
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.4,
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // Passage / question — keep CIH size stable (same as read screen).
-              Text(
-                _promptHeadline,
-                maxLines: _isCutInHalf ? 8 : 6,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: _isCutInHalf ? 15.5 : 24,
-                  fontWeight: _isCutInHalf ? FontWeight.w600 : FontWeight.w900,
-                  color: Colors.white,
-                  letterSpacing: _isCutInHalf ? -0.2 : -0.6,
-                  height: _isCutInHalf ? 1.35 : 1.25,
-                ),
-              ),
-              const SizedBox(height: 36),
-
-              // Central Circular Speak Timer
-              Center(
-                child: SizedBox(
-                  width: 210,
-                  height: 210,
-                  child: CustomPaint(
-                    painter: _RecordingCirclePainter(
-                      progress: _speakingSecondsRemaining /
-                          _speakingTotalSeconds.clamp(1, 999),
-                    ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            timeFormatted,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 52,
-                              fontWeight: FontWeight.w900,
-                              color: Colors.white,
-                              letterSpacing: 1.5,
-                            ),
+                        // Passage / question — keep CIH size stable (same as read screen).
+                        Text(
+                          _promptHeadline,
+                          maxLines: questionMaxLines,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: questionFontSize,
+                            fontWeight: _isCutInHalf ? FontWeight.w600 : FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: _isCutInHalf ? -0.2 : -0.6,
+                            height: _isCutInHalf ? 1.35 : 1.25,
                           ),
-                          const SizedBox(height: 2),
-                          const Text(
-                            'left to speak',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              color: Color(0xFFA0A3B5),
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // REC Pill Badge
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2E1116),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 7,
-                        height: 7,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFEF4444),
-                          shape: BoxShape.circle,
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Text(
-                        'REC',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          color: Color(0xFFEF4444),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.2,
+                        SizedBox(height: gapQuestionToTimer),
+
+                        // Central Circular Speak Timer
+                        Center(
+                          child: SizedBox(
+                            width: timerSize,
+                            height: timerSize,
+                            child: CustomPaint(
+                              painter: _RecordingCirclePainter(
+                                progress: _speakingSecondsRemaining /
+                                    _speakingTotalSeconds.clamp(1, 999),
+                              ),
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      timeFormatted,
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        fontSize: timeFontSize,
+                                        fontWeight: FontWeight.w900,
+                                        color: Colors.white,
+                                        letterSpacing: 1.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'left to speak',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        color: const Color(0xFFA0A3B5),
+                                        fontSize: isShort ? 11.5 : 12.5,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                        SizedBox(height: gapTimerToRec),
+
+                        // REC Pill Badge
+                        Center(
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isShort ? 12 : 14,
+                              vertical: isShort ? 5 : 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2E1116),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: const Color(0xFFEF4444).withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFFEF4444),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const Text(
+                                  'REC',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    color: Color(0xFFEF4444),
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: gapRecToWave),
+
+                        // Live Waveform — levels from speech_to_text (same mic as transcript)
+                        Center(
+                          child: MicReactiveWaveform(
+                            active: true,
+                            barCount: 28,
+                            width: isShort ? 180 : 220,
+                            height: waveHeight,
+                            color: const Color(0xFF818CF8),
+                            externalLevel: _micLevel,
+                          ),
+                        ),
+
+                        const Spacer(),
+                        const SizedBox(height: 12),
+
+                        // Finish answer Button
+                        Container(
+                          width: double.infinity,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3EFE6),
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.25),
+                                blurRadius: 14,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(30),
+                              onTap: () => unawaited(_finishSession()),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 20),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const SizedBox(width: 38), // balance arrow
+                                    const Text(
+                                      'Finish answer',
+                                      style: TextStyle(
+                                        fontFamily: 'Inter',
+                                        color: Color(0xFF0F172A),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    Container(
+                                      width: 38,
+                                      height: 38,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF2563EB),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.arrow_forward_rounded,
+                                        color: Colors.white,
+                                        size: 19,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-
-              // Live Waveform — levels from speech_to_text (same mic as transcript)
-              Center(
-                child: MicReactiveWaveform(
-                  active: true,
-                  barCount: 28,
-                  width: 220,
-                  height: 48,
-                  color: const Color(0xFF818CF8),
-                  externalLevel: _micLevel,
-                ),
-              ),
-
-              const Spacer(),
-
-              // Finish answer Button
-              Container(
-                width: double.infinity,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF3EFE6),
-                  borderRadius: BorderRadius.circular(30),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.25),
-                      blurRadius: 14,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(30),
-                    onTap: () => unawaited(_finishSession()),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const SizedBox(width: 38), // balance arrow
-                          const Text(
-                            'Finish answer',
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              color: Color(0xFF0F172A),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF2563EB),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.arrow_forward_rounded,
-                              color: Colors.white,
-                              size: 19,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -1400,10 +1465,10 @@ class _RecordingScreenState extends State<RecordingScreen>
 
   /// Dynamic prompt title — last ~3 words highlighted blue (same look as Faizan).
   /// Cut It In Half passages use a smaller readable size (not a short question).
-  Widget _buildPromptHeadlineRichText() {
+  Widget _buildPromptHeadlineRichText({bool isShort = false}) {
     final words = _promptHeadline.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
     final isLongPassage = words.length > 28;
-    final fontSize = isLongPassage ? 17.0 : 27.0;
+    final fontSize = isLongPassage ? 16.0 : (isShort ? 22.0 : 27.0);
     final weight = isLongPassage ? FontWeight.w700 : FontWeight.w900;
     if (words.isEmpty) {
       return Text(

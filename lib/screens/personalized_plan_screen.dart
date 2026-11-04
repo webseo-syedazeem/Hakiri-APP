@@ -264,7 +264,7 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                                       Text(
                                         trialUsed
                                             ? 'FREE TRY USED'
-                                            : 'FREE TRY  ·  ONCE  ·  ANY DRILL',
+                                            : 'FREE TRY  ·  ONCE  ·  ANY EXERCISE',
                                         style: const TextStyle(
                                           color: Color(0xFFA3A6B8),
                                           fontSize: 10.5,
@@ -285,7 +285,7 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                                       Text(
                                         trialUsed
                                             ? 'Subscribe to practise again — this try isn’t saved.'
-                                            : 'Try one drill free. Fresh question from Hakkiri.',
+                                            : 'Try one exercise free. Fresh question from Hakkiri.',
                                         style: const TextStyle(
                                           color: Color(0xFF8E91A6),
                                           fontSize: 12.5,
@@ -325,7 +325,7 @@ class _PersonalizedPlanScreenState extends State<PersonalizedPlanScreen> {
                           '0${i + 2}',
                           _drillNames[focusOthers[i]] ?? focusOthers[i],
                           trialUsed
-                              ? 'Locked — subscribe to unlock this drill.'
+                              ? 'Locked — subscribe to unlock this exercise.'
                               : (_drillSubtitles[focusOthers[i]] ??
                                   'Targeted daily practice'),
                           locked: trialUsed,

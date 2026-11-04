@@ -118,7 +118,7 @@ class HowHakkiriWorksScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         const Text(
-                          'Reading tips won’t make you persuasive in meetings. Hakkiri uses high-repetition, low-stakes spoken micro-drills to turn executive communication into muscle memory.',
+                          'Reading tips won’t make you persuasive in meetings. Hakkiri uses high-repetition, low-stakes spoken micro-exercises to turn executive communication into muscle memory.',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 12.5,

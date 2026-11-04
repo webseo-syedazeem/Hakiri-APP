@@ -23,18 +23,31 @@ class ActivityModel {
     required this.successMeasures,
   });
 
-  factory ActivityModel.fromJson(Map<String, dynamic> json) => ActivityModel(
-        slug: json['slug'] ?? '',
-        name: json['name'] ?? '',
-        isMvp: json['is_mvp'] ?? false,
-        tagline: json['tagline'] ?? '',
-        description: json['description'] ?? '',
-        cognitiveMechanism: json['cognitive_mechanism'] ?? '',
-        prepDurationSeconds: json['prep_duration_seconds'] ?? 5,
-        defaultDurationSeconds: json['default_duration_seconds'] ?? 60,
-        benefits: List<String>.from(json['benefits'] ?? []),
-        successMeasures: List<String>.from(json['success_measures'] ?? []),
-      );
+  static const Map<String, String> punchyTaglines = {
+    'think_fast': 'Think clearly under pressure',
+    'debate_me': 'Defend your ideas calmly',
+    'connect_the_dots': 'Find links and pivot fast',
+    'cut_it_in_half': 'Get to the point faster',
+    'one_minute_expert': 'Explain ideas simply',
+    'explain_it_simply': 'Make complex ideas simple',
+    'storytelling_gym': 'Make your message land',
+  };
+
+  factory ActivityModel.fromJson(Map<String, dynamic> json) {
+    final slug = json['slug'] ?? '';
+    return ActivityModel(
+      slug: slug,
+      name: json['name'] ?? '',
+      isMvp: json['is_mvp'] ?? false,
+      tagline: punchyTaglines[slug] ?? json['tagline'] ?? '',
+      description: json['description'] ?? '',
+      cognitiveMechanism: json['cognitive_mechanism'] ?? '',
+      prepDurationSeconds: json['prep_duration_seconds'] ?? 5,
+      defaultDurationSeconds: json['default_duration_seconds'] ?? 60,
+      benefits: List<String>.from(json['benefits'] ?? []),
+      successMeasures: List<String>.from(json['success_measures'] ?? []),
+    );
+  }
 }
 
 class PromptModel {

@@ -412,11 +412,11 @@ class HomeScreenContent extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 2),
-                            Text(
-                              'Focus: ${state.focusLine}',
-                              style: const TextStyle(
+                            const Text(
+                              'Based on your goals and challenges.',
+                              style: TextStyle(
                                 color: AppColors.textSecondary,
-                                fontSize: 11,
+                                fontSize: 11.5,
                               ),
                             ),
                           ],

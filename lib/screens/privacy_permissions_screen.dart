@@ -137,7 +137,7 @@ class PrivacyPermissionsScreen extends StatelessWidget {
                       iconColor: const Color(0xFF10B981),
                       iconBg: const Color(0xFFECFDF5),
                       title: 'Microphone Access',
-                      badge: 'Active for Drills',
+                      badge: 'Active for Exercises',
                       badgeColor: const Color(0xFF059669),
                       badgeBg: const Color(0xFFECFDF5),
                       description:
@@ -190,7 +190,7 @@ class PrivacyPermissionsScreen extends StatelessWidget {
                       iconBg: const Color(0xFFEFF6FF),
                       title: 'Google Gemini for scoring',
                       description:
-                          'When you finish a drill, your audio and/or transcript is sent securely to Google’s Gemini models to score clarity, structure, and delivery, and to generate coaching feedback. We do not use your recordings to train public AI models.',
+                          'When you finish an exercise, your audio and/or transcript is sent securely to Google’s Gemini models to score clarity, structure, and delivery, and to generate coaching feedback. We do not use your recordings to train public AI models.',
                       showDivider: true,
                     ),
                     _buildPrivacyItem(

@@ -49,7 +49,7 @@ class _ProfileSectionScreenState extends State<ProfileSectionScreen> {
   String get _subtitle {
     if (_isGoals) return 'Your goals and the challenges you want to work on.';
     if (_isContext) {
-      return 'Where and how you practise — used to pick better drills.';
+      return 'Where and how you practise — used to pick better exercises.';
     }
     return 'Choose your daily practice length. Hakkiri uses this for your Today plan (5, 10, or 15 minutes).';
   }

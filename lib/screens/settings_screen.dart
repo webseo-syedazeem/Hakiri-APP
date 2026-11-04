@@ -113,7 +113,7 @@ class SettingsScreen extends StatelessWidget {
                         Text(
                           state.fullName.isNotEmpty
                               ? state.fullName
-                              : 'Unlimited drills & full 4-pillar analytics',
+                              : 'Unlimited exercises & full 4-pillar analytics',
                           style: const TextStyle(color: Color(0xFF8E91A6), fontSize: 12),
                         ),
                       ],

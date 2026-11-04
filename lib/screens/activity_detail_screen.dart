@@ -278,7 +278,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                               if (ok == true && !app.promptMatchesActivity(slug)) {
                                 AppSnackBar.showInfo(
                                   context,
-                                  'Could not load the right question for this drill. Try again.',
+                                  'Could not load the right question for this exercise. Try again.',
                                 );
                                 return;
                               }
@@ -327,7 +327,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                                 : 'Getting your question…',
                             detail: isDebateMe
                                 ? 'Loading a fresh workplace topic for opening + pushback.'
-                                : 'Picking a fresh prompt for this drill.',
+                                : 'Picking a fresh prompt for this exercise.',
                             action: () async {
                               app.ensureActivitySelected(slug);
                               await app.fetchNextPromptFromApi(
@@ -691,7 +691,7 @@ final Map<String, _ActivitySpec> _activitySpecs = {
         ],
       ),
     ),
-    subtitle: 'Answer a surprise question clearly, the way you would in a real meeting.',
+    subtitle: 'Answer an unexpected question clearly and confidently — just like in a real meeting.',
     steps: const [
       _Step(Icons.description_outlined, '1. Question', 'A random\nquestion\nappears.'),
       _thinkStep,
@@ -842,7 +842,7 @@ final Map<String, _ActivitySpec> _activitySpecs = {
     label: '7. DEBATE ME',
     title: 'Debate Me.',
     subtitle:
-        'Practise. Respond. Improve. A guided debate to help you think clearly, respond with confidence, and get better.',
+        'Practise. Respond. Improve. Build clear arguments, handle pushback and respond with confidence.',
     steps: [
       _Step(Icons.description_outlined, '1. Prompt', 'A debate\ntopic appears.'),
       _thinkStep,

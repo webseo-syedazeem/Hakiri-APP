@@ -3,7 +3,7 @@ const ACTIVITIES = [
     slug: "think_fast",
     name: "Think Fast",
     isMvp: true,
-    tagline: "Instant cognitive agility under time pressure",
+    tagline: "Think clearly under pressure",
     description:
       "A random question flashes on screen. After 5 seconds the app records for 60 seconds while you think on the spot.",
     cognitiveMechanism: "Rapid lexical retrieval and on-the-spot framing under stress",
@@ -43,7 +43,7 @@ const ACTIVITIES = [
     slug: "connect_the_dots",
     name: "Connect the Dots",
     isMvp: true,
-    tagline: "Lateral thinking and the seamless pivot",
+    tagline: "Find links and pivot fast",
     description:
       "Two random topics appear, a 5 second countdown runs, then you have 60 seconds to connect them.",
     cognitiveMechanism: "Associative retrieval and metaphorical bridge building",
@@ -103,7 +103,7 @@ const ACTIVITIES = [
     slug: "explain_it_simply",
     name: "Explain It Simply",
     isMvp: true,
-    tagline: "Demystifying complexity for non-experts",
+    tagline: "Make complex ideas simple",
     description:
       "A topic and an audience appear. Explain it to that person. If the topic is unfamiliar, use the learn-more link first.",
     cognitiveMechanism: "Analogical reasoning and audience calibration",
@@ -146,7 +146,7 @@ const ACTIVITIES = [
     slug: "cut_it_in_half",
     name: "Cut It In Half",
     isMvp: true,
-    tagline: "Clear, concise synthesis",
+    tagline: "Get to the point faster",
     description:
       
       "You get a longer passage and 60 seconds to summarise it out loud — keep the key points, cut the fluff.",
@@ -196,7 +196,7 @@ const ACTIVITIES = [
     slug: "storytelling_gym",
     name: "Storytelling Gym",
     isMvp: true,
-    tagline: "Replace data dumps with a narrative",
+    tagline: "Make your message land",
     description: "A scenario appears. You have 60 seconds to tell it as a story with a point.",
     cognitiveMechanism: "Narrative arc, tension, and a landed lesson",
     prepDurationSeconds: 10,
@@ -238,7 +238,7 @@ const ACTIVITIES = [
     slug: "one_minute_expert",
     name: "1 Minute Expert",
     isMvp: true,
-    tagline: "Chunk a topic and sound ready",
+    tagline: "Explain ideas simply",
     description: "You speak on a topic for 60 seconds: a hook, structured depth, and a conclusion.",
     cognitiveMechanism: "Categorical frameworks and an executive thesis",
     prepDurationSeconds: 5,
@@ -273,7 +273,7 @@ const ACTIVITIES = [
     slug: "debate_me",
     name: "Debate Me",
     isMvp: true,
-    tagline: "Hold your ground when someone pushes back",
+    tagline: "Defend your ideas calmly",
     description:
       "A stakeholder challenges you. You have 60 seconds to answer. The other side of the debate is played by the AI inside the Flutter app.",
     cognitiveMechanism: "Composure, power pauses, and counter-framing",

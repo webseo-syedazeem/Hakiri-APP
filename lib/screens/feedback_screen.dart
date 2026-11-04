@@ -173,7 +173,7 @@ class FeedbackScreen extends StatelessWidget {
                       const Padding(
                         padding: EdgeInsets.only(bottom: 20),
                         child: Text(
-                          'No scored session yet. Finish a drill to see real feedback here.',
+                          'No scored session yet. Finish an exercise to see real feedback here.',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14,
@@ -498,7 +498,7 @@ class FeedbackScreen extends StatelessWidget {
 
   String _headlineFor(EvaluationFeedback? feedback) {
     if (feedback == null) {
-      return 'Finish a drill\nto unlock scoring.';
+      return 'Finish an exercise\nto unlock scoring.';
     }
     if (feedback.withholdJudgement) {
       return 'Not enough signal.\nRetry for a score.';
@@ -1088,7 +1088,7 @@ class FeedbackScreen extends StatelessWidget {
             : 'Answer the prompt out loud with a clear point, then one reason.')
         : (feedback?.oneStrength.trim().isNotEmpty == true
             ? feedback!.oneStrength
-            : 'Complete a drill to unlock a personalised strength note.');
+            : 'Complete an exercise to unlock a personalised strength note.');
     final label = isWeak ? 'WHAT TO FIX' : 'WHAT WORKED WELL';
     final bg = isWeak ? const Color(0xFFFFF7ED) : const Color(0xFFECFDF5);
     final border = isWeak ? const Color(0xFFFED7AA) : const Color(0xFFA7F3D0);
@@ -1412,7 +1412,7 @@ class FeedbackScreen extends StatelessWidget {
   Widget _buildKeyPointsToImproveCard(EvaluationFeedback? feedback) {
     final improvement = feedback?.oneSpecificImprovement.trim().isNotEmpty == true
         ? feedback!.oneSpecificImprovement
-        : 'Complete a drill to unlock a specific coaching note.';
+        : 'Complete an exercise to unlock a specific coaching note.';
     final retry = feedback?.retryInstruction.trim().isNotEmpty == true
         ? feedback!.retryInstruction
         : 'Lead with the decision in the first 5 seconds.';

@@ -1073,46 +1073,43 @@ class _LandingScreenState extends State<LandingScreen>
           ),
           const SizedBox(height: 4),
 
-          // Headline
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'See your',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 32,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF0F172A),
-                  height: 1.15,
-                  letterSpacing: -0.8,
+          // Headline: "See your feedback." with blue rays (single line)
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Text(
+                  'See your ',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF0F172A),
+                    letterSpacing: -0.8,
+                  ),
                 ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Text(
-                    'feedback.',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 32,
-                      fontWeight: FontWeight.w900,
-                      color: Color(0xFF2563EB),
-                      height: 1.15,
-                      letterSpacing: -0.8,
-                    ),
+                const Text(
+                  'feedback.',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF2563EB),
+                    letterSpacing: -0.8,
                   ),
-                  const SizedBox(width: 4),
-                  Transform.translate(
-                    offset: const Offset(0, -6),
-                    child: const BlueAccentRays(size: 26),
-                  ),
-                ],
-              ),
-            ],
+                ),
+                const SizedBox(width: 4),
+                Transform.translate(
+                  offset: const Offset(0, -6),
+                  child: const BlueAccentRays(size: 24),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 6),
 
           // Subtitle
           const Text(
@@ -1127,13 +1124,15 @@ class _LandingScreenState extends State<LandingScreen>
           ),
           const SizedBox(height: 12),
 
-          // 2x2 Grid of Feedback Cards + Focus Next Banner
+          // Overall Score Card + 2x2 Grid of Feedback Cards + Focus Next Banner
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               child: Column(
                 children: [
-                  const SizedBox(height: 15),
+                  _buildOverallScoreCard(),
+                  const SizedBox(height: 12),
+
                   // Row 1: Clarity & Structure
                   Row(
                     children: [
@@ -1143,8 +1142,7 @@ class _LandingScreenState extends State<LandingScreen>
                           iconColor: const Color(0xFF2563EB),
                           iconBgColor: const Color(0xFFEFF6FF),
                           title: 'Clarity',
-                          level: 'Level 1.3',
-                          drills: '12 drills',
+                          score: '4.5',
                           description: 'Steadier pace, fewer hesitations.',
                           waveColor: const Color(0xFF2563EB),
                         ),
@@ -1156,8 +1154,7 @@ class _LandingScreenState extends State<LandingScreen>
                           iconColor: const Color(0xFF10B981),
                           iconBgColor: const Color(0xFFF0FDF4),
                           title: 'Structure',
-                          level: 'Level 1.3',
-                          drills: '12 drills',
+                          score: '3.5',
                           description: 'Your main points are easier to follow.',
                           waveColor: const Color(0xFF10B981),
                         ),
@@ -1175,8 +1172,7 @@ class _LandingScreenState extends State<LandingScreen>
                           iconColor: const Color(0xFFF43F5E),
                           iconBgColor: const Color(0xFFFFF1F2),
                           title: 'Engagement & tone',
-                          level: 'Level 1.3',
-                          drills: '12 drills',
+                          score: '4.5',
                           description: 'Keep people with you.',
                           waveColor: const Color(0xFFF43F5E),
                         ),
@@ -1188,20 +1184,18 @@ class _LandingScreenState extends State<LandingScreen>
                           iconColor: const Color(0xFFD97706),
                           iconBgColor: const Color(0xFFFEF3C7),
                           title: 'Conciseness',
-                          level: 'Level 1.3',
-                          drills: '12 drills',
+                          score: '3.5',
                           description: 'Get to the point faster.',
                           waveColor: const Color(0xFFF59E0B),
                         ),
                       ),
                     ],
                   ),
-                  // Extra top space so the focus card sits clearer under the 2×2 grid.
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 12),
 
                   // Focus Next Banner
                   _buildFocusNextBanner(),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 10),
                 ],
               ),
             ),
@@ -1212,21 +1206,103 @@ class _LandingScreenState extends State<LandingScreen>
     );
   }
 
+  Widget _buildOverallScoreCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFE2E8F0).withValues(alpha: 0.8),
+          width: 1.0,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.035),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            alignment: Alignment.center,
+            child: const Icon(
+              Icons.bar_chart_rounded,
+              color: Color(0xFF2563EB),
+              size: 26,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Overall score',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1E293B),
+                  letterSpacing: -0.1,
+                ),
+              ),
+              const SizedBox(height: 2),
+              RichText(
+                text: const TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '3.5',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    TextSpan(
+                      text: ' / 5',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMetricFeedbackCard({
     required IconData icon,
     required Color iconColor,
     required Color iconBgColor,
     required String title,
-    required String level,
-    required String drills,
+    required String score,
     required String description,
     required Color waveColor,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 13),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: const Color(0xFFE2E8F0).withValues(alpha: 0.8),
           width: 1.0,
@@ -1280,31 +1356,30 @@ class _LandingScreenState extends State<LandingScreen>
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            level,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              color: Color(0xFF0F172A),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.1,
+                      child: RichText(
+                        text: TextSpan(
+                          children: [
+                            TextSpan(
+                              text: score,
+                              style: const TextStyle(
+                                fontFamily: 'Inter',
+                                color: Color(0xFF0F172A),
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.2,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            drills,
-                            style: const TextStyle(
-                              fontFamily: 'Inter',
-                              color: Color(0xFF10B981),
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.1,
+                            const TextSpan(
+                              text: ' / 5',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                color: Color(0xFF64748B),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ],

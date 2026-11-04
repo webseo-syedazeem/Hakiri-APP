@@ -108,7 +108,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
       'Email: ${state.email}\n'
       'App: Hakkiri Gym v1.0.0\n',
     );
-    final emailUri = Uri.parse('mailto:hakkiriadmin@gmail.com?subject=$subject&body=$body');
+    final emailUri = Uri.parse('mailto:support@hakkiri.com?subject=$subject&body=$body');
 
     try {
       final launched = await launchUrl(
@@ -161,7 +161,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Email our team directly for feedback, feature requests, or help with your drills.',
+              'Email our team directly for feedback, feature requests, or help with your exercises.',
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 13,
@@ -183,7 +183,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                   SizedBox(width: 12),
                   Expanded(
                     child: SelectableText(
-                      'hakkiriadmin@gmail.com',
+                      'support@hakkiri.com',
                       style: TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 14,
@@ -207,11 +207,11 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 ),
                 onPressed: () {
-                  Clipboard.setData(const ClipboardData(text: 'hakkiriadmin@gmail.com'));
+                  Clipboard.setData(const ClipboardData(text: 'support@hakkiri.com'));
                   Navigator.pop(ctx);
                   AppSnackBar.showSuccess(
                     context,
-                    'Support email copied to clipboard! (hakkiriadmin@gmail.com)',
+                    'Support email copied to clipboard! (support@hakkiri.com)',
                   );
                 },
                 icon: const Icon(Icons.copy_rounded, size: 18),
