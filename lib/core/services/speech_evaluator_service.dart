@@ -159,60 +159,248 @@ class SpeechEvaluatorService {
     var capped = false;
     String? scoringReason;
 
-    if (prompt.activitySlug == 'think_fast') {
-      final structure = isNonAnswer
-          ? 1.0
-          : isThin
-              ? (overlap >= 0.08 ? 2.0 : 1.0)
-              : clarityScore.toDouble();
-      final latency = isNonAnswer
-          ? 1.0
-          : isThin
-              ? 2.0
-              : engagementScore.toDouble();
-      final fillers = isNonAnswer
-          ? 1.0
-          : detectedCrutches.isEmpty
-              ? execScore.toDouble()
-              : (execScore - 1).clamp(1, 5).toDouble();
+    final slug = prompt.activitySlug;
+    final structureVal = ((isNonAnswer
+            ? 1.0
+            : isThin
+                ? (overlap >= 0.08 ? 2.4 : 1.8)
+                : (clarityScore.toDouble() - (detectedCrutches.length * 0.2)).clamp(1.2, 5.0)) * 10).roundToDouble() / 10.0;
+    final latencyVal = ((isNonAnswer
+            ? 1.0
+            : isThin
+                ? 2.2
+                : (engagementScore.toDouble() + (wordCount > 30 ? 0.3 : -0.2)).clamp(1.2, 5.0)) * 10).roundToDouble() / 10.0;
+    final fillersVal = ((isNonAnswer
+            ? 1.0
+            : detectedCrutches.isEmpty
+                ? (execScore.toDouble() + 0.2).clamp(1.0, 5.0)
+                : (execScore - (detectedCrutches.length * 0.4)).clamp(1.0, 5.0)) * 10).roundToDouble() / 10.0;
+    final impactVal = ((isNonAnswer
+            ? 1.0
+            : isThin
+                ? 1.8
+                : (impactScore.toDouble() + (overlap >= 0.15 ? 0.4 : -0.1)).clamp(1.2, 5.0)) * 10).roundToDouble() / 10.0;
 
-      var raw = structure * 0.4 + latency * 0.3 + fillers * 0.3;
-      if (structure <= 2 && raw > 3) {
+    if (slug == 'think_fast') {
+      var raw = structureVal * 0.4 + latencyVal * 0.35 + fillersVal * 0.25;
+      if (structureVal <= 2 && raw > 3) {
         raw = 3;
         capped = true;
         scoringReason =
-            'Capped at 3 because Structure scored ${structure.toStringAsFixed(1)}.';
+            'Capped at 3 because Text Structure scored ${structureVal.toStringAsFixed(1)}.';
       }
       overall = (raw.clamp(1.0, 5.0) * 10).roundToDouble() / 10.0;
       activityMeasures.addAll([
         ActivityMeasureScore(
-          key: 'structure',
-          label: 'Structure',
+          key: 'response_readiness',
+          label: 'Response Readiness',
+          weight: 0.35,
+          score: latencyVal,
+          effectiveWeight: 0.35,
+        ),
+        ActivityMeasureScore(
+          key: 'text_structure',
+          label: 'Text Structure',
           weight: 0.4,
-          score: structure,
+          score: structureVal,
           isHeaviest: true,
           effectiveWeight: 0.4,
         ),
         ActivityMeasureScore(
-          key: 'latency',
-          label: 'Latency',
+          key: 'filler_control',
+          label: 'Filler Control',
+          weight: 0.25,
+          score: fillersVal,
+          effectiveWeight: 0.25,
+        ),
+      ]);
+      clarityScore = structureVal.round();
+      impactScore = structureVal.round();
+      engagementScore = latencyVal.round();
+      execScore = fillersVal.round();
+    } else if (slug == 'cut_it_in_half') {
+      var raw = structureVal * 0.4 + impactVal * 0.35 + fillersVal * 0.25;
+      overall = (raw.clamp(1.0, 5.0) * 10).roundToDouble() / 10.0;
+      activityMeasures.addAll([
+        ActivityMeasureScore(
+          key: 'message_compression',
+          label: 'Message Compression',
+          weight: 0.4,
+          score: structureVal,
+          isHeaviest: true,
+          effectiveWeight: 0.4,
+        ),
+        ActivityMeasureScore(
+          key: 'point_first',
+          label: 'Point First',
+          weight: 0.35,
+          score: impactVal,
+          effectiveWeight: 0.35,
+        ),
+        ActivityMeasureScore(
+          key: 'paraphrasing',
+          label: 'Paraphrasing',
+          weight: 0.25,
+          score: fillersVal,
+          effectiveWeight: 0.25,
+        ),
+      ]);
+    } else if (slug == 'one_minute_expert') {
+      var raw = structureVal * 0.4 + impactVal * 0.3 + fillersVal * 0.3;
+      overall = (raw.clamp(1.0, 5.0) * 10).roundToDouble() / 10.0;
+      activityMeasures.addAll([
+        ActivityMeasureScore(
+          key: 'opening_impact',
+          label: 'Opening Impact',
           weight: 0.3,
-          score: latency,
+          score: impactVal,
           effectiveWeight: 0.3,
         ),
         ActivityMeasureScore(
-          key: 'fillers',
-          label: 'Fillers',
+          key: 'content_structure',
+          label: 'Content Structure',
+          weight: 0.4,
+          score: structureVal,
+          isHeaviest: true,
+          effectiveWeight: 0.4,
+        ),
+        ActivityMeasureScore(
+          key: 'time_control',
+          label: 'Time Control',
           weight: 0.3,
-          score: fillers,
+          score: fillersVal,
           effectiveWeight: 0.3,
         ),
       ]);
-      // Keep pillars aligned with measures for dashboard.
-      clarityScore = structure.round();
-      impactScore = structure.round();
-      engagementScore = latency.round();
-      execScore = fillers.round();
+    } else if (slug == 'explain_it_simply') {
+      var raw = impactVal * 0.35 + latencyVal * 0.2 + fillersVal * 0.2 + structureVal * 0.25;
+      overall = (raw.clamp(1.0, 5.0) * 10).roundToDouble() / 10.0;
+      activityMeasures.addAll([
+        ActivityMeasureScore(
+          key: 'audience_fit',
+          label: 'Audience Fit',
+          weight: 0.35,
+          score: impactVal,
+          isHeaviest: true,
+          effectiveWeight: 0.35,
+        ),
+        ActivityMeasureScore(
+          key: 'opening_impact',
+          label: 'Opening Impact',
+          weight: 0.2,
+          score: latencyVal,
+          effectiveWeight: 0.2,
+        ),
+        ActivityMeasureScore(
+          key: 'time_control',
+          label: 'Time Control',
+          weight: 0.2,
+          score: fillersVal,
+          effectiveWeight: 0.2,
+        ),
+        ActivityMeasureScore(
+          key: 'language_simplicity',
+          label: 'Language Simplicity',
+          weight: 0.25,
+          score: structureVal,
+          effectiveWeight: 0.25,
+        ),
+      ]);
+    } else if (slug == 'storytelling_gym') {
+      var raw = structureVal * 0.3 + latencyVal * 0.25 + impactVal * 0.25 + fillersVal * 0.2;
+      overall = (raw.clamp(1.0, 5.0) * 10).roundToDouble() / 10.0;
+      activityMeasures.addAll([
+        ActivityMeasureScore(
+          key: 'story_structure',
+          label: 'Story Structure',
+          weight: 0.3,
+          score: structureVal,
+          isHeaviest: true,
+          effectiveWeight: 0.3,
+        ),
+        ActivityMeasureScore(
+          key: 'tension_and_stakes',
+          label: 'Tension & Stakes',
+          weight: 0.25,
+          score: latencyVal,
+          effectiveWeight: 0.25,
+        ),
+        ActivityMeasureScore(
+          key: 'clear_takeaway',
+          label: 'Clear Takeaway',
+          weight: 0.25,
+          score: impactVal,
+          effectiveWeight: 0.25,
+        ),
+        ActivityMeasureScore(
+          key: 'delivery_control',
+          label: 'Delivery Control',
+          weight: 0.2,
+          score: fillersVal,
+          effectiveWeight: 0.2,
+        ),
+      ]);
+    } else if (slug == 'connect_the_dots') {
+      var raw = impactVal * 0.35 + structureVal * 0.3 + latencyVal * 0.2 + fillersVal * 0.15;
+      overall = (raw.clamp(1.0, 5.0) * 10).roundToDouble() / 10.0;
+      activityMeasures.addAll([
+        ActivityMeasureScore(
+          key: 'idea_structure',
+          label: 'Idea Structure',
+          weight: 0.3,
+          score: structureVal,
+          effectiveWeight: 0.3,
+        ),
+        ActivityMeasureScore(
+          key: 'connection_logic',
+          label: 'Connection Logic',
+          weight: 0.35,
+          score: impactVal,
+          isHeaviest: true,
+          effectiveWeight: 0.35,
+        ),
+        ActivityMeasureScore(
+          key: 'transition_timing',
+          label: 'Transition Timing',
+          weight: 0.2,
+          score: latencyVal,
+          effectiveWeight: 0.2,
+        ),
+        ActivityMeasureScore(
+          key: 'delivery_control',
+          label: 'Delivery Control',
+          weight: 0.15,
+          score: fillersVal,
+          effectiveWeight: 0.15,
+        ),
+      ]);
+    } else if (slug == 'debate_me') {
+      var raw = structureVal * 0.4 + fillersVal * 0.3 + latencyVal * 0.3;
+      overall = (raw.clamp(1.0, 5.0) * 10).roundToDouble() / 10.0;
+      activityMeasures.addAll([
+        ActivityMeasureScore(
+          key: 'delivery_control',
+          label: 'Delivery Control',
+          weight: 0.3,
+          score: fillersVal,
+          effectiveWeight: 0.3,
+        ),
+        ActivityMeasureScore(
+          key: 'argument_quality',
+          label: 'Argument Quality',
+          weight: 0.4,
+          score: structureVal,
+          isHeaviest: true,
+          effectiveWeight: 0.4,
+        ),
+        ActivityMeasureScore(
+          key: 'perceived_confidence',
+          label: 'Perceived Confidence',
+          weight: 0.3,
+          score: latencyVal,
+          effectiveWeight: 0.3,
+        ),
+      ]);
     } else {
       overall =
           (((execScore + clarityScore + impactScore + engagementScore) / 4.0)

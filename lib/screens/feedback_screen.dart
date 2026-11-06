@@ -195,7 +195,7 @@ class FeedbackScreen extends StatelessWidget {
                         feedback.activityMeasures.isNotEmpty)
                       _buildActivityMeasuresRow(feedback)
                     else
-                      _buildMetricsRow(feedback),
+                      _buildMetricsRow(context, feedback, activeSession: activeSession),
                     const SizedBox(height: 16),
 
                     // WHAT WORKED WELL Card (Green)
@@ -610,14 +610,32 @@ class FeedbackScreen extends StatelessWidget {
     final k = key.toLowerCase().trim();
     final l = label.toLowerCase().trim();
 
-    if (k.contains('tension') || l.contains('tension')) {
+    if (k.contains('tension') || l.contains('tension') || k.contains('stakes') || l.contains('stakes')) {
       return Icons.bolt_rounded;
     }
-    if (k.contains('significance') || l.contains('significance')) {
+    if (k.contains('significance') || l.contains('significance') || k.contains('takeaway') || l.contains('takeaway')) {
       return Icons.lightbulb_rounded;
     }
     if (k.contains('delivery') || l.contains('delivery') || k.contains('speech')) {
       return Icons.record_voice_over_rounded;
+    }
+    if (k.contains('readiness') || l.contains('readiness')) {
+      return Icons.timer_outlined;
+    }
+    if (k.contains('confidence') || l.contains('confidence')) {
+      return Icons.verified_user_rounded;
+    }
+    if (k.contains('argument') || l.contains('argument')) {
+      return Icons.gavel_rounded;
+    }
+    if (k.contains('simplicity') || l.contains('simplicity')) {
+      return Icons.spellcheck_rounded;
+    }
+    if (k.contains('point_first') || l.contains('point first')) {
+      return Icons.priority_high_rounded;
+    }
+    if (k.contains('transition') || l.contains('transition')) {
+      return Icons.turn_right_rounded;
     }
     if (k.contains('structure') || l.contains('structure')) {
       return isHeaviest ? Icons.star_rounded : Icons.account_tree_rounded;
@@ -823,8 +841,56 @@ class FeedbackScreen extends StatelessWidget {
     );
   }
 
-  /// 3 Metrics Row mapped from the 4-pillar evaluation.
-  Widget _buildMetricsRow(EvaluationFeedback? feedback) {
+  /// Activity-specific success measures row.
+  /// Falls back to the selected activity's catalog measures when feedback.activityMeasures is empty.
+  Widget _buildMetricsRow(
+    BuildContext context,
+    EvaluationFeedback? feedback, {
+    PracticeSessionRecord? activeSession,
+  }) {
+    final appState = Provider.of<AppStateProvider>(context, listen: false);
+    final targetSlug = activeSession?.activitySlug ?? session?.activitySlug;
+    final activity = (targetSlug != null && targetSlug.isNotEmpty)
+        ? appState.activities.firstWhere(
+            (a) => a.slug == targetSlug,
+            orElse: () => appState.selectedActivity ?? appState.activities.first,
+          )
+        : (appState.selectedActivity ?? appState.activities.first);
+    final measures = activity.successMeasures;
+    final overallVal = feedback?.overallScore ?? 0.0;
+
+    if (measures.isNotEmpty) {
+      final syntheticMeasures = measures.map((m) {
+        return ActivityMeasureScore(
+          key: m.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_'),
+          label: m,
+          weight: 1.0 / measures.length,
+          score: feedback == null ? null : overallVal,
+        );
+      }).toList();
+
+      final syntheticFeedback = EvaluationFeedback(
+        overallScore: overallVal,
+        pillars: feedback?.pillars ?? FourPillarsScore.fromJson(const {}),
+        oneStrength: feedback?.oneStrength ?? '',
+        oneSpecificImprovement: feedback?.oneSpecificImprovement ?? '',
+        highlightedPhrase: feedback?.highlightedPhrase ??
+            const HighlightedPhrase(
+              timestampRange: '',
+              phrase: '',
+              critique: '',
+            ),
+        retryInstruction: feedback?.retryInstruction ?? '',
+        exemplarResponse: feedback?.exemplarResponse ?? '',
+        isCoachedRetry: feedback?.isCoachedRetry ?? false,
+        activityMeasures: syntheticMeasures,
+        capped: feedback?.capped ?? false,
+        scoringReason: feedback?.scoringReason,
+      );
+
+      return _buildActivityMeasuresRow(syntheticFeedback);
+    }
+
     final impact = feedback?.pillars.impactScore ?? 0;
     final clarity = feedback?.pillars.clarityScore ?? 0;
     final fluency = feedback?.pillars.executiveScore ?? 0;

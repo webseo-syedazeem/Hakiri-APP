@@ -14,7 +14,7 @@ const ACTIVITIES = [
       "Higher perceived authority",
       "Reduced meeting fatigue with bottom-line-up-front answers",
     ],
-    successMeasures: ["Latency and stall tactics", "Structural coherence", "Composition and fillers"],
+    successMeasures: ["Response Readiness", "Text Structure", "Filler Control"],
     rubrics: [
       {
         key: "latency",
@@ -54,7 +54,7 @@ const ACTIVITIES = [
       "Mastery of the seamless pivot",
       "Creative problem solving under observation",
     ],
-    successMeasures: ["Pivot placement", "Bridge logic", "Conceptual integration", "Speech mechanics"],
+    successMeasures: ["Idea Structure", "Connection Logic", "Transition Timing", "Delivery Control"],
     rubrics: [
       {
         key: "pivot_placement",
@@ -110,7 +110,7 @@ const ACTIVITIES = [
     prepDurationSeconds: 5,
     defaultDurationSeconds: 60,
     benefits: ["Cross-functional leadership", "Deeper processing", "Less meeting friction"],
-    successMeasures: ["Audience alignment", "Immediate engagement", "Time optimisation", "Linguistic fit"],
+    successMeasures: ["Audience Fit", "Opening Impact", "Time Control", "Language Simplicity"],
     rubrics: [
       {
         key: "persona_calibration",
@@ -154,7 +154,7 @@ const ACTIVITIES = [
     prepDurationSeconds: 60,
     defaultDurationSeconds: 60,
     benefits: ["Forces synthesis", "Commands more authority", "Increases retention"],
-    successMeasures: ["Rate compression", "Time to value", "Jargon mimicry"],
+    successMeasures: ["Message Compression", "Point First", "Paraphrasing"],
     rubrics: [
       {
         key: "rate_compression",
@@ -202,7 +202,7 @@ const ACTIVITIES = [
     prepDurationSeconds: 10,
     defaultDurationSeconds: 60,
     benefits: ["Higher message retention", "Drives action", "Relatable executive presence"],
-    successMeasures: ["Structural architecture", "Tension and conflict", "Significance", "Speech and delivery"],
+    successMeasures: ["Story Structure", "Tension & Stakes", "Clear Takeaway", "Delivery Control"],
     rubrics: [
       {
         key: "structural_architecture",
@@ -244,7 +244,7 @@ const ACTIVITIES = [
     prepDurationSeconds: 5,
     defaultDurationSeconds: 60,
     benefits: ["Agility under a clock", "Perceived authority", "Less rambling"],
-    successMeasures: ["The hook", "Information depth", "Time management"],
+    successMeasures: ["Opening Impact", "Content Structure", "Time Control"],
     rubrics: [
       {
         key: "hook",
@@ -280,7 +280,7 @@ const ACTIVITIES = [
     prepDurationSeconds: 5,
     defaultDurationSeconds: 60,
     benefits: ["Mental agility", "Muscle memory under pressure"],
-    successMeasures: ["Delivery", "Rhetorical integrity", "Perceived confidence"],
+    successMeasures: ["Delivery Control", "Argument Quality", "Perceived Confidence"],
     rubrics: [
       {
         key: "delivery",

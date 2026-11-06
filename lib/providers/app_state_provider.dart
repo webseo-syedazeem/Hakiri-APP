@@ -1703,7 +1703,7 @@ class AppStateProvider extends ChangeNotifier {
         prepDurationSeconds: 5,
         defaultDurationSeconds: 60,
         benefits: ['High cognitive agility under stress', 'Higher perceived authority', 'Eliminates meeting waffle'],
-        successMeasures: ['Latency & stall tactics', 'Structural coherence', 'Composition & fillers'],
+        successMeasures: ['Response Readiness', 'Text Structure', 'Filler Control'],
       ),
       const ActivityModel(
         slug: 'cut_it_in_half',
@@ -1716,7 +1716,7 @@ class AppStateProvider extends ChangeNotifier {
         prepDurationSeconds: 60,
         defaultDurationSeconds: 60,
         benefits: ['Forces deep information synthesis', 'Commands respect through brevity', 'Increases stakeholder retention'],
-        successMeasures: ['Rate compression (50%+ reduction)', 'Time to value (BLUF)', 'Jargon translation'],
+        successMeasures: ['Message Compression', 'Point First', 'Paraphrasing'],
       ),
       const ActivityModel(
         slug: 'one_minute_expert',
@@ -1728,7 +1728,7 @@ class AppStateProvider extends ChangeNotifier {
         prepDurationSeconds: 5,
         defaultDurationSeconds: 60,
         benefits: ['Trains the brain to chunk complex topics instantly', 'Builds spontaneous executive presence', 'Eliminates rambling'],
-        successMeasures: ['The Hook', 'Categorical Depth', 'Time Management'],
+        successMeasures: ['Opening Impact', 'Content Structure', 'Time Control'],
       ),
       const ActivityModel(
         slug: 'explain_it_simply',
@@ -1740,7 +1740,7 @@ class AppStateProvider extends ChangeNotifier {
         prepDurationSeconds: 5,
         defaultDurationSeconds: 60,
         benefits: ['Unlocks cross-functional leadership credibility', 'Forces conceptual mastery', 'Reduces meeting friction'],
-        successMeasures: ['Persona Calibration', 'Time to Value', 'Linguistic Fit'],
+        successMeasures: ['Audience Fit', 'Opening Impact', 'Time Control', 'Language Simplicity'],
       ),
       const ActivityModel(
         slug: 'storytelling_gym',
@@ -1752,7 +1752,7 @@ class AppStateProvider extends ChangeNotifier {
         prepDurationSeconds: 10,
         defaultDurationSeconds: 60,
         benefits: ['Higher message retention', 'Drives alignment and persuasion', 'Projects relatable executive presence'],
-        successMeasures: ['3-Part Narrative Arc', 'Tension density', 'Strategic significance'],
+        successMeasures: ['Story Structure', 'Tension & Stakes', 'Clear Takeaway', 'Delivery Control'],
       ),
       const ActivityModel(
         slug: 'connect_the_dots',
@@ -1764,7 +1764,7 @@ class AppStateProvider extends ChangeNotifier {
         prepDurationSeconds: 5,
         defaultDurationSeconds: 60,
         benefits: ['Accelerates neural plasticity', 'Mastery of spontaneous pivots', 'Unlocks creative problem solving'],
-        successMeasures: ['Bridge Logic', 'Pivot Placement', 'Speech Mechanics'],
+        successMeasures: ['Idea Structure', 'Connection Logic', 'Transition Timing', 'Delivery Control'],
       ),
       const ActivityModel(
         slug: 'debate_me',
@@ -1776,7 +1776,7 @@ class AppStateProvider extends ChangeNotifier {
         prepDurationSeconds: 5,
         defaultDurationSeconds: 60,
         benefits: ['Builds neuromuscular resilience against stage fright', 'Commands psychological control with silence', 'Eliminates defensive pitch'],
-        successMeasures: ['Delivery & Biometrics', 'Rhetorical Integrity', 'Perceived Confidence'],
+        successMeasures: ['Delivery Control', 'Argument Quality', 'Perceived Confidence'],
       ),
     ];
 

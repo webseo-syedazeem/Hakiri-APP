@@ -8,44 +8,86 @@
 
 const ACTIVITY_WEIGHTS = {
   think_fast: [
-    { key: "structure", label: "Structure", weight: 0.4, heaviest: true },
-    { key: "latency", label: "Latency", weight: 0.3 },
-    { key: "fillers", label: "Fillers", weight: 0.3 },
+    { key: "response_readiness", label: "Response Readiness", weight: 0.35 },
+    { key: "text_structure", label: "Text Structure", weight: 0.4, heaviest: true },
+    { key: "filler_control", label: "Filler Control", weight: 0.25 },
   ],
   cut_it_in_half: [
-    { key: "compression", label: "Compression with meaning kept", weight: 0.4, heaviest: true },
-    { key: "time_to_value", label: "Time to value", weight: 0.35 },
+    { key: "message_compression", label: "Message Compression", weight: 0.4, heaviest: true },
+    { key: "point_first", label: "Point First", weight: 0.35 },
     { key: "paraphrasing", label: "Paraphrasing", weight: 0.25 },
   ],
   one_minute_expert: [
-    { key: "information_depth", label: "Information depth", weight: 0.4, heaviest: true },
-    { key: "hook", label: "Hook", weight: 0.3 },
-    { key: "time_management", label: "Time management", weight: 0.3 },
+    { key: "content_structure", label: "Content Structure", weight: 0.4, heaviest: true },
+    { key: "opening_impact", label: "Opening Impact", weight: 0.3 },
+    { key: "time_control", label: "Time Control", weight: 0.3 },
   ],
   explain_it_simply: [
-    { key: "audience_fit", label: "Audience fit", weight: 0.35, heaviest: true },
-    { key: "linguistic_fit", label: "Linguistic fit", weight: 0.25 },
-    { key: "time_to_value", label: "Time to value", weight: 0.2 },
-    { key: "structure", label: "Structure", weight: 0.2 },
+    { key: "audience_fit", label: "Audience Fit", weight: 0.35, heaviest: true },
+    { key: "opening_impact", label: "Opening Impact", weight: 0.2 },
+    { key: "time_control", label: "Time Control", weight: 0.2 },
+    { key: "language_simplicity", label: "Language Simplicity", weight: 0.25 },
   ],
   storytelling_gym: [
-    { key: "structure", label: "Structure", weight: 0.3, heaviest: true },
-    { key: "tension", label: "Tension", weight: 0.25 },
-    { key: "significance", label: "Significance", weight: 0.25 },
-    { key: "delivery", label: "Delivery", weight: 0.2 },
+    { key: "story_structure", label: "Story Structure", weight: 0.3, heaviest: true },
+    { key: "tension_and_stakes", label: "Tension & Stakes", weight: 0.25 },
+    { key: "clear_takeaway", label: "Clear Takeaway", weight: 0.25 },
+    { key: "delivery_control", label: "Delivery Control", weight: 0.2 },
   ],
   connect_the_dots: [
-    { key: "bridge_logic", label: "Bridge logic", weight: 0.35, heaviest: true },
-    { key: "integration", label: "Integration", weight: 0.3 },
-    { key: "pivot_placement", label: "Pivot placement", weight: 0.2 },
-    { key: "speech", label: "Speech", weight: 0.15 },
+    { key: "connection_logic", label: "Connection Logic", weight: 0.35, heaviest: true },
+    { key: "idea_structure", label: "Idea Structure", weight: 0.3 },
+    { key: "transition_timing", label: "Transition Timing", weight: 0.2 },
+    { key: "delivery_control", label: "Delivery Control", weight: 0.15 },
   ],
   debate_me: [
-    { key: "answers_objection", label: "Answers the objection", weight: 0.4, heaviest: true },
-    { key: "reasoning", label: "Reasoning", weight: 0.3 },
-    { key: "delivery", label: "Delivery", weight: 0.3 },
+    { key: "argument_quality", label: "Argument Quality", weight: 0.4, heaviest: true },
+    { key: "delivery_control", label: "Delivery Control", weight: 0.3 },
+    { key: "perceived_confidence", label: "Perceived Confidence", weight: 0.3 },
   ],
 };
+
+const KEY_ALIASES = {
+  response_readiness: ["response_readiness", "latency", "latency_and_stall_tactics", "latency and stall tactics", "readiness"],
+  text_structure: ["text_structure", "answer_structure", "structure", "structural_coherence", "structural coherence", "answer structure", "text structure"],
+  filler_control: ["filler_control", "fillers", "composition_fillers", "composition and fillers", "filler control"],
+  message_compression: ["message_compression", "compression", "rate_compression"],
+  point_first: ["point_first", "time_to_value"],
+  paraphrasing: ["paraphrasing", "jargon_mimicry"],
+  opening_impact: ["opening_impact", "hook", "immediate_engagement"],
+  content_structure: ["content_structure", "information_depth", "structure"],
+  time_control: ["time_control", "time_management", "time_optimisation"],
+  audience_fit: ["audience_fit", "audience_alignment", "persona_calibration"],
+  language_simplicity: ["language_simplicity", "linguistic_fit"],
+  story_structure: ["story_structure", "structural_architecture", "structure"],
+  tension_and_stakes: ["tension_and_stakes", "tension", "tension_and_conflict", "stakes"],
+  clear_takeaway: ["clear_takeaway", "significance", "significance_check", "takeaway"],
+  delivery_control: ["delivery_control", "delivery", "speech_delivery", "speech"],
+  idea_structure: ["idea_structure", "integration", "conceptual_integration"],
+  connection_logic: ["connection_logic", "bridge_logic"],
+  transition_timing: ["transition_timing", "pivot_placement"],
+  argument_quality: ["argument_quality", "answers_objection", "reasoning", "rhetorical_integrity"],
+  perceived_confidence: ["perceived_confidence"],
+};
+
+function resolveMeasureScore(key, measureScores = {}) {
+  if (!measureScores || typeof measureScores !== "object") return null;
+
+  if (measureScores[key] != null) return parseMeasureScore(measureScores[key]);
+
+  const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const targetNorm = norm(key);
+  const aliases = (KEY_ALIASES[key] || []).map(norm);
+  aliases.push(targetNorm);
+
+  for (const [k, v] of Object.entries(measureScores)) {
+    if (v != null && aliases.includes(norm(k))) {
+      const parsed = parseMeasureScore(v);
+      if (parsed != null) return parsed;
+    }
+  }
+  return null;
+}
 
 const CAP_MAX_WHEN_HEAVIEST_LOW = 3;
 const HEAVIEST_LOW_THRESHOLD = 2;
@@ -83,10 +125,10 @@ function parseMeasureScore(raw) {
 function computeActivityScore(activitySlug, measureScores = {}) {
   const defs = getWeights(activitySlug);
   const heaviest = defs.find((d) => d.heaviest) || defs[0];
-  const heaviestRaw = parseMeasureScore(measureScores[heaviest.key]);
+  const heaviestRaw = resolveMeasureScore(heaviest.key, measureScores);
 
   const rows = defs.map((d) => {
-    const score = parseMeasureScore(measureScores[d.key]);
+    const score = resolveMeasureScore(d.key, measureScores);
     return {
       key: d.key,
       label: d.label,
@@ -166,34 +208,70 @@ function computeActivityScore(activitySlug, measureScores = {}) {
 
 /** Map activity measures onto the 4 dashboard pillars (best-effort). */
 function measuresToPillars(activitySlug, measureScores, fallbackPillars = {}) {
-  const get = (key, fb = 3) => {
-    const v = parseMeasureScore(measureScores[key]);
-    return v != null ? v : Number(fallbackPillars[key]) || fb;
+  const get = (...keys) => {
+    for (const k of keys) {
+      const v = resolveMeasureScore(k, measureScores);
+      if (v != null) return v;
+    }
+    const fbKey = keys[0];
+    return Number(fallbackPillars[fbKey]) || 3;
   };
   const slug = String(activitySlug || "");
 
   if (slug === "think_fast") {
     return {
-      executive_score: get("fillers", 3),
-      clarity_score: get("structure", 3),
-      impact_score: get("structure", 3),
-      engagement_score: get("latency", 3),
+      executive_score: get("filler_control", "fillers"),
+      clarity_score: get("text_structure", "answer_structure", "structure"),
+      impact_score: get("text_structure", "answer_structure", "structure"),
+      engagement_score: get("response_readiness", "latency"),
     };
   }
   if (slug === "cut_it_in_half") {
     return {
-      executive_score: get("paraphrasing", 3),
-      clarity_score: get("compression", 3),
-      impact_score: get("time_to_value", 3),
-      engagement_score: get("paraphrasing", 3),
+      executive_score: get("paraphrasing"),
+      clarity_score: get("message_compression", "compression"),
+      impact_score: get("point_first", "time_to_value"),
+      engagement_score: get("paraphrasing"),
     };
   }
   if (slug === "debate_me") {
     return {
-      executive_score: get("delivery", 3),
-      clarity_score: get("reasoning", 3),
-      impact_score: get("answers_objection", 3),
-      engagement_score: get("delivery", 3),
+      executive_score: get("delivery_control", "delivery"),
+      clarity_score: get("argument_quality", "reasoning", "answers_objection"),
+      impact_score: get("argument_quality", "answers_objection"),
+      engagement_score: get("perceived_confidence"),
+    };
+  }
+  if (slug === "one_minute_expert") {
+    return {
+      executive_score: get("time_control", "time_management"),
+      clarity_score: get("content_structure", "information_depth"),
+      impact_score: get("opening_impact", "hook"),
+      engagement_score: get("time_control", "time_management"),
+    };
+  }
+  if (slug === "explain_it_simply") {
+    return {
+      executive_score: get("time_control", "time_to_value"),
+      clarity_score: get("language_simplicity", "linguistic_fit"),
+      impact_score: get("audience_fit"),
+      engagement_score: get("opening_impact", "immediate_engagement"),
+    };
+  }
+  if (slug === "storytelling_gym") {
+    return {
+      executive_score: get("delivery_control", "delivery"),
+      clarity_score: get("story_structure", "structure"),
+      impact_score: get("clear_takeaway", "significance"),
+      engagement_score: get("tension_and_stakes", "tension"),
+    };
+  }
+  if (slug === "connect_the_dots") {
+    return {
+      executive_score: get("delivery_control", "speech"),
+      clarity_score: get("idea_structure", "integration"),
+      impact_score: get("connection_logic", "bridge_logic"),
+      engagement_score: get("transition_timing", "pivot_placement"),
     };
   }
   // Generic fallback from whatever keys exist
@@ -232,4 +310,5 @@ module.exports = {
   measuresToPillars,
   measurePromptForActivity,
   parseMeasureScore,
+  resolveMeasureScore,
 };
