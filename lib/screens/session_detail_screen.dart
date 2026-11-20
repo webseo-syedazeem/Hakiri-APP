@@ -235,10 +235,14 @@ class _SessionDetailScreenState extends State<SessionDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  _scoreRow('Executive presence', pillars.executiveScore),
-                  _scoreRow('Clarity', pillars.clarityScore),
-                  _scoreRow('Impact', pillars.impactScore),
-                  _scoreRow('Engagement', pillars.engagementScore),
+                  if (pillars.hasClarity)
+                    _scoreRow('Clarity', pillars.clarityScore),
+                  if (pillars.hasStructure)
+                    _scoreRow('Structure', pillars.executiveScore),
+                  if (pillars.hasEngagement)
+                    _scoreRow('Engagement & Tone', pillars.engagementScore),
+                  if (pillars.hasConciseness)
+                    _scoreRow('Conciseness', pillars.impactScore),
                 ],
               ),
             ),

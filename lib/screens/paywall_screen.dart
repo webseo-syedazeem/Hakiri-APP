@@ -14,7 +14,6 @@ import '../core/services/iap_service.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/paywall_wave_background.dart';
-import 'guest_auth_screen.dart';
 import 'home_screen.dart';
 import 'locked_profile_screen.dart';
 import 'signup_screen.dart';

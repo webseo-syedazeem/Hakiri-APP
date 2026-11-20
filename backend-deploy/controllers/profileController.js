@@ -25,10 +25,10 @@ const principles = async (_req, res) => {
       },
     },
     pillars: [
-      { key: "executive_score", label: "Fluency and presence" },
-      { key: "clarity_score", label: "Clarity and articulation" },
-      { key: "engagement_score", label: "Engagement and tone" },
-      { key: "impact_score", label: "Conciseness and impact" },
+      { key: "clarity_score", label: "Clarity" },
+      { key: "executive_score", label: "Structure" },
+      { key: "engagement_score", label: "Engagement & Tone" },
+      { key: "impact_score", label: "Conciseness" },
     ],
   });
 };
@@ -134,6 +134,10 @@ const updateProfile = async (req, res) => {
   }
 
   const existing = await Profile.findOne({ user: req.user._id });
+  const explicitDrills = Array.isArray(req.body?.initial_drills)
+    ? req.body.initial_drills.filter(Boolean).map(String).slice(0, 3)
+    : null;
+
   const merged = {
     voiceProfile: patch.voiceProfile || existing?.voiceProfile,
     careerStage: patch.careerStage || existing?.careerStage,
@@ -141,19 +145,22 @@ const updateProfile = async (req, res) => {
     speakingConfidence: patch.speakingConfidence || existing?.speakingConfidence,
     primaryRoadblock: patch.primaryRoadblock || existing?.primaryRoadblock,
     primaryGoal: patch.primaryGoal || existing?.primaryGoal,
+    initialDrills: explicitDrills,
   };
   const focusChanged = Boolean(
     (patch.primaryRoadblock &&
       patch.primaryRoadblock !== existing?.primaryRoadblock) ||
-      (patch.primaryGoal && patch.primaryGoal !== existing?.primaryGoal)
+      (patch.primaryGoal && patch.primaryGoal !== existing?.primaryGoal) ||
+      (patch.careerType && patch.careerType !== existing?.careerType) ||
+      (explicitDrills && explicitDrills.length > 0)
   );
-  if (Object.values(merged).every(Boolean)) {
+  if (Object.values(merged).some(Boolean)) {
     patch.plan = buildPlan(merged);
     patch.onboardingComplete = true;
   }
   // Home Today plan prefers coaching.planDrills — refresh when focus changes
   // so new goal / challenge drills show up immediately.
-  if (focusChanged && patch.plan?.initialDrills?.length) {
+  if (patch.plan?.initialDrills?.length) {
     const prevCoach =
       existing?.coaching && typeof existing.coaching === "object"
         ? existing.coaching.toObject

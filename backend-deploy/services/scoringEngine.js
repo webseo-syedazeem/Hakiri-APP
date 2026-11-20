@@ -1,15 +1,22 @@
 /**
- * Hakkiri activity scoring (spreadsheet model):
- * - Activity score = sum(measure_score × weight) for valid measures
- * - Cap: if heaviest measure ≤ 2, activity score cannot exceed 3
- * - Missing: drop measure, redistribute its weight; no score if heaviest
- *   missing or fewer than 2 valid measures
+ * Hakkiri scoring (12-month plan source of truth):
+ * 1) Score activity-specific measures first
+ * 2) Map only relevant measures → Clarity / Structure / Engagement / Conciseness
+ * 3) Diagnostic measures stay out of headline pillars
+ * 4) Same-pillar measures in one session → one averaged observation
+ * 5) Activity overall = weighted measures (cap rules)
+ *
+ * API field mapping (stable keys for the Flutter app):
+ *   clarity_score      → Clarity
+ *   executive_score    → Structure
+ *   engagement_score   → Engagement & Tone
+ *   impact_score       → Conciseness
  */
 
 const ACTIVITY_WEIGHTS = {
   think_fast: [
     { key: "response_readiness", label: "Response Readiness", weight: 0.35 },
-    { key: "text_structure", label: "Text Structure", weight: 0.4, heaviest: true },
+    { key: "text_structure", label: "Answer Structure", weight: 0.4, heaviest: true },
     { key: "filler_control", label: "Filler Control", weight: 0.25 },
   ],
   cut_it_in_half: [
@@ -47,6 +54,45 @@ const ACTIVITY_WEIGHTS = {
   ],
 };
 
+/** Client plan: measure → permanent pillar | diagnostic */
+const MEASURE_PILLAR = {
+  response_readiness: "diagnostic",
+  transition_timing: "diagnostic",
+  text_structure: "structure",
+  answer_structure: "structure",
+  filler_control: "engagement",
+  message_compression: "conciseness",
+  point_first: "conciseness",
+  paraphrasing: "clarity",
+  opening_impact: "engagement",
+  content_structure: "structure",
+  time_control: "conciseness",
+  audience_fit: "clarity",
+  language_simplicity: "clarity",
+  story_structure: "structure",
+  tension_and_stakes: "engagement",
+  clear_takeaway: "clarity",
+  delivery_control: "engagement",
+  idea_structure: "structure",
+  connection_logic: "clarity",
+  argument_quality: "structure",
+  perceived_confidence: "engagement",
+};
+
+const PILLAR_API_KEYS = {
+  clarity: "clarity_score",
+  structure: "executive_score",
+  engagement: "engagement_score",
+  conciseness: "impact_score",
+};
+
+const PILLAR_LABELS = {
+  clarity: "Clarity",
+  structure: "Structure",
+  engagement: "Engagement & Tone",
+  conciseness: "Conciseness",
+};
+
 const KEY_ALIASES = {
   response_readiness: ["response_readiness", "latency", "latency_and_stall_tactics", "latency and stall tactics", "readiness"],
   text_structure: ["text_structure", "answer_structure", "structure", "structural_coherence", "structural coherence", "answer structure", "text structure"],
@@ -55,11 +101,11 @@ const KEY_ALIASES = {
   point_first: ["point_first", "time_to_value"],
   paraphrasing: ["paraphrasing", "jargon_mimicry"],
   opening_impact: ["opening_impact", "hook", "immediate_engagement"],
-  content_structure: ["content_structure", "information_depth", "structure"],
+  content_structure: ["content_structure", "information_depth"],
   time_control: ["time_control", "time_management", "time_optimisation"],
   audience_fit: ["audience_fit", "audience_alignment", "persona_calibration"],
   language_simplicity: ["language_simplicity", "linguistic_fit"],
-  story_structure: ["story_structure", "structural_architecture", "structure"],
+  story_structure: ["story_structure", "structural_architecture"],
   tension_and_stakes: ["tension_and_stakes", "tension", "tension_and_conflict", "stakes"],
   clear_takeaway: ["clear_takeaway", "significance", "significance_check", "takeaway"],
   delivery_control: ["delivery_control", "delivery", "speech_delivery", "speech"],
@@ -69,6 +115,26 @@ const KEY_ALIASES = {
   argument_quality: ["argument_quality", "answers_objection", "reasoning", "rhetorical_integrity"],
   perceived_confidence: ["perceived_confidence"],
 };
+
+const CAP_MAX_WHEN_HEAVIEST_LOW = 3;
+const HEAVIEST_LOW_THRESHOLD = 2;
+const MIN_VALID_MEASURES = 2;
+const ROLLING_OBSERVATIONS = 8;
+
+function getWeights(activitySlug) {
+  const slug = String(activitySlug || "think_fast").trim();
+  return ACTIVITY_WEIGHTS[slug] || ACTIVITY_WEIGHTS.think_fast;
+}
+
+function parseMeasureScore(raw) {
+  if (raw == null || raw === "" || raw === "not_assessed" || raw === "not assessed") {
+    return null;
+  }
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  if (n < 0.5 || n > 5.5) return null;
+  return Math.min(5, Math.max(1, Math.round(n * 10) / 10));
+}
 
 function resolveMeasureScore(key, measureScores = {}) {
   if (!measureScores || typeof measureScores !== "object") return null;
@@ -89,39 +155,10 @@ function resolveMeasureScore(key, measureScores = {}) {
   return null;
 }
 
-const CAP_MAX_WHEN_HEAVIEST_LOW = 3;
-const HEAVIEST_LOW_THRESHOLD = 2;
-const MIN_VALID_MEASURES = 2;
-
-function getWeights(activitySlug) {
-  const slug = String(activitySlug || "think_fast").trim();
-  return ACTIVITY_WEIGHTS[slug] || ACTIVITY_WEIGHTS.think_fast;
+function round1(n) {
+  return Math.round(Number(n) * 10) / 10;
 }
 
-function parseMeasureScore(raw) {
-  if (raw == null || raw === "" || raw === "not_assessed" || raw === "not assessed") {
-    return null;
-  }
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return null;
-  // Keep one decimal (2.6, 3.0) — whole-number rounding misled users vs overall avg.
-  if (n < 0.5 || n > 5.5) return null;
-  return Math.min(5, Math.max(1, Math.round(n * 10) / 10));
-}
-
-/**
- * @param {string} activitySlug
- * @param {Record<string, number|null|string>} measureScores - key → 1-5 or null/not_assessed
- * @returns {{
- *   ok: boolean,
- *   overall_score: number|null,
- *   capped: boolean,
- *   withhold_judgement: boolean,
- *   reason: string|null,
- *   measures: Array<{key,label,weight,score,included,effective_weight}>,
- *   heaviest_key: string,
- * }}
- */
 function computeActivityScore(activitySlug, measureScores = {}) {
   const defs = getWeights(activitySlug);
   const heaviest = defs.find((d) => d.heaviest) || defs[0];
@@ -137,10 +174,11 @@ function computeActivityScore(activitySlug, measureScores = {}) {
       included: score != null,
       effective_weight: 0,
       is_heaviest: d.key === heaviest.key,
+      pillar: MEASURE_PILLAR[d.key] || null,
+      diagnostic: MEASURE_PILLAR[d.key] === "diagnostic",
     };
   });
 
-  // Heaviest missing → no score
   if (heaviestRaw == null) {
     return {
       ok: false,
@@ -166,7 +204,6 @@ function computeActivityScore(activitySlug, measureScores = {}) {
     };
   }
 
-  // Redistribute weights of missing measures across valid ones
   const validWeightSum = valid.reduce((s, r) => s + r.weight, 0);
   for (const row of rows) {
     if (!row.included) {
@@ -181,7 +218,7 @@ function computeActivityScore(activitySlug, measureScores = {}) {
     (s, r) => s + r.score * (r.weight / validWeightSum),
     0
   );
-  overall = Math.round(overall * 10) / 10;
+  overall = round1(overall);
 
   let capped = false;
   if (heaviestRaw <= HEAVIEST_LOW_THRESHOLD && overall > CAP_MAX_WHEN_HEAVIEST_LOW) {
@@ -189,8 +226,7 @@ function computeActivityScore(activitySlug, measureScores = {}) {
     capped = true;
   }
 
-  // One decimal place 1.0–5.0 (same precision as measure cards / overall ring).
-  const overallOneDp = Math.min(5, Math.max(1, Math.round(overall * 10) / 10));
+  const overallOneDp = Math.min(5, Math.max(1, round1(overall)));
 
   return {
     ok: true,
@@ -206,88 +242,131 @@ function computeActivityScore(activitySlug, measureScores = {}) {
   };
 }
 
-/** Map activity measures onto the 4 dashboard pillars (best-effort). */
-function measuresToPillars(activitySlug, measureScores, fallbackPillars = {}) {
-  const get = (...keys) => {
-    for (const k of keys) {
-      const v = resolveMeasureScore(k, measureScores);
-      if (v != null) return v;
-    }
-    const fbKey = keys[0];
-    return Number(fallbackPillars[fbKey]) || 3;
+/**
+ * Build session pillar contributions from activity measures.
+ * Only pillars with real evidence are returned (no invented scores).
+ */
+function sessionPillarContributions(activitySlug, measureScores = {}) {
+  const defs = getWeights(activitySlug);
+  const buckets = {
+    clarity: [],
+    structure: [],
+    engagement: [],
+    conciseness: [],
   };
-  const slug = String(activitySlug || "");
+  const diagnostic = [];
 
-  if (slug === "think_fast") {
-    return {
-      executive_score: get("filler_control", "fillers"),
-      clarity_score: get("text_structure", "answer_structure", "structure"),
-      impact_score: get("text_structure", "answer_structure", "structure"),
-      engagement_score: get("response_readiness", "latency"),
+  for (const d of defs) {
+    const score = resolveMeasureScore(d.key, measureScores);
+    if (score == null) continue;
+    const pillar = MEASURE_PILLAR[d.key];
+    if (!pillar) continue;
+    if (pillar === "diagnostic") {
+      diagnostic.push({
+        key: d.key,
+        label: d.label,
+        score,
+      });
+      continue;
+    }
+    if (buckets[pillar]) {
+      buckets[pillar].push({ key: d.key, label: d.label, score });
+    }
+  }
+
+  const contributions = {};
+  const detail = {};
+  for (const [pillar, rows] of Object.entries(buckets)) {
+    if (!rows.length) continue;
+    const avg = round1(rows.reduce((s, r) => s + r.score, 0) / rows.length);
+    contributions[pillar] = avg;
+    detail[pillar] = {
+      score: avg,
+      label: PILLAR_LABELS[pillar],
+      measures: rows,
     };
   }
-  if (slug === "cut_it_in_half") {
-    return {
-      executive_score: get("paraphrasing"),
-      clarity_score: get("message_compression", "compression"),
-      impact_score: get("point_first", "time_to_value"),
-      engagement_score: get("paraphrasing"),
-    };
-  }
-  if (slug === "debate_me") {
-    return {
-      executive_score: get("delivery_control", "delivery"),
-      clarity_score: get("argument_quality", "reasoning", "answers_objection"),
-      impact_score: get("argument_quality", "answers_objection"),
-      engagement_score: get("perceived_confidence"),
-    };
-  }
-  if (slug === "one_minute_expert") {
-    return {
-      executive_score: get("time_control", "time_management"),
-      clarity_score: get("content_structure", "information_depth"),
-      impact_score: get("opening_impact", "hook"),
-      engagement_score: get("time_control", "time_management"),
-    };
-  }
-  if (slug === "explain_it_simply") {
-    return {
-      executive_score: get("time_control", "time_to_value"),
-      clarity_score: get("language_simplicity", "linguistic_fit"),
-      impact_score: get("audience_fit"),
-      engagement_score: get("opening_impact", "immediate_engagement"),
-    };
-  }
-  if (slug === "storytelling_gym") {
-    return {
-      executive_score: get("delivery_control", "delivery"),
-      clarity_score: get("story_structure", "structure"),
-      impact_score: get("clear_takeaway", "significance"),
-      engagement_score: get("tension_and_stakes", "tension"),
-    };
-  }
-  if (slug === "connect_the_dots") {
-    return {
-      executive_score: get("delivery_control", "speech"),
-      clarity_score: get("idea_structure", "integration"),
-      impact_score: get("connection_logic", "bridge_logic"),
-      engagement_score: get("transition_timing", "pivot_placement"),
-    };
-  }
-  // Generic fallback from whatever keys exist
-  const vals = Object.values(measureScores)
-    .map(parseMeasureScore)
-    .filter((v) => v != null);
-  const avg = vals.length
-    ? Math.round(
-        (vals.reduce((a, b) => a + b, 0) / vals.length) * 10
-      ) / 10
-    : 3;
+
+  return { contributions, detail, diagnostic };
+}
+
+/**
+ * Map contributions onto API pillar keys.
+ * Unmeasured pillars are null (do not invent).
+ */
+function measuresToPillars(activitySlug, measureScores /*, fallbackPillars ignored */) {
+  const { contributions, detail, diagnostic } = sessionPillarContributions(
+    activitySlug,
+    measureScores
+  );
+
   return {
-    executive_score: avg,
-    clarity_score: avg,
-    impact_score: avg,
-    engagement_score: avg,
+    executive_score: contributions.structure ?? null, // Structure
+    clarity_score: contributions.clarity ?? null,
+    impact_score: contributions.conciseness ?? null, // Conciseness
+    engagement_score: contributions.engagement ?? null,
+    pillar_contributions: contributions,
+    pillar_detail: detail,
+    diagnostic_measures: diagnostic,
+  };
+}
+
+/** Equal average of the pillars that have evidence; null if none. */
+function overallFromPillars(pillars = {}) {
+  const vals = [
+    pillars.clarity_score,
+    pillars.executive_score,
+    pillars.engagement_score,
+    pillars.impact_score,
+  ]
+    .map((v) => (v == null || v === "" ? null : Number(v)))
+    .filter((v) => Number.isFinite(v));
+  if (!vals.length) return null;
+  return round1(vals.reduce((a, b) => a + b, 0) / vals.length);
+}
+
+/**
+ * Rolling pillar average from recent fresh-prompt sessions.
+ * Uses pillar_contributions when present; falls back to pillars keys.
+ */
+function rollingPillarAverage(sessions = [], pillarKey, limit = ROLLING_OBSERVATIONS) {
+  const apiKey = PILLAR_API_KEYS[pillarKey] || pillarKey;
+  const contribKey =
+    pillarKey === "structure"
+      ? "structure"
+      : pillarKey === "conciseness"
+        ? "conciseness"
+        : pillarKey === "engagement"
+          ? "engagement"
+          : pillarKey === "clarity"
+            ? "clarity"
+            : null;
+
+  const values = [];
+  for (const row of sessions) {
+    if (row?.isCoachedRetry) continue;
+    if (row?.withholdJudgement) continue;
+    const fb = row.feedback || {};
+    const contrib = fb.pillar_contributions || fb.scoring?.pillar_contributions;
+    let v = null;
+    if (contrib && contribKey && contrib[contribKey] != null) {
+      v = Number(contrib[contribKey]);
+    } else if (fb.pillars && fb.pillars[apiKey] != null) {
+      v = Number(fb.pillars[apiKey]);
+    }
+    if (!Number.isFinite(v)) continue;
+    values.push(v);
+    if (values.length >= limit) break;
+  }
+
+  if (!values.length) {
+    return { average: null, samples: 0, status: "need_more" };
+  }
+  const average = round1(values.reduce((a, b) => a + b, 0) / values.length);
+  return {
+    average,
+    samples: values.length,
+    status: values.length < 3 ? "need_more" : "ready",
   };
 }
 
@@ -298,6 +377,8 @@ function measurePromptForActivity(activitySlug) {
     label: d.label,
     weight: d.weight,
     heaviest: Boolean(d.heaviest),
+    pillar: MEASURE_PILLAR[d.key] || null,
+    diagnostic: MEASURE_PILLAR[d.key] === "diagnostic",
     score_hint:
       "Number 1.0–5.0 to one decimal place, or null if not_assessed (poor audio / cannot judge).",
   }));
@@ -305,9 +386,16 @@ function measurePromptForActivity(activitySlug) {
 
 module.exports = {
   ACTIVITY_WEIGHTS,
+  MEASURE_PILLAR,
+  PILLAR_API_KEYS,
+  PILLAR_LABELS,
+  ROLLING_OBSERVATIONS,
   getWeights,
   computeActivityScore,
   measuresToPillars,
+  sessionPillarContributions,
+  overallFromPillars,
+  rollingPillarAverage,
   measurePromptForActivity,
   parseMeasureScore,
   resolveMeasureScore,

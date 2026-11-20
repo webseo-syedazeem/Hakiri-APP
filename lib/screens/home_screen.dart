@@ -9,6 +9,7 @@ import '../widgets/hakkiri_loading_overlay.dart';
 import '../widgets/hakkiri_logo.dart';
 import '../widgets/shimmer_loading.dart';
 import 'activity_detail_screen.dart';
+import 'journey_screen.dart';
 import 'main_tab_scaffold.dart';
 import 'profile_section_screen.dart';
 import 'targeted_retry_screen.dart';
@@ -105,6 +106,15 @@ class HomeScreenContent extends StatelessWidget {
     final minutes = state.dailyAnchorMinutes;
     final offerExtras = state.shouldOfferPlanExtras;
     final weakest = state.getWeakestExerciseToday();
+    final journey = state.journey;
+    final currentCh = journey?.chapter;
+    final int chNum = currentCh?.number ?? 1;
+    final String chTitle = currentCh?.title ?? 'Build the habit';
+    final int weekIn = currentCh?.weekInChapter ?? 1;
+    final int weeksIn = currentCh?.weeksInChapter ?? 8;
+    final String chPurpose = (currentCh?.purpose != null && currentCh!.purpose.isNotEmpty)
+        ? currentCh.purpose
+        : 'Build consistency and establish your starting point.';
     final primarySlug = drills.isNotEmpty ? drills.first : 'think_fast';
     final primaryActivity = state.activities.firstWhere(
       (a) => a.slug == primarySlug,
@@ -144,7 +154,7 @@ class HomeScreenContent extends StatelessWidget {
       progressHeadline =
           'Last session ${latest.feedback.overallScore.toStringAsFixed(1)}/5';
       progressSub = latest.feedback.pillars.crutchCount > 0
-          ? '${latest.feedback.pillars.crutchCount} filler habits flagged.'
+          ? '${latest.feedback.pillars.crutchCount} filler word${latest.feedback.pillars.crutchCount == 1 ? '' : 's'} noted.'
           : 'Keep building your streak.';
     } else {
       progressHeadline = '${state.completedSessions} sessions logged';
@@ -426,6 +436,118 @@ class HomeScreenContent extends StatelessWidget {
                         Icons.chevron_right_rounded,
                         color: AppColors.textMuted,
                         size: 22,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // YOUR 12-MONTH JOURNEY Card (from Image 2)
+            Material(
+              color: AppColors.surfaceWhite,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const JourneyScreen()),
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceWhite,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEFF6FF),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              Icons.layers_outlined,
+                              color: Color(0xFF2563EB),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'YOUR 12-MONTH JOURNEY',
+                                  style: TextStyle(
+                                    fontFamily: 'Inter',
+                                    color: AppColors.textMuted,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Chapter $chNum of 5 · $chTitle',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    color: AppColors.textPrimary,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: AppColors.textMuted,
+                            size: 22,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Week $weekIn of $weeksIn',
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(3),
+                        child: LinearProgressIndicator(
+                          value: weeksIn > 0 ? (weekIn / weeksIn).clamp(0.0, 1.0) : 0.62,
+                          minHeight: 5,
+                          backgroundColor: const Color(0xFFE2E8F0),
+                          valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF2563EB)),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        chPurpose,
+                        style: const TextStyle(
+                          fontFamily: 'Inter',
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
@@ -876,7 +998,7 @@ class HomeScreenContent extends StatelessWidget {
                         fontFamily: 'Inter',
                         color: Color(0xFF15803D),
                         fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 0.8,
                       ),
                     ),
@@ -889,7 +1011,7 @@ class HomeScreenContent extends StatelessWidget {
                         fontFamily: 'Inter',
                         color: Color(0xFF0F172A),
                         fontSize: 15,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                         height: 1.25,
                       ),
                     ),
@@ -968,7 +1090,7 @@ class HomeScreenContent extends StatelessWidget {
                           fontFamily: 'Inter',
                           color: accent,
                           fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w700,
                           letterSpacing: 0.6,
                         ),
                       ),
@@ -980,7 +1102,7 @@ class HomeScreenContent extends StatelessWidget {
                         fontFamily: 'Inter',
                         color: Color(0xFF0F172A),
                         fontSize: 15.5,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),

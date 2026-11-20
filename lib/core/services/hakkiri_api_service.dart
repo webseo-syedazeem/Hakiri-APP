@@ -27,6 +27,7 @@ class HakkiriApiService {
   static const _fullNameKey = 'hakkiri_full_name';
   static const _emailKey = 'hakkiri_email';
   static const _onboardedKey = 'hakkiri_is_onboarded';
+  static const _subscribedKey = 'hakkiri_is_subscribed';
   static const _loggedInKey = 'hakkiri_logged_in';
 
   String? _token;
@@ -34,6 +35,7 @@ class HakkiriApiService {
   String? _fullName;
   String? _email;
   bool _isOnboarded = false;
+  bool _isSubscribed = false;
   bool _sessionLoaded = false;
 
   String? get token => _token;
@@ -43,6 +45,7 @@ class HakkiriApiService {
   bool get isLoggedIn =>
       (_token != null && _token!.isNotEmpty);
   bool get isOnboardedCached => _isOnboarded;
+  bool get isSubscribedCached => _isSubscribed;
   bool get sessionLoaded => _sessionLoaded;
 
   Future<void> loadSession() async {
@@ -53,6 +56,7 @@ class HakkiriApiService {
     _fullName = prefs.getString(_fullNameKey);
     _email = prefs.getString(_emailKey);
     _isOnboarded = prefs.getBool(_onboardedKey) ?? false;
+    _isSubscribed = prefs.getBool(_subscribedKey) ?? false;
     // Redundant flag in case token key was ever wiped but login marker remains.
     final loggedInFlag = prefs.getBool(_loggedInKey) ?? false;
     if ((_token == null || _token!.isEmpty) && !loggedInFlag) {
@@ -87,6 +91,12 @@ class HakkiriApiService {
     await prefs.setBool(_onboardedKey, value);
   }
 
+  Future<void> persistSubscribed(bool value) async {
+    _isSubscribed = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_subscribedKey, value);
+  }
+
   Future<void> persistSessionFields({String? fullName, String? email}) async {
     final prefs = await SharedPreferences.getInstance();
     if (fullName != null) {
@@ -105,6 +115,7 @@ class HakkiriApiService {
     _fullName = null;
     _email = null;
     _isOnboarded = false;
+    _isSubscribed = false;
     final prefs = await SharedPreferences.getInstance();
     await Future.wait([
       prefs.remove(_tokenKey),
@@ -112,6 +123,7 @@ class HakkiriApiService {
       prefs.remove(_fullNameKey),
       prefs.remove(_emailKey),
       prefs.remove(_onboardedKey),
+      prefs.remove(_subscribedKey),
       prefs.remove(_loggedInKey),
     ]);
   }
@@ -476,6 +488,33 @@ class HakkiriApiService {
 
   Future<Map<String, dynamic>> listReflections({int days = 28}) =>
       _get('/reflections?days=$days', auth: true);
+
+  Future<Map<String, dynamic>> getJourney() =>
+      _get('/journey', auth: true);
+
+  Future<Map<String, dynamic>> getWeeklyReview() =>
+      _get('/journey/weekly-review', auth: true);
+
+  Future<Map<String, dynamic>> getChapterReview() =>
+      _get('/journey/chapter-review', auth: true);
+
+  Future<Map<String, dynamic>> saveJourneyBenchmark({
+    required String chapterId,
+    required String phase,
+    String? transcript,
+    String? localNote,
+  }) =>
+      _post('/journey/benchmark', auth: true, body: {
+        'chapter_id': chapterId,
+        'phase': phase,
+        if (transcript != null) 'transcript': transcript,
+        if (localNote != null) 'local_note': localNote,
+      });
+
+  Future<Map<String, dynamic>> completeJourneyChapter(String chapterId) =>
+      _post('/journey/complete-chapter', auth: true, body: {
+        'chapter_id': chapterId,
+      });
 
   Future<Map<String, dynamic>> createReflection({
     required String title,

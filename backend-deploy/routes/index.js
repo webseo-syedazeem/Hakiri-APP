@@ -13,6 +13,7 @@ const bootstrap = require("../controllers/bootstrapController");
 const push = require("../controllers/pushController");
 const coaching = require("../controllers/coachingController");
 const reflections = require("../controllers/reflectionController");
+const journey = require("../controllers/journeyController");
 
 const router = express.Router();
 
@@ -31,6 +32,13 @@ router.post("/coaching/decide", verifyJWT, coaching.decide);
 router.put("/coaching/level", verifyJWT, coaching.setLevel);
 router.get("/reflections", verifyJWT, reflections.list);
 router.post("/reflections", verifyJWT, reflections.create);
+
+// 12-month journey shell
+router.get("/journey", verifyJWT, journey.getJourney);
+router.get("/journey/weekly-review", verifyJWT, journey.weeklyReview);
+router.get("/journey/chapter-review", verifyJWT, journey.chapterReview);
+router.post("/journey/benchmark", verifyJWT, journey.saveBenchmark);
+router.post("/journey/complete-chapter", verifyJWT, journey.completeChapter);
 router.get("/ai/status", ai.status);
 router.get("/ai/probe", ai.probe);
 router.post("/ai/live-token", verifyJWT, ai.liveToken);

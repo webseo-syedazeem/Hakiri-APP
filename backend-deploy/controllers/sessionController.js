@@ -7,6 +7,12 @@ const { success, error } = require("../helpers/response");
 const { sessionJson, streakJson } = require("../services/serializers");
 const { applyPractice, bumpChallenges } = require("../services/progress");
 const { subscriptionJson } = require("../services/serializers");
+const {
+  rollingPillarAverage,
+  overallFromPillars,
+  ROLLING_OBSERVATIONS,
+} = require("../services/scoringEngine");
+const { toUkEnglish } = require("../config/ai");
 
 function isPlaceholderSpeech(text) {
   const s = String(text || "").trim().toLowerCase();
@@ -70,14 +76,15 @@ function hydrateDebateTurns(activitySlug, transcript, turns) {
   return next.length ? next : turns;
 }
 
-function integerScore(value, label, { required }) {
+/** Accept 1.0–5.0 at one decimal (12-month scoring). Null OK when not required. */
+function decimalScore(value, label, { required }) {
   if (value == null || value === "") {
     if (required) return `${label} is required.`;
     return null;
   }
   const number = Number(value);
-  if (!Number.isInteger(number) || number < 1 || number > 5) {
-    return `${label} must be a whole number from 1 to 5.`;
+  if (!Number.isFinite(number) || number < 1 || number > 5) {
+    return `${label} must be a number from 1 to 5.`;
   }
   return null;
 }
@@ -110,25 +117,26 @@ const createSession = async (req, res) => {
   if (!feedback || typeof feedback !== "object") return error(res, "feedback is required.");
 
   if (!withhold) {
+    // Pillars may be null when an exercise did not measure that area (12-month plan).
     const problems = [
-      integerScore(feedback.overall_score, "overall_score", { required: true }),
-      integerScore(feedback.pillars?.executive_score, "executive_score", { required: true }),
-      integerScore(feedback.pillars?.clarity_score, "clarity_score", { required: true }),
-      integerScore(feedback.pillars?.impact_score, "impact_score", { required: true }),
-      integerScore(feedback.pillars?.engagement_score, "engagement_score", { required: true }),
+      decimalScore(feedback.overall_score, "overall_score", { required: true }),
+      decimalScore(feedback.pillars?.executive_score, "executive_score", { required: false }),
+      decimalScore(feedback.pillars?.clarity_score, "clarity_score", { required: false }),
+      decimalScore(feedback.pillars?.impact_score, "impact_score", { required: false }),
+      decimalScore(feedback.pillars?.engagement_score, "engagement_score", { required: false }),
     ].filter(Boolean);
     if (Array.isArray(feedback.activity_measures)) {
       for (const row of feedback.activity_measures) {
         if (!row || typeof row !== "object") continue;
         if (row.score == null || row.included === false) continue;
-        const problem = integerScore(row.score, row.key || "measure", { required: true });
+        const problem = decimalScore(row.score, row.key || "measure", { required: true });
         if (problem) problems.push(problem);
       }
     } else if (feedback.activity_measures && typeof feedback.activity_measures === "object") {
       for (const [key, value] of Object.entries(feedback.activity_measures)) {
         if (value == null || (typeof value === "object" && value.score == null)) continue;
         const scoreVal = typeof value === "object" ? value.score : value;
-        const problem = integerScore(scoreVal, key, { required: true });
+        const problem = decimalScore(scoreVal, key, { required: true });
         if (problem) problems.push(problem);
       }
     }
@@ -160,10 +168,10 @@ const createSession = async (req, res) => {
     .slice(0, 80)
     .map((t) => ({
       role: String(t?.role || "").toLowerCase() === "coach" ? "coach" : "user",
-      text: String(t?.text || "").slice(0, 4000),
+      text: toUkEnglish(String(t?.text || "").slice(0, 4000)),
     }))
     .filter((t) => t.text);
-  const transcriptText = String(body.transcript || "").slice(0, 20000);
+  const transcriptText = toUkEnglish(String(body.transcript || "").slice(0, 20000));
   const conversationTurns = hydrateDebateTurns(
     activity.slug,
     transcriptText,
@@ -255,22 +263,38 @@ function average(rows, picker) {
 }
 
 const dashboard = async (req, res) => {
-  const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  // Newest first — rolling averages use the latest N valid observations per pillar.
   const fresh = await PracticeSession.find({
     user: req.user._id,
-    createdAt: { $gte: since },
     isCoachedRetry: false,
     withholdJudgement: false,
-  });
+  })
+    .sort({ createdAt: -1 })
+    .limit(80);
   const streak = await Streak.findOne({ user: req.user._id });
   const recent = await PracticeSession.find({ user: req.user._id }).sort({ createdAt: -1 }).limit(8);
 
-  const pillar = (key) => average(fresh, (row) => Number(row.feedback?.pillars?.[key]));
-  const fluency = pillar("executive_score");
-  const clarity = pillar("clarity_score");
-  const engagement = pillar("engagement_score");
-  const impact = pillar("impact_score");
-  const overall = average(fresh, (row) => Number(row.feedback?.overall_score));
+  const structure = rollingPillarAverage(fresh, "structure", ROLLING_OBSERVATIONS);
+  const clarity = rollingPillarAverage(fresh, "clarity", ROLLING_OBSERVATIONS);
+  const engagement = rollingPillarAverage(fresh, "engagement", ROLLING_OBSERVATIONS);
+  const conciseness = rollingPillarAverage(fresh, "conciseness", ROLLING_OBSERVATIONS);
+
+  const overallAvg = overallFromPillars({
+    executive_score: structure.average,
+    clarity_score: clarity.average,
+    engagement_score: engagement.average,
+    impact_score: conciseness.average,
+  });
+  const overallSamples = [structure, clarity, engagement, conciseness]
+    .map((p) => p.samples)
+    .reduce((a, b) => a + b, 0);
+  const overall = {
+    average: overallAvg,
+    samples: overallSamples,
+    status: overallAvg == null || Math.min(structure.samples, clarity.samples, engagement.samples, conciseness.samples) < 3
+      ? "need_more"
+      : "ready",
+  };
 
   const byActivity = new Map();
   for (const row of fresh) {
@@ -284,15 +308,16 @@ const dashboard = async (req, res) => {
     overall: average(rows, (row) => Number(row.feedback?.overall_score)),
   }));
 
-  return success(res, "Analytics for fresh prompts in the last 30 days.", {
-    window_days: 30,
+  return success(res, "Analytics from recent fresh-prompt observations.", {
+    window_observations: ROLLING_OBSERVATIONS,
     fresh_prompts_only: true,
     overall,
     pillars: {
-      executive_presence: { ...fluency, label: "Fluency and presence" },
-      clarity: { ...clarity, label: "Clarity and articulation" },
-      engagement: { ...engagement, label: "Engagement and tone" },
-      impact: { ...impact, label: "Conciseness and impact" },
+      // Keys kept for Flutter; labels match the 12-month permanent scores.
+      executive_presence: { ...structure, label: "Structure" },
+      clarity: { ...clarity, label: "Clarity" },
+      engagement: { ...engagement, label: "Engagement & Tone" },
+      impact: { ...conciseness, label: "Conciseness" },
     },
     activity_breakdown: activityBreakdown,
     gamification: streakJson(streak),

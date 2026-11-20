@@ -131,6 +131,15 @@ const analyzeSpeech = async (req, res) => {
       body.difficulty || prompt?.difficulty || "intermediary"
     ).trim();
 
+    let weeklyFocus = String(body.weekly_focus || body.weeklyFocus || "").trim();
+    if (!weeklyFocus && req.user?._id) {
+      try {
+        const { journeyPayload } = require("./journeyController");
+        const journey = await journeyPayload(req.user._id);
+        weeklyFocus = String(journey?.weekly_focus || "").trim();
+      } catch (_) {}
+    }
+
     const result = await analyzeSpeechWithGemini({
       transcript,
       durationSeconds,
@@ -143,6 +152,7 @@ const analyzeSpeech = async (req, res) => {
       isRetry,
       audioBase64: audioBase64 || undefined,
       audioMimeType,
+      weeklyFocus,
     });
 
     return success(res, "AI analysis ready.", {

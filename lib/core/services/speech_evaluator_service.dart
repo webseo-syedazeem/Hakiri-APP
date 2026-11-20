@@ -473,11 +473,13 @@ class SpeechEvaluatorService {
     final powerPauseCount =
         isNonAnswer || isThin ? 0 : (durationSeconds > 25 ? 2 : 1);
 
+    final contributions = _pillarContributionsFromMeasures(activityMeasures);
     final pillars = FourPillarsScore(
-      executiveScore: execScore.toDouble(),
-      clarityScore: clarityScore.toDouble(),
-      impactScore: impactScore.toDouble(),
-      engagementScore: engagementScore.toDouble(),
+      // executive = Structure, impact = Conciseness (12-month plan).
+      executiveScore: contributions['structure'] ?? 0,
+      clarityScore: contributions['clarity'] ?? 0,
+      impactScore: contributions['conciseness'] ?? 0,
+      engagementScore: contributions['engagement'] ?? 0,
       crutchCount: detectedCrutches.length,
       powerPauseCount: powerPauseCount,
       pacingWpm: wpm,
@@ -514,7 +516,50 @@ class SpeechEvaluatorService {
       activityMeasures: activityMeasures,
       capped: capped,
       scoringReason: scoringReason,
+      pillarContributions: contributions,
     );
+  }
+
+  /// Mirror of backend MEASURE_PILLAR — diagnostic measures are omitted.
+  static Map<String, double> _pillarContributionsFromMeasures(
+    List<ActivityMeasureScore> measures,
+  ) {
+    const map = <String, String>{
+      'response_readiness': 'diagnostic',
+      'transition_timing': 'diagnostic',
+      'text_structure': 'structure',
+      'filler_control': 'engagement',
+      'message_compression': 'conciseness',
+      'point_first': 'conciseness',
+      'paraphrasing': 'clarity',
+      'opening_impact': 'engagement',
+      'content_structure': 'structure',
+      'time_control': 'conciseness',
+      'audience_fit': 'clarity',
+      'language_simplicity': 'clarity',
+      'story_structure': 'structure',
+      'tension_and_stakes': 'engagement',
+      'clear_takeaway': 'clarity',
+      'delivery_control': 'engagement',
+      'idea_structure': 'structure',
+      'connection_logic': 'clarity',
+      'argument_quality': 'structure',
+      'perceived_confidence': 'engagement',
+    };
+    final buckets = <String, List<double>>{};
+    for (final m in measures) {
+      final score = m.score;
+      if (score == null || !m.included) continue;
+      final pillar = map[m.key];
+      if (pillar == null || pillar == 'diagnostic') continue;
+      buckets.putIfAbsent(pillar, () => <double>[]).add(score);
+    }
+    final out = <String, double>{};
+    for (final e in buckets.entries) {
+      final avg = e.value.reduce((a, b) => a + b) / e.value.length;
+      out[e.key] = (avg.clamp(1.0, 5.0) * 10).roundToDouble() / 10.0;
+    }
+    return out;
   }
 
   static List<String> _meaningfulWords(List<String> words) {

@@ -599,7 +599,7 @@ class _ProfileScreenContentState extends State<ProfileScreenContent> {
                     icon: Icons.business_center_outlined,
                     iconColor: const Color(0xFF10B981),
                     iconBgColor: const Color(0xFFECFDF5),
-                    title: 'Practice context',
+                    title: 'Work environment',
                     subtitle: state.careerTypeLabel,
                     showDivider: true,
                     onTap: _openPracticeContext,

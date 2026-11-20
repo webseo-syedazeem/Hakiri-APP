@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/services/analytics_service.dart';
+import '../core/utils/uk_english.dart';
 import '../models/session_model.dart';
 import '../providers/app_state_provider.dart';
 import '../core/services/coach_tts_service.dart';
@@ -891,71 +892,86 @@ class FeedbackScreen extends StatelessWidget {
       return _buildActivityMeasuresRow(syntheticFeedback);
     }
 
-    final impact = feedback?.pillars.impactScore ?? 0;
-    final clarity = feedback?.pillars.clarityScore ?? 0;
-    final fluency = feedback?.pillars.executiveScore ?? 0;
+    // Fallback cards when measure rows are empty — use 12-month pillar names.
+    final clarity = feedback?.contributionFor('clarity') ?? 0;
+    final structure = feedback?.contributionFor('structure') ?? 0;
+    final conciseness = feedback?.contributionFor('conciseness') ?? 0;
+    final engagement = feedback?.contributionFor('engagement') ?? 0;
     final crutches = feedback?.pillars.crutchCount ?? 0;
     final wpm = feedback?.pillars.pacingWpm ?? 0;
+    final primary = clarity > 0
+        ? (title: 'Clarity', score: clarity, color: const Color(0xFF2563EB))
+        : conciseness > 0
+            ? (title: 'Conciseness', score: conciseness, color: const Color(0xFF2563EB))
+            : (title: 'Clarity', score: 0.0, color: const Color(0xFF2563EB));
+    final secondary = structure > 0
+        ? (title: 'Structure', score: structure, color: const Color(0xFF059669))
+        : engagement > 0
+            ? (title: 'Engagement', score: engagement, color: const Color(0xFF059669))
+            : (title: 'Structure', score: 0.0, color: const Color(0xFF059669));
+    final tertiary = engagement > 0 && secondary.title != 'Engagement'
+        ? (title: 'Engagement', score: engagement, color: const Color(0xFFDC2626))
+        : conciseness > 0 && primary.title != 'Conciseness'
+            ? (title: 'Conciseness', score: conciseness, color: const Color(0xFFDC2626))
+            : (title: 'Engagement', score: 0.0, color: const Color(0xFFDC2626));
 
     return Row(
       children: [
         Expanded(
           child: _buildMetricCard(
-            icon: Icons.bolt_rounded,
-            iconColor: const Color(0xFF2563EB),
-            ringColor: const Color(0xFF2563EB),
-            scoreFraction: impact / 5.0,
-            title: 'Content',
+            icon: Icons.visibility_rounded,
+            iconColor: primary.color,
+            ringColor: primary.color,
+            scoreFraction: primary.score / 5.0,
+            title: primary.title,
             score: feedback == null
                 ? '0.0/5'
-                : '${impact.toStringAsFixed(1)}/5',
+                : '${primary.score.toStringAsFixed(1)}/5',
             desc: feedback == null
                 ? 'Waiting for your first scored answer.'
-                : impact <= 1
-                    ? 'No real answer to the prompt.'
-                    : impact >= 4
-                        ? 'Point landed with useful detail.'
-                        : 'Lead with the decision sooner.',
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _buildMetricCard(
-            icon: Icons.assignment_outlined,
-            iconColor: const Color(0xFF059669),
-            ringColor: const Color(0xFF059669),
-            scoreFraction: clarity / 5.0,
-            title: 'Structure',
-            score: feedback == null
-                ? '0.0/5'
-                : '${clarity.toStringAsFixed(1)}/5',
-            desc: feedback == null
-                ? 'Waiting for your first scored answer.'
-                : clarity <= 1
-                    ? 'Need a fuller spoken answer.'
+                : primary.score <= 1
+                    ? 'No clear evidence on this take.'
                     : wpm > 0
                         ? 'Pace around $wpm wpm.'
-                        : 'Keep ideas organised and easy to follow.',
+                        : 'Keep the message easy to follow.',
           ),
         ),
         const SizedBox(width: 10),
         Expanded(
           child: _buildMetricCard(
-            icon: Icons.pause_circle_outline_rounded,
-            iconColor: const Color(0xFFDC2626),
-            ringColor: const Color(0xFFDC2626),
-            scoreFraction: fluency / 5.0,
-            title: 'Fluency',
+            icon: Icons.account_tree_outlined,
+            iconColor: secondary.color,
+            ringColor: secondary.color,
+            scoreFraction: secondary.score / 5.0,
+            title: secondary.title,
             score: feedback == null
                 ? '0.0/5'
-                : '${fluency.toStringAsFixed(1)}/5',
+                : '${secondary.score.toStringAsFixed(1)}/5',
             desc: feedback == null
                 ? 'Waiting for your first scored answer.'
-                : fluency <= 1
-                    ? 'Filler / noise only — retry.'
+                : secondary.score <= 1
+                    ? 'Need a fuller spoken answer.'
+                    : 'Keep ideas organised and easy to follow.',
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _buildMetricCard(
+            icon: Icons.graphic_eq_rounded,
+            iconColor: tertiary.color,
+            ringColor: tertiary.color,
+            scoreFraction: tertiary.score / 5.0,
+            title: tertiary.title,
+            score: feedback == null
+                ? '0.0/5'
+                : '${tertiary.score.toStringAsFixed(1)}/5',
+            desc: feedback == null
+                ? 'Waiting for your first scored answer.'
+                : tertiary.score <= 1
+                    ? 'Not measured strongly this take.'
                     : crutches > 0
-                        ? '$crutches filler habits spotted.'
-                        : 'Steady delivery with fewer crutches.',
+                        ? '$crutches filler word${crutches == 1 ? '' : 's'} noted.'
+                        : 'Steady, composed delivery.',
           ),
         ),
       ],
@@ -1235,9 +1251,9 @@ class FeedbackScreen extends StatelessWidget {
     EvaluationFeedback? feedback, {
     PracticeSessionRecord? session,
   }) {
-    final exemplar = feedback?.exemplarResponse.trim().isNotEmpty == true
+    final exemplar = toUkEnglish(feedback?.exemplarResponse.trim().isNotEmpty == true
         ? feedback!.exemplarResponse
-        : 'Your coached exemplar appears here after a scored session.';
+        : 'Your coached exemplar appears here after a scored session.');
     final phrase = feedback?.highlightedPhrase.phrase.trim() ?? '';
     final isDebate = session != null &&
         (session.activitySlug == 'debate_me' ||
@@ -1252,10 +1268,10 @@ class FeedbackScreen extends StatelessWidget {
         : (phrase.isNotEmpty ? phrase : '');
     final noSpeech = _isEmptySpeechPlaceholder(rawYouSaid) ||
         (transcript.isEmpty && _isEmptySpeechPlaceholder(phrase));
-    final youSaid = noSpeech
+    final youSaid = toUkEnglish(noSpeech
         ? 'No clear speech was captured this take.'
-        : rawYouSaid;
-    final critique = feedback?.highlightedPhrase.critique.trim() ?? '';
+        : rawYouSaid);
+    final critique = toUkEnglish(feedback?.highlightedPhrase.critique.trim() ?? '');
     final score = feedback?.overallScore ?? 0;
     final intro = feedback == null
         ? 'Finish a practice take to unlock a coached rewrite.'
@@ -1386,7 +1402,7 @@ class FeedbackScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
-        text,
+        toUkEnglish(text),
         style: const TextStyle(
           fontFamily: 'Inter',
           fontSize: 12.5,
@@ -1442,7 +1458,7 @@ class FeedbackScreen extends StatelessWidget {
                 ),
               ),
               TextSpan(
-                text: text,
+                text: toUkEnglish(text),
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 12.5,
@@ -1477,16 +1493,16 @@ class FeedbackScreen extends StatelessWidget {
   /// KEY POINTS TO IMPROVE Card
   Widget _buildKeyPointsToImproveCard(EvaluationFeedback? feedback) {
     final improvement = feedback?.oneSpecificImprovement.trim().isNotEmpty == true
-        ? feedback!.oneSpecificImprovement
+        ? toUkEnglish(feedback!.oneSpecificImprovement)
         : 'Complete an exercise to unlock a specific coaching note.';
     final retry = feedback?.retryInstruction.trim().isNotEmpty == true
-        ? feedback!.retryInstruction
+        ? toUkEnglish(feedback!.retryInstruction)
         : 'Lead with the decision in the first 5 seconds.';
     final fluencyNote = feedback == null
         ? 'Scores unlock after your first practice take.'
         : feedback.pillars.crutchCount > 0
-            ? 'Cut ${feedback.pillars.crutchCount} filler habit${feedback.pillars.crutchCount == 1 ? '' : 's'} next take.'
-            : 'Keep a steady pace around ${feedback.pillars.pacingWpm} wpm.';
+            ? 'Aim for ${feedback.pillars.crutchCount} fewer filler word${feedback.pillars.crutchCount == 1 ? '' : 's'} in your next answer.'
+            : 'Great pacing! Keep a steady, natural flow around ${feedback.pillars.pacingWpm} wpm.';
 
     return Container(
       width: double.infinity,

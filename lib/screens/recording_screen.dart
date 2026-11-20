@@ -8,10 +8,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:record/record.dart';
 import 'package:speech_to_text/speech_to_text.dart';
+import '../core/constants/app_colors.dart';
 import '../core/services/analytics_service.dart';
 import '../core/services/ios_drill_recorder.dart';
 import '../core/services/session_audio_store.dart';
-import '../core/constants/app_colors.dart';
+import '../core/utils/uk_english.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/action_pill_button.dart';
 import '../widgets/app_snackbar.dart';
@@ -575,7 +576,7 @@ class _RecordingScreenState extends State<RecordingScreen>
       final ok = await _speech.listen(
         onResult: (result) {
           if (_finishing) return;
-          final text = result.recognizedWords.trim();
+          final text = toUkEnglish(result.recognizedWords.trim());
           if (result.finalResult) {
             if (text.isNotEmpty) {
               _committedTranscript = '$_committedTranscript $text'.trim();
@@ -592,6 +593,7 @@ class _RecordingScreenState extends State<RecordingScreen>
           _lastMicLevelAt = DateTime.now();
         },
         listenOptions: SpeechListenOptions(
+          localeId: 'en_GB',
           listenMode: ListenMode.dictation,
           partialResults: true,
           cancelOnError: false,

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'core/constants/app_colors.dart';
+import 'core/navigation/app_navigator.dart';
 import 'core/smooth_page_transitions.dart';
 import 'core/services/analytics_service.dart';
 import 'core/services/coach_tts_service.dart';
@@ -60,6 +61,7 @@ class HakkiriApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Hakkiri',
         debugShowCheckedModeBanner: false,
+        navigatorKey: appNavigatorKey,
         navigatorObservers: [
           AnalyticsService.instance.observer,
         ],

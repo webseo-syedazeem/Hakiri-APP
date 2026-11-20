@@ -347,6 +347,99 @@ class _ReflectAndGrowContentState extends State<ReflectAndGrowContent> {
                       ),
                       const SizedBox(height: 20),
 
+                      if (state.journey != null) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFFFBEB),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: const Color(0xFFFDE68A)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'YOUR WEEK',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.7,
+                                  color: Color(0xFFB45309),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Focus: ${state.journey!.weeklyFocus}',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 15.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                'Practised: ${state.journey!.weeklyReview.practisedLabel}',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 13,
+                                  color: Color(0xFF78716C),
+                                ),
+                              ),
+                              if (state.journey!.weeklyReview.pillarMovementLabel !=
+                                  null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Score: ${state.journey!.weeklyReview.pillarMovementLabel}',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 13,
+                                    color: Color(0xFF78716C),
+                                  ),
+                                ),
+                              ],
+                              if (state.journey!.weeklyReview.strongestMeasure !=
+                                  null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Strongest: ${state.journey!.weeklyReview.strongestMeasure}',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 13,
+                                    color: Color(0xFF78716C),
+                                  ),
+                                ),
+                              ],
+                              if (state.journey!.weeklyReview.keepWorkingOn !=
+                                  null) ...[
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Keep working on: ${state.journey!.weeklyReview.keepWorkingOn}',
+                                  style: const TextStyle(
+                                    fontFamily: 'Inter',
+                                    fontSize: 13,
+                                    color: Color(0xFF78716C),
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 8),
+                              Text(
+                                'Next week: ${state.journey!.nextWeekFocus}',
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
                       // Card: Notes to Future Self
                       InkWell(
                         onTap: () {

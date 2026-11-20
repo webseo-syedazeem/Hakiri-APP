@@ -12,31 +12,36 @@ class MetricRadarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final metrics = [
-      _MetricItem(
-        label: 'Executive Presence',
-        score: pillars.executiveScore,
-        subtitle: '${pillars.crutchCount} crutches • ${pillars.powerPauseCount} power pauses',
-        color: AppColors.accentCyan,
-      ),
-      _MetricItem(
-        label: 'Clarity & Articulation',
-        score: pillars.clarityScore,
-        subtitle: '${pillars.pacingWpm} WPM • ${pillars.intelligibilityPercentage}% intelligibility',
-        color: AppColors.accentBlue,
-      ),
-      _MetricItem(
-        label: 'Content Impact & Conciseness',
-        score: pillars.impactScore,
-        subtitle: '${pillars.actionVerbPercentage}% active verbs • BLUF check',
-        color: AppColors.accentPurple,
-      ),
-      _MetricItem(
-        label: 'Engagement Dynamics',
-        score: pillars.engagementScore,
-        subtitle: pillars.isMonotoneWarning ? 'Monotone Warning' : 'Dynamic Pitch & Decibel Peaks',
-        color: AppColors.accentEmerald,
-      ),
+    // Only show pillars this exercise measured (score >= 1). API: executive=Structure, impact=Conciseness.
+    final metrics = <_MetricItem>[
+      if (pillars.hasClarity)
+        _MetricItem(
+          label: 'Clarity',
+          score: pillars.clarityScore,
+          subtitle: '${pillars.pacingWpm} WPM • ${pillars.intelligibilityPercentage}% intelligibility',
+          color: AppColors.accentBlue,
+        ),
+      if (pillars.hasStructure)
+        _MetricItem(
+          label: 'Structure',
+          score: pillars.executiveScore,
+          subtitle: '${pillars.powerPauseCount} power pauses • organised delivery',
+          color: AppColors.accentCyan,
+        ),
+      if (pillars.hasEngagement)
+        _MetricItem(
+          label: 'Engagement & Tone',
+          score: pillars.engagementScore,
+          subtitle: pillars.isMonotoneWarning ? 'Monotone warning' : 'Composed, engaging delivery',
+          color: AppColors.accentEmerald,
+        ),
+      if (pillars.hasConciseness)
+        _MetricItem(
+          label: 'Conciseness',
+          score: pillars.impactScore,
+          subtitle: '${pillars.actionVerbPercentage}% active verbs • get to the point',
+          color: AppColors.accentPurple,
+        ),
     ];
 
     return Container(
@@ -53,7 +58,7 @@ class MetricRadarCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: const [
               Text(
-                'Four Pillars Executive Analysis',
+                'Hakkiri scores this take',
                 style: TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 15,
@@ -61,7 +66,7 @@ class MetricRadarCard extends StatelessWidget {
                 ),
               ),
               Text(
-                '1–5 Scale',
+                '1.0–5.0',
                 style: TextStyle(
                   color: AppColors.accentCyan,
                   fontSize: 11,
@@ -71,7 +76,17 @@ class MetricRadarCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          ...metrics.map((m) => _buildMetricRow(m)),
+          if (metrics.isEmpty)
+            const Text(
+              'No pillar scores for this exercise — see activity measures below.',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+                height: 1.35,
+              ),
+            )
+          else
+            ...metrics.map((m) => _buildMetricRow(m)),
         ],
       ),
     );

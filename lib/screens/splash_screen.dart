@@ -11,8 +11,6 @@ import 'assessment_screen.dart';
 import 'home_screen.dart';
 import 'landing_screen.dart';
 import 'locked_profile_screen.dart';
-import 'guest_auth_screen.dart';
-import 'paywall_screen.dart';
 import 'personalized_plan_screen.dart';
 
 /// Splash: cosmic canvas + logo, then auto-route.
@@ -53,8 +51,42 @@ class _SplashScreenState extends State<SplashScreen>
     // Initialize deterministic high-density light rays (streaks radiating in 360°)
     _rays = _generateLightRays();
 
-    // Auto-advance — no Get Started / Touch the light on splash.
-    _timer = Timer(const Duration(milliseconds: 2800), _navigateToNext);
+    // Fast parallel startup: restore local session immediately, kick off API in background,
+    // and route as soon as the smooth 1.2s splash branding completes (instead of blocking 12s on cold network).
+    _startAppLaunch();
+  }
+
+  Future<void> _startAppLaunch() async {
+    final state = Provider.of<AppStateProvider>(context, listen: false);
+
+    // 1. Fast local session restore from device storage (~5ms)
+    await state.restoreLocalSessionOnly();
+    if (!mounted) return;
+
+    // 2. Minimum branded cosmic animation time (1.2s instead of 2.8s)
+    final minSplashDuration = Future.delayed(const Duration(milliseconds: 1200));
+
+    // 3. Kick off API refresh immediately in background
+    if (state.isLoggedIn) {
+      final refreshTask = state.refreshFromApi().catchError((e) {
+        debugPrint('[Hakkiri] background bootstrap error: $e');
+      });
+
+      // If subscription flag is unconfirmed in local cache, allow up to 1.5s max for API response
+      if (!state.isSubscribed) {
+        await Future.any([
+          refreshTask,
+          Future.delayed(const Duration(milliseconds: 1500)),
+        ]);
+      }
+    }
+
+    // Wait until minimum splash branding has finished
+    await minSplashDuration;
+
+    if (mounted) {
+      _navigateToNext();
+    }
   }
 
   List<_LightRayData> _generateLightRays() {
@@ -104,18 +136,6 @@ class _SplashScreenState extends State<SplashScreen>
     _timer?.cancel();
 
     final state = Provider.of<AppStateProvider>(context, listen: false);
-    await state.restoreLocalSessionOnly();
-    if (!mounted) return;
-
-    // Sync subscription from API before routing — local session has no plan flag.
-    if (state.isLoggedIn) {
-      try {
-        await state.refreshFromApi();
-      } catch (_) {
-        // Offline: fall back to last known in-memory flags.
-      }
-    }
-    if (!mounted) return;
 
     final Widget next;
     if (state.isLoggedIn && state.isOnboarded && state.isSubscribed) {

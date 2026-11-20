@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../core/constants/app_colors.dart';
 import '../models/session_model.dart';
 import '../providers/app_state_provider.dart';
@@ -30,6 +31,17 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
   int _selectedFilter = 0; // 0: 7 days, 1: 30 days, 2: 3 months
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final state = context.read<AppStateProvider>();
+      if (state.isLoggedIn) {
+        state.refreshFromApi();
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final state = Provider.of<AppStateProvider>(context);
 
@@ -49,17 +61,15 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
         .where((s) => s.timestamp.isAfter(cutoff))
         .toList();
 
-    // Design labels: Clarity / Structure / Engagement / Conciseness
-    final claritySkill =
-        _periodPillarStat(filteredSessions, state, 'executive_presence');
-    final structureSkill =
-        _periodPillarStat(filteredSessions, state, 'clarity');
-    final engagement =
-        _periodPillarStat(filteredSessions, state, 'engagement');
-    final impact = _periodPillarStat(filteredSessions, state, 'impact');
+    // 4 Key skills: Clarity / Structure / Engagement & tone / Conciseness
+    final claritySkill = _periodPillarStat(filteredSessions, state, 'clarity');
+    final structureSkill = _periodPillarStat(filteredSessions, state, 'structure');
+    final engagement = _periodPillarStat(filteredSessions, state, 'engagement');
+    final conciseness = _periodPillarStat(filteredSessions, state, 'conciseness');
+
     final recentSessions = filteredSessions;
-    final totalSessions = recentSessions.length;
-    final previewCount = totalSessions.clamp(0, 3);
+    final totalSessions = state.sessionHistory.length;
+    final previewCount = recentSessions.length.clamp(0, 3);
 
     return SafeArea(
       bottom: false,
@@ -81,8 +91,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                   decoration: BoxDecoration(
                     color: AppColors.surfaceWhite,
                     borderRadius: BorderRadius.circular(20),
-                    border:
-                        Border.all(color: AppColors.surfaceBorder, width: 1.0),
+                    border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
                   ),
                   child: Row(
                     children: [
@@ -96,18 +105,33 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
             ),
             const SizedBox(height: 18),
 
-            const Text(
-              'Your skills',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                color: AppColors.textPrimary,
-                fontSize: 32,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.8,
-                height: 1.15,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Text(
+                  'Your skills',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    color: AppColors.textPrimary,
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.8,
+                    height: 1.15,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.info_outline_rounded,
+                    color: AppColors.textMuted,
+                    size: 20,
+                  ),
+                  tooltip: 'How scores work',
+                  onPressed: () => _showScoreExplainer(context),
+                ),
+              ],
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 4),
             const Text(
               'See how you’re progressing across key areas.',
               style: TextStyle(
@@ -182,20 +206,20 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                     iconColor: const Color(0xFFF59E0B),
                     iconBgColor: const Color(0xFFFFFBEB),
                     title: 'Conciseness',
-                    scoreText: impact.$1,
-                    deltaText: impact.$3,
-                    isDeltaPositive: impact.$4,
+                    scoreText: conciseness.$1,
+                    deltaText: conciseness.$3,
+                    isDeltaPositive: conciseness.$4,
                     description: 'Get to the point faster.',
-                    sparklinePoints: impact.$5,
+                    sparklinePoints: conciseness.$5,
                     sparklineColor: const Color(0xFFF59E0B),
-                    isLocked: impact.$2,
+                    isLocked: conciseness.$2,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
 
-            // Recommended next
+            // Recommended next exercise
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(16, 14, 14, 14),
@@ -210,6 +234,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                   const Text(
                     'RECOMMENDED NEXT  ·  ~2 MIN',
                     style: TextStyle(
+                      fontFamily: 'Inter',
                       color: Color(0xFFD97706),
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
@@ -241,6 +266,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                             Text(
                               'Cut It in Half',
                               style: TextStyle(
+                                fontFamily: 'Inter',
                                 color: AppColors.textPrimary,
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
@@ -250,6 +276,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                             Text(
                               'Build your conciseness with short, focused answers.',
                               style: TextStyle(
+                                fontFamily: 'Inter',
                                 color: Color(0xFF92400E),
                                 fontSize: 12,
                                 height: 1.3,
@@ -265,7 +292,9 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => const ActivityDetailScreen(),
+                              builder: (_) => const ActivityDetailScreen(
+                                activitySlug: 'cut_it_in_half',
+                              ),
                             ),
                           );
                         },
@@ -287,6 +316,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                             Text(
                               'Start',
                               style: TextStyle(
+                                fontFamily: 'Inter',
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -309,16 +339,18 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                 const Text(
                   'Recent practice',
                   style: TextStyle(
+                    fontFamily: 'Inter',
                     color: AppColors.textPrimary,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 Text(
-                  totalSessions == 0
+                  recentSessions.isEmpty
                       ? 'No sessions yet'
                       : '$previewCount of $totalSessions sessions',
                   style: const TextStyle(
+                    fontFamily: 'Inter',
                     color: AppColors.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -331,13 +363,11 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
             if (recentSessions.isEmpty)
               Container(
                 width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
+                padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
                 decoration: BoxDecoration(
                   color: AppColors.surfaceWhite,
                   borderRadius: BorderRadius.circular(16),
-                  border:
-                      Border.all(color: AppColors.surfaceBorder, width: 1.0),
+                  border: Border.all(color: AppColors.surfaceBorder, width: 1.0),
                 ),
                 child: Column(
                   children: [
@@ -350,6 +380,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                     Text(
                       'No sessions in the last $filterLabel',
                       style: const TextStyle(
+                        fontFamily: 'Inter',
                         color: AppColors.textPrimary,
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -360,6 +391,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                       'Complete an exercise to see your progress here.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
+                        fontFamily: 'Inter',
                         color: AppColors.textSecondary,
                         fontSize: 11.5,
                       ),
@@ -370,8 +402,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
             else ...[
               ...recentSessions.take(3).map((session) {
                 final score = session.feedback.overallScore;
-                final minutes =
-                    (session.durationSeconds / 60).ceil().clamp(1, 99);
+                final minutes = (session.durationSeconds / 60).ceil().clamp(1, 99);
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _buildRecentSessionCard(
@@ -478,6 +509,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                         Text(
                           'Hakkiri grows with you',
                           style: TextStyle(
+                            fontFamily: 'Inter',
                             color: AppColors.textPrimary,
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
@@ -487,6 +519,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                         Text(
                           'Your level is reviewed weekly. Your recommended exercises update every two weeks based on your progress.',
                           style: TextStyle(
+                            fontFamily: 'Inter',
                             color: AppColors.textSecondary,
                             fontSize: 12.5,
                             height: 1.4,
@@ -513,30 +546,61 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
     String key,
   ) {
     if (filtered.isNotEmpty) {
-      final scores = filtered.map((s) {
-        switch (key) {
-          case 'executive_presence':
-            return s.feedback.pillars.executiveScore.toDouble();
-          case 'clarity':
-            return s.feedback.pillars.clarityScore.toDouble();
-          case 'engagement':
-            return s.feedback.pillars.engagementScore.toDouble();
-          case 'impact':
-          default:
-            return s.feedback.pillars.impactScore.toDouble();
+      final scores = <double>[];
+      for (final s in filtered) {
+        final contrib = s.feedback.contributionFor(key);
+        if (contrib != null && contrib > 0) {
+          scores.add(contrib);
+        } else {
+          switch (key) {
+            case 'clarity':
+              if (s.feedback.pillars.hasClarity) {
+                scores.add(s.feedback.pillars.clarityScore.toDouble());
+              }
+              break;
+            case 'structure':
+            case 'executive_presence':
+              if (s.feedback.pillars.hasStructure) {
+                scores.add(s.feedback.pillars.executiveScore.toDouble());
+              }
+              break;
+            case 'engagement':
+              if (s.feedback.pillars.hasEngagement) {
+                scores.add(s.feedback.pillars.engagementScore.toDouble());
+              }
+              break;
+            case 'conciseness':
+            case 'impact':
+              if (s.feedback.pillars.hasConciseness) {
+                scores.add(s.feedback.pillars.impactScore.toDouble());
+              }
+              break;
+          }
         }
-      }).toList();
-      final avg = scores.reduce((a, b) => a + b) / scores.length;
-      // Only plot real session scores — never invent a trend.
-      final points = scores.reversed.take(6).toList();
-      return (
-        avg.toStringAsFixed(1),
-        false,
-        null,
-        null,
-        points,
-      );
+      }
+
+      if (scores.isNotEmpty) {
+        final avg = scores.reduce((a, b) => a + b) / scores.length;
+        final points = scores.reversed.take(6).toList();
+        String? deltaText;
+        bool? isPositive;
+        if (points.length >= 2) {
+          final diff = points.last - points.first;
+          if (diff.abs() >= 0.05) {
+            deltaText = '${diff >= 0 ? '+' : ''}${diff.toStringAsFixed(1)}';
+            isPositive = diff >= 0;
+          }
+        }
+        return (
+          avg.toStringAsFixed(1),
+          false,
+          deltaText,
+          isPositive,
+          points,
+        );
+      }
     }
+
     // Fall back to general server or baseline pillar stats
     return _pillarAverage(state, key);
   }
@@ -546,28 +610,62 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
     AppStateProvider state,
     String key,
   ) {
-    final raw = state.pillarStats[key];
-    if (raw is! Map) {
-      return ('Locked', true, '3 exercises needed', null, const <double>[]);
+    Map? raw = state.pillarStats[key] as Map?;
+    if (raw == null) {
+      if (key == 'structure' || key == 'executive_presence') {
+        raw = (state.pillarStats['structure'] ?? state.pillarStats['executive_presence']) as Map?;
+      } else if (key == 'conciseness' || key == 'impact') {
+        raw = (state.pillarStats['conciseness'] ?? state.pillarStats['impact']) as Map?;
+      }
     }
-    final map = Map<String, dynamic>.from(raw);
-    final average = map['average'];
-    final samples = (map['samples'] as num?)?.round() ?? 0;
-    final locked = map['status'] == 'need_more' || average == null || samples < 3;
-    if (locked) {
-      final needed = (3 - samples).clamp(1, 3);
-      final msg = '$needed more exercise${needed == 1 ? '' : 's'} needed';
-      return ('Locked', true, msg, null, const <double>[]);
+
+    if (raw != null) {
+      final map = Map<String, dynamic>.from(raw);
+      final average = map['average'];
+      final samples = (map['samples'] as num?)?.round() ?? 0;
+      final locked = map['status'] == 'need_more' || (average == null && samples < 3);
+      if (locked) {
+        final needed = (3 - samples).clamp(1, 3);
+        final msg = '$needed more exercise${needed == 1 ? '' : 's'} needed';
+        return ('Locked', true, msg, null, const <double>[]);
+      }
+      if (average is num && average > 0) {
+        final value = average.toDouble();
+        return (
+          value.toStringAsFixed(1),
+          false,
+          null,
+          null,
+          <double>[value],
+        );
+      }
     }
-    final value = (average as num).toDouble();
-    // Server average only — no fabricated sparkline deltas.
-    return (
-      value.toStringAsFixed(1),
-      false,
-      null,
-      null,
-      <double>[value],
-    );
+
+    // Check all-time session history if filtered period is empty
+    final allScores = <double>[];
+    for (final s in state.sessionHistory) {
+      final contrib = s.feedback.contributionFor(key);
+      if (contrib != null && contrib > 0) {
+        allScores.add(contrib);
+      }
+    }
+    if (allScores.isNotEmpty) {
+      final avg = allScores.reduce((a, b) => a + b) / allScores.length;
+      return (
+        avg.toStringAsFixed(1),
+        false,
+        null,
+        null,
+        allScores.reversed.take(6).toList(),
+      );
+    }
+
+    final overall = state.overallAverage;
+    if (overall != null && overall > 0) {
+      return (overall.toStringAsFixed(1), false, null, null, [overall]);
+    }
+
+    return ('Locked', true, '3 exercises needed', null, const <double>[]);
   }
 
   void _showScoreExplainer(BuildContext context) {
@@ -597,13 +695,14 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                 ),
               ),
               const SizedBox(height: 18),
-              Row(
-                children: const [
+              const Row(
+                children: [
                   Icon(Icons.insights_rounded, color: AppColors.royalBlue, size: 22),
                   SizedBox(width: 8),
                   Text(
                     'How Scores Work',
                     style: TextStyle(
+                      fontFamily: 'Inter',
                       color: AppColors.textPrimary,
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -615,6 +714,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
               const Text(
                 'Hakkiri evaluates your speaking across a 1.0 to 5.0 scale using 4 foundational communication pillars:',
                 style: TextStyle(
+                  fontFamily: 'Inter',
                   color: AppColors.textSecondary,
                   fontSize: 13,
                   height: 1.4,
@@ -624,20 +724,20 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
               _buildScorePrincipleRow(
                 icon: Icons.mic_rounded,
                 color: const Color(0xFF3B82F6),
-                title: 'Fluency & Presence',
-                desc: 'Steadier pace, optimal power pauses, and fewer filler words (crutches).',
+                title: 'Clarity',
+                desc: 'Steadier pace, optimal power pauses, and fewer filler words.',
               ),
               const SizedBox(height: 10),
               _buildScorePrincipleRow(
-                icon: Icons.visibility_rounded,
+                icon: Icons.bar_chart_rounded,
                 color: const Color(0xFF10B981),
-                title: 'Clarity',
+                title: 'Structure',
                 desc: 'High intelligibility, logical structuring, and clear main takeaways.',
               ),
               const SizedBox(height: 10),
               _buildScorePrincipleRow(
-                icon: Icons.auto_awesome_rounded,
-                color: const Color(0xFFEF4444),
+                icon: Icons.groups_rounded,
+                color: const Color(0xFFEC4899),
                 title: 'Engagement & Tone',
                 desc: 'Dynamic vocal energy, action verbs, and captivating delivery.',
               ),
@@ -645,7 +745,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
               _buildScorePrincipleRow(
                 icon: Icons.content_cut_rounded,
                 color: const Color(0xFFF59E0B),
-                title: 'Conciseness (Impact)',
+                title: 'Conciseness',
                 desc: 'High information density — get straight to the point without rambling.',
               ),
               const SizedBox(height: 20),
@@ -662,7 +762,13 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
-                  child: const Text('Got it', style: TextStyle(fontWeight: FontWeight.w700)),
+                  child: const Text(
+                    'Got it',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -699,6 +805,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
               Text(
                 title,
                 style: const TextStyle(
+                  fontFamily: 'Inter',
                   color: AppColors.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
@@ -708,6 +815,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
               Text(
                 desc,
                 style: const TextStyle(
+                  fontFamily: 'Inter',
                   color: AppColors.textSecondary,
                   fontSize: 11.5,
                   height: 1.3,
@@ -721,6 +829,13 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
   }
 
   String _formatSessionDay(DateTime stamp) {
+    final now = DateTime.now();
+    final diff = now.difference(stamp);
+    if (diff.inDays == 0 && stamp.day == now.day) {
+      return 'Today';
+    } else if (diff.inDays <= 1 && stamp.day == now.subtract(const Duration(days: 1)).day) {
+      return 'Yesterday';
+    }
     return '${stamp.day} ${_month(stamp.month)} ${stamp.year}';
   }
 
@@ -756,6 +871,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
         child: Text(
           label,
           style: TextStyle(
+            fontFamily: 'Inter',
             color: isSelected ? Colors.white : AppColors.textSecondary,
             fontSize: 11,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
@@ -802,6 +918,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
           Text(
             title,
             style: const TextStyle(
+              fontFamily: 'Inter',
               color: AppColors.textPrimary,
               fontSize: 13,
               fontWeight: FontWeight.w800,
@@ -870,6 +987,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
           Text(
             description,
             style: const TextStyle(
+              fontFamily: 'Inter',
               color: AppColors.textSecondary,
               fontSize: 11,
               height: 1.25,
@@ -932,6 +1050,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                   Text(
                     scoreFraction,
                     style: const TextStyle(
+                      fontFamily: 'Inter',
                       color: Colors.white,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
@@ -948,6 +1067,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                   Text(
                     title,
                     style: const TextStyle(
+                      fontFamily: 'Inter',
                       color: AppColors.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
@@ -957,6 +1077,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                   Text(
                     dateDuration,
                     style: const TextStyle(
+                      fontFamily: 'Inter',
                       color: AppColors.textSecondary,
                       fontSize: 11.5,
                     ),
@@ -976,7 +1097,7 @@ class _ProgressScreenContentState extends State<ProgressScreenContent> {
                     color: const Color(0xFFEFF6FF),
                     borderRadius: BorderRadius.circular(20),
                   ),
-                    child: const Text(
+                  child: const Text(
                     'Feedback',
                     style: TextStyle(
                       fontFamily: 'Inter',

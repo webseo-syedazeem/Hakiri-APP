@@ -29,6 +29,14 @@ const profileSchema = new mongoose.Schema(
       milestones: { type: [milestoneSchema], default: [] },
     },
     coaching: { type: mongoose.Schema.Types.Mixed, default: null },
+    /** 12-month journey shell (chapters + weekly focus + benchmarks). */
+    journey: {
+      startedAt: { type: Date, default: null },
+      completedChapterIds: { type: [String], default: [] },
+      /** Chapters we already sent a completion FCM for (one-shot). */
+      notifiedChapterCompleteIds: { type: [String], default: [] },
+      benchmarks: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    },
   },
   { timestamps: true }
 );

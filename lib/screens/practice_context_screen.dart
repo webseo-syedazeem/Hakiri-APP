@@ -86,7 +86,7 @@ class _PracticeContextScreenState extends State<PracticeContextScreen> {
       );
       if (!mounted) return;
       Navigator.pop(context);
-      AppSnackBar.showSuccess(context, 'Practice context updated.');
+      AppSnackBar.showSuccess(context, 'Work environment updated.');
     } on HakkiriApiException catch (e) {
       if (!mounted) return;
       AppSnackBar.showError(context, e.message);
@@ -116,7 +116,7 @@ class _PracticeContextScreenState extends State<PracticeContextScreen> {
                   ),
                   const Expanded(
                     child: Text(
-                      'Practice context',
+                      'Work environment',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontFamily: 'Inter',

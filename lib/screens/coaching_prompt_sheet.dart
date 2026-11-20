@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../core/constants/app_colors.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/hakkiri_logo.dart';
+import 'activity_detail_screen.dart';
 
 /// Today-only coaching sheet. One prompt a day; level/plan never change silently.
 class CoachingPromptHost extends StatefulWidget {
@@ -61,7 +62,14 @@ class _CoachingPromptHostState extends State<CoachingPromptHost> {
 class CoachingPromptSheet extends StatefulWidget {
   final Map<String, dynamic> prompt;
 
-  const CoachingPromptSheet({super.key, required this.prompt});
+  /// When true, buttons only close the sheet — no API / level / plan changes.
+  final bool previewMode;
+
+  const CoachingPromptSheet({
+    super.key,
+    required this.prompt,
+    this.previewMode = false,
+  });
 
   @override
   State<CoachingPromptSheet> createState() => _CoachingPromptSheetState();
@@ -77,26 +85,46 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
   Future<void> _choose(String choice) async {
     if (_busy) return;
     setState(() => _busy = true);
-    await context.read<AppStateProvider>().decideCoachingPrompt(choice);
+    if (!widget.previewMode) {
+      await context.read<AppStateProvider>().decideCoachingPrompt(choice);
+    }
     if (!mounted) return;
     Navigator.of(context).pop();
   }
 
+  /// Accept plan change (when real) then open the recommended drill.
+  Future<void> _openRecommended(String? slug) async {
+    final resolved = (slug ?? '').trim();
+    if (resolved.isEmpty || _busy) return;
+    setState(() => _busy = true);
+    final nav = Navigator.of(context, rootNavigator: true);
+    if (!widget.previewMode && type == 'plan_change') {
+      await context.read<AppStateProvider>().decideCoachingPrompt('accept');
+    }
+    if (!mounted) return;
+    nav.pop();
+    nav.push(
+      MaterialPageRoute<void>(
+        builder: (_) => ActivityDetailScreen(activitySlug: resolved),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Full-screen sheet aligned to Hakkiri pop-up examples (white, blue CTAs).
     return Material(
-      color: const Color(0xFFF7F8FC),
+      color: Colors.white,
       child: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 8, 0),
+              padding: const EdgeInsets.fromLTRB(18, 10, 8, 0),
               child: Row(
                 children: [
-                  // Horizontal lockup already includes the wordmark — no extra text.
                   const HakkiriLogo(
                     variant: HakkiriLogoVariant.compactMark,
-                    size: 28,
+                    size: 26,
                   ),
                   const Spacer(),
                   IconButton(
@@ -107,19 +135,24 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
                                   ? 'dismiss'
                                   : 'decline',
                             ),
-                    icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                    icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8)),
                   ),
                 ],
               ),
             ),
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(22, 8, 22, 16),
+                padding: const EdgeInsets.fromLTRB(22, 4, 22, 16),
                 child: _body(),
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(22, 0, 22, 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(22, 8, 22, 18),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
+              ),
               child: _actions(),
             ),
           ],
@@ -154,7 +187,7 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
     );
   }
 
-  Widget _title(String text, {Color? accentStart}) {
+  Widget _title(String text) {
     return Text(
       text,
       style: const TextStyle(
@@ -174,9 +207,17 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 8),
-        const Icon(Icons.bolt_rounded, color: Color(0xFF2563EB), size: 36),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
+        Container(
+          width: 44,
+          height: 44,
+          decoration: const BoxDecoration(
+            color: Color(0xFFEFF6FF),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.bolt_rounded, color: Color(0xFF2563EB), size: 26),
+        ),
+        const SizedBox(height: 12),
         _eyebrow('${p['eyebrow'] ?? 'LEVEL UP'}'),
         const SizedBox(height: 8),
         _title('${p['title'] ?? "You're ready."}'),
@@ -195,7 +236,10 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
         const SizedBox(height: 8),
         Row(
           children: List.generate(math.max(scores.length, 1), (i) {
-            final score = i < scores.length ? scores[i] : '—';
+            final raw = i < scores.length ? scores[i] : null;
+            final score = raw is num
+                ? raw.toDouble().toStringAsFixed(1)
+                : (raw?.toString() ?? '—');
             return Expanded(
               child: Container(
                 margin: EdgeInsets.only(right: i == scores.length - 1 ? 0 : 8),
@@ -203,11 +247,12 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFECFDF5),
                   borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFBBF7D0)),
                 ),
                 child: Column(
                   children: [
                     Text(
-                      '$score',
+                      score,
                       style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
@@ -227,18 +272,42 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
             );
           }),
         ),
-        const SizedBox(height: 22),
-        const Text(
-          'What changes',
-          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          '${p['what_changes'] ?? ''}',
-          style: const TextStyle(
-            fontSize: 14,
-            height: 1.45,
-            color: Color(0xFF475569),
+        const SizedBox(height: 20),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'What changes',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '${p['what_changes'] ?? ''}',
+                style: const TextStyle(
+                  fontSize: 14,
+                  height: 1.45,
+                  color: Color(0xFF475569),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Your scores carry over, and you can switch back anytime.',
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -308,14 +377,19 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
 
   Widget _planChange() {
     final bars = ((p['bars'] as List?) ?? []).whereType<Map>().toList();
+    final primarySlug = '${p['to_activity_slug'] ?? ''}'.trim();
+    final supportSlug = '${p['support_slug'] ?? ''}'.trim();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
-        _eyebrow('${p['eyebrow'] ?? 'CHECK-IN'}', color: const Color(0xFF64748B)),
+        _eyebrow(
+          '${p['eyebrow'] ?? 'THE-WEEK CHECK-IN'}',
+          color: const Color(0xFF94A3B8),
+        ),
         const SizedBox(height: 8),
         _title('${p['title'] ?? 'Your plan has a fresh focus.'}'),
-        const SizedBox(height: 18),
+        const SizedBox(height: 20),
         const Text(
           'YOUR LAST TWO WEEKS',
           style: TextStyle(
@@ -325,12 +399,12 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
             color: Color(0xFF94A3B8),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         ...bars.map((bar) {
           final score = (bar['score'] as num?)?.toDouble() ?? 0;
           final weak = bar['weakest'] == true;
           return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(bottom: 12),
             child: Row(
               children: [
                 SizedBox(
@@ -349,7 +423,7 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
                     borderRadius: BorderRadius.circular(99),
                     child: LinearProgressIndicator(
                       value: (score / 5).clamp(0.0, 1.0),
-                      minHeight: 8,
+                      minHeight: 9,
                       backgroundColor: const Color(0xFFE2E8F0),
                       color: weak
                           ? const Color(0xFFF43F5E)
@@ -357,39 +431,65 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  score.toStringAsFixed(1),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF0F172A),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 28,
+                  child: Text(
+                    score.toStringAsFixed(1),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
                 ),
               ],
             ),
           );
         }),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Text(
           '${p['insight'] ?? ''}',
-          style: const TextStyle(fontSize: 14, height: 1.4, color: Color(0xFF475569)),
+          style: const TextStyle(
+            fontSize: 14,
+            height: 1.45,
+            color: Color(0xFF475569),
+          ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 20),
+        const Text(
+          'RECOMMENDED NEXT',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.0,
+            color: Color(0xFF94A3B8),
+          ),
+        ),
+        const SizedBox(height: 10),
         Row(
           children: [
             Expanded(
               child: _swapCard(
-                'HERE’S TO ROTATE',
-                '${p['from_activity_name'] ?? ''}',
-                Icons.forum_outlined,
+                kicker: 'PRIMARY',
+                title: '${p['to_activity_name'] ?? 'Practice'}',
+                icon: Icons.bolt_rounded,
+                onTap: primarySlug.isEmpty
+                    ? null
+                    : () => _openRecommended(primarySlug),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: _swapCard(
-                '2 IDEAS DAILY',
-                '${p['to_activity_name'] ?? ''}',
-                Icons.lightbulb_outline_rounded,
+                kicker: 'SUPPORT',
+                title:
+                    '${p['support_name'] ?? p['from_activity_name'] ?? 'Practice'}',
+                icon: Icons.auto_awesome_rounded,
+                onTap: supportSlug.isEmpty
+                    ? null
+                    : () => _openRecommended(supportSlug),
               ),
             ),
           ],
@@ -397,49 +497,68 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
         const SizedBox(height: 12),
         Text(
           '${p['reassurance'] ?? ''}',
-          style: const TextStyle(fontSize: 13, height: 1.4, color: Color(0xFF64748B)),
+          style: const TextStyle(
+            fontSize: 13,
+            height: 1.4,
+            color: Color(0xFF64748B),
+          ),
         ),
       ],
     );
   }
 
-  Widget _swapCard(String kicker, String title, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFBEB),
+  Widget _swapCard({
+    required String kicker,
+    required String title,
+    required IconData icon,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: const Color(0xFFFFFBEB),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: _busy ? null : onTap,
         borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFFDE68A)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, size: 16, color: const Color(0xFFD97706)),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  kicker,
-                  style: const TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.4,
-                    color: Color(0xFFB45309),
+              Row(
+                children: [
+                  Icon(icon, size: 16, color: const Color(0xFFD97706)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      kicker,
+                      style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.6,
+                        color: Color(0xFFB45309),
+                      ),
+                    ),
                   ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                  height: 1.2,
+                  color: Color(0xFF0F172A),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
-              color: Color(0xFF0F172A),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -774,23 +893,29 @@ class _CoachingPromptSheetState extends State<CoachingPromptSheet> {
   }
 
   Widget _blueButton(String label, VoidCallback onTap) {
+    final clean = label.trim().replaceAll(RegExp(r'\s*→\s*$'), '');
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: 54,
       child: FilledButton(
         onPressed: _busy ? null : onTap,
         style: FilledButton.styleFrom(
           backgroundColor: AppColors.royalBlue,
+          foregroundColor: Colors.white,
+          elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+            Flexible(
+              child: Text(
+                clean,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
             const Icon(Icons.arrow_forward_rounded, size: 18),
           ],
         ),

@@ -1,3 +1,5 @@
+import '../core/utils/uk_english.dart';
+
 class FourPillarsScore {
   /// 1.0–5.0 at one decimal place.
   final double executiveScore;
@@ -40,8 +42,10 @@ class FourPillarsScore {
 
   factory FourPillarsScore.fromJson(Map<String, dynamic>? json) {
     final map = json ?? const <String, dynamic>{};
-    double read(String key, [double fallback = 3.0]) {
+    /// Null / missing = not measured this exercise (do not invent a mid score).
+    double read(String key, [double fallback = 0.0]) {
       final value = map[key];
+      if (value == null) return fallback;
       if (value is num) {
         final v = value.toDouble();
         return (v.clamp(1.0, 5.0) * 10).roundToDouble() / 10.0;
@@ -50,6 +54,7 @@ class FourPillarsScore {
     }
 
     return FourPillarsScore(
+      // API: executive = Structure, impact = Conciseness (12-month plan).
       executiveScore: read('executive_score'),
       clarityScore: read('clarity_score'),
       impactScore: read('impact_score'),
@@ -62,6 +67,11 @@ class FourPillarsScore {
       isMonotoneWarning: map['is_monotone'] == true,
     );
   }
+
+  bool get hasStructure => executiveScore >= 1;
+  bool get hasClarity => clarityScore >= 1;
+  bool get hasEngagement => engagementScore >= 1;
+  bool get hasConciseness => impactScore >= 1;
 }
 
 class HighlightedPhrase {
@@ -95,7 +105,7 @@ class ConversationTurn {
 
   factory ConversationTurn.fromJson(Map<String, dynamic> json) => ConversationTurn(
         role: (json['role'] ?? 'user').toString(),
-        text: (json['text'] ?? '').toString(),
+        text: toUkEnglish((json['text'] ?? '').toString()),
       );
 }
 
@@ -161,6 +171,8 @@ class EvaluationFeedback {
   final bool withholdJudgement;
   final bool capped;
   final String? scoringReason;
+  /// Sparse 12-month pillar evidence: clarity / structure / engagement / conciseness.
+  final Map<String, double> pillarContributions;
 
   const EvaluationFeedback({
     required this.overallScore,
@@ -175,6 +187,7 @@ class EvaluationFeedback {
     this.withholdJudgement = false,
     this.capped = false,
     this.scoringReason,
+    this.pillarContributions = const {},
   });
 
   Map<String, dynamic> toJson() => {
@@ -189,15 +202,37 @@ class EvaluationFeedback {
         if (activityMeasures.isNotEmpty)
           'activity_measures':
               activityMeasures.map((m) => m.toJson()).toList(),
+        if (pillarContributions.isNotEmpty)
+          'pillar_contributions': pillarContributions,
         'withhold_judgement': withholdJudgement,
-        if (scoringReason != null || capped)
+        if (scoringReason != null || capped || pillarContributions.isNotEmpty)
           'scoring': {
-            'engine': 'weighted_cap_v1',
+            'engine': 'hakkiri_12m_v1',
             'capped': capped,
             'withhold_judgement': withholdJudgement,
             'reason': scoringReason,
+            if (pillarContributions.isNotEmpty)
+              'pillar_contributions': pillarContributions,
           },
       };
+
+  /// Progress / radar: prefer explicit contributions, else legacy pillar fields.
+  double? contributionFor(String pillar) {
+    final direct = pillarContributions[pillar];
+    if (direct != null) return direct;
+    switch (pillar) {
+      case 'clarity':
+        return pillars.hasClarity ? pillars.clarityScore : null;
+      case 'structure':
+        return pillars.hasStructure ? pillars.executiveScore : null;
+      case 'engagement':
+        return pillars.hasEngagement ? pillars.engagementScore : null;
+      case 'conciseness':
+        return pillars.hasConciseness ? pillars.impactScore : null;
+      default:
+        return null;
+    }
+  }
 
   factory EvaluationFeedback.fromJson(Map<String, dynamic>? json) {
     final map = json ?? const <String, dynamic>{};
@@ -240,26 +275,41 @@ class EvaluationFeedback {
       }
     }
 
+    final contribRaw = map['pillar_contributions'] is Map
+        ? Map<String, dynamic>.from(map['pillar_contributions'] as Map)
+        : (scoring['pillar_contributions'] is Map
+            ? Map<String, dynamic>.from(scoring['pillar_contributions'] as Map)
+            : const <String, dynamic>{});
+    final contributions = <String, double>{};
+    for (final e in contribRaw.entries) {
+      final n = e.value;
+      if (n is num) {
+        contributions[e.key.toString()] =
+            (n.toDouble().clamp(1.0, 5.0) * 10).roundToDouble() / 10.0;
+      }
+    }
+
     return EvaluationFeedback(
       overallScore: overall is num
           ? (overall.toDouble().clamp(1.0, 5.0) * 10).roundToDouble() / 10.0
           : 3.0,
       pillars: FourPillarsScore.fromJson(map['pillars'] as Map<String, dynamic>?),
-      oneStrength: (map['one_strength'] ?? '').toString(),
-      oneSpecificImprovement: (map['one_specific_improvement'] ?? '').toString(),
+      oneStrength: toUkEnglish((map['one_strength'] ?? '').toString()),
+      oneSpecificImprovement: toUkEnglish((map['one_specific_improvement'] ?? '').toString()),
       highlightedPhrase: HighlightedPhrase(
         timestampRange: (phrase['timestamp_range'] ?? '').toString(),
-        phrase: (phrase['phrase'] ?? '').toString(),
-        critique: (phrase['critique'] ?? '').toString(),
+        phrase: toUkEnglish((phrase['phrase'] ?? '').toString()),
+        critique: toUkEnglish((phrase['critique'] ?? '').toString()),
       ),
-      retryInstruction: (map['retry_instruction'] ?? '').toString(),
-      exemplarResponse: (map['exemplar_response'] ?? '').toString(),
+      retryInstruction: toUkEnglish((map['retry_instruction'] ?? '').toString()),
+      exemplarResponse: toUkEnglish((map['exemplar_response'] ?? '').toString()),
       isCoachedRetry: map['is_coached_retry'] == true,
       activityMeasures: measures,
       withholdJudgement:
           map['withhold_judgement'] == true || scoring['withhold_judgement'] == true,
       capped: scoring['capped'] == true,
       scoringReason: scoring['reason']?.toString(),
+      pillarContributions: contributions,
     );
   }
 }
@@ -470,7 +520,7 @@ class PracticeSessionRecord {
       activityName: (json['activity_name'] ?? 'Practice').toString(),
       promptTitle: (json['prompt_title'] ?? '').toString(),
       promptText: (json['prompt_text'] ?? '').toString(),
-      transcript: (json['transcript'] ?? '').toString(),
+      transcript: toUkEnglish((json['transcript'] ?? '').toString()),
       conversationMode: mode == 'back_and_forth' ? 'back_and_forth' : 'single',
       conversationTurns: turns,
       timestamp: stamp,

@@ -9,9 +9,9 @@ import '../widgets/app_snackbar.dart';
 import '../widgets/hakkiri_bottom_nav.dart';
 import 'coaching_prompt_sheet.dart';
 import 'home_screen.dart';
-import 'progress_screen.dart';
 import 'practice_screen.dart';
 import 'profile_screen.dart';
+import 'progress_screen.dart';
 
 class MainTabScaffold extends StatefulWidget {
   final int initialIndex;

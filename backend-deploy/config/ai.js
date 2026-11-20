@@ -4,6 +4,7 @@ const {
   measuresToPillars,
   measurePromptForActivity,
   resolveMeasureScore,
+  overallFromPillars,
 } = require("../services/scoringEngine");
 
 const DEFAULT_LIVE_MODEL = "gemini-3.8-live";
@@ -58,7 +59,7 @@ function normalizeFlashModelId(raw) {
 }
 
 const DEFAULT_COACH_INSTRUCTION =
-  "You are Hakkiri Coach. Help the user practise clear professional English speech. " +
+  "You are Hakkiri Coach. Help the user practise clear professional British / UK English speech using British / UK English spelling at all times (e.g. synchronisation, organisation, prioritise, summarise, analyse, behaviour, practise, etc.). " +
   "Keep replies short, spoken, and practical. Ask one follow-up question at a time. " +
   "Do not penalise accents. Coach structure, clarity, calm pace, and confidence. " +
   "ENGLISH ONLY: if the user speaks another language, kindly say you are their English coach " +
@@ -136,12 +137,79 @@ function extractJsonObject(text) {
   }
 }
 
+const UK_ENGLISH_REPLACEMENTS = [
+  // -ize / -ization -> -ise / -isation
+  [/\b([Ss])ynchroniz(e|es|ed|ing|ation|ations)\b/g, "$1ynchronis$2"],
+  [/\b([Oo])rganiz(e|es|ed|ing|ation|ations)\b/g, "$1rganis$2"],
+  [/\b([Pp])rioritiz(e|es|ed|ing|ation|ations)\b/g, "$1rioritis$2"],
+  [/\b([Aa])nalyz(e|es|ed|ing)\b/g, "$1nalys$2"],
+  [/\b([Pp])ersonaliz(e|es|ed|ing|ation|ations)\b/g, "$1ersonalis$2"],
+  [/\b([Cc])ustomiz(e|es|ed|ing|ation|ations)\b/g, "$1ustomis$2"],
+  [/\b([Ss])ummariz(e|es|ed|ing|ation|ations)\b/g, "$1ummaris$2"],
+  [/\b([Oo])ptimiz(e|es|ed|ing|ation|ations)\b/g, "$1ptimis$2"],
+  [/\b([Rr])ealiz(e|es|ed|ing|ation|ations)\b/g, "$1ealis$2"],
+  [/\b([Rr])ecogniz(e|es|ed|ing|able)\b/g, "$1ecognis$2"],
+  [/\b([Ss])pecializ(e|es|ed|ing|ation|ations)\b/g, "$1pecialis$2"],
+  [/\b([Uu])tiliz(e|es|ed|ing|ation|ations)\b/g, "$1tilis$2"],
+  [/\b([Cc])ategoriz(e|es|ed|ing|ation|ations)\b/g, "$1ategoris$2"],
+  [/\b([Cc])entraliz(e|es|ed|ing|ation|ations)\b/g, "$1entralis$2"],
+  [/\b([Ss])tandardiz(e|es|ed|ing|ation|ations)\b/g, "$1tandardis$2"],
+  [/\b([Vv])isualiz(e|es|ed|ing|ation|ations)\b/g, "$1isualis$2"],
+  [/\b([Ee])mphasiz(e|es|ed|ing)\b/g, "$1mphasis$2"],
+  [/\b([Mm])aximiz(e|es|ed|ing)\b/g, "$1ximis$2"],
+  [/\b([Mm])inimiz(e|es|ed|ing)\b/g, "$1nimis$2"],
+  [/\b([Ff])amiliariz(e|es|ed|ing|ation|ations)\b/g, "$1amiliaris$2"],
+  [/\b([Cc])haracteriz(e|es|ed|ing|ation|ations)\b/g, "$1haracteris$2"],
+  [/\b([Cc])apitaliz(e|es|ed|ing|ation|ations)\b/g, "$1apitalis$2"],
+  [/\b([Hh])armoniz(e|es|ed|ing|ation|ations)\b/g, "$1armonis$2"],
+  [/\b([Ff])ormaliz(e|es|ed|ing|ation|ations)\b/g, "$1ormalis$2"],
+  [/\b([Cc])riticiz(e|es|ed|ing)\b/g, "$1riticis$2"],
+  [/\b([Mm])emoriz(e|es|ed|ing)\b/g, "$1emoris$2"],
+  [/\b([Aa])pologiz(e|es|ed|ing)\b/g, "$1pologis$2"],
+  [/\b([Pp])enaliz(e|es|ed|ing)\b/g, "$1enalis$2"],
+
+  // -or -> -our
+  [/\b([Bb])ehavior(s)?\b/g, "$1ehaviour$2"],
+  [/\b([Cc])olor(s)?\b/g, "$1olour$2"],
+  [/\b([Ff])avor(s|ed|ing|ite|ites)?\b/g, "$1avour$2"],
+  [/\b([Hh])onor(s|ed|ing|able)?\b/g, "$1onour$2"],
+  [/\b([Ff])lavor(s|ed|ing)?\b/g, "$1lavour$2"],
+  [/\b([Nn])eighbor(s|hood|hoods)?\b/g, "$1eighbour$2"],
+  [/\b([Ll])abor(s|ed|ing|er|ers)?\b/g, "$1abour$2"],
+  [/\b([Hh])umor(s)?\b/g, "$1umour$2"],
+
+  // Other UK English spellings
+  [/\b([Cc])enter(s|ed|ing)?\b/g, "$1entre$2"],
+  [/\b([Tt])heater(s)?\b/g, "$1heatre$2"],
+  [/\b([Cc])atalog(s)?\b/g, "$1atalogue$2"],
+  [/\b([Aa])nalog(s)?\b/g, "$1nalogue$2"],
+  [/\b([Dd])ialog(s)?\b/g, "$1ialogue$2"],
+  [/\b([Tt])ravel(ed|ing|er|ers)\b/g, "$1ravell$2"],
+  [/\b([Cc])ancel(ed|ing)\b/g, "$1ancell$2"],
+  [/\b([Ss])ignal(ed|ing)\b/g, "$1ignall$2"],
+  [/\b([Mm])odel(ed|ing)\b/g, "$1odell$2"],
+  [/\b([Dd])efense\b/g, "$1efence"],
+  [/\b([Oo])ffense\b/g, "$1ffence"],
+  [/\b([Pp])racticing\b/g, "$1ractising"],
+  [/\b([Pp])rogram(s)?\b/g, "$1rogramme$2"],
+];
+
+function toUkEnglish(text) {
+  if (!text || typeof text !== "string") return text;
+  let out = text;
+  for (const [regex, replacement] of UK_ENGLISH_REPLACEMENTS) {
+    out = out.replace(regex, replacement);
+  }
+  return out;
+}
+
 function normalizeFeedback(parsed, {
   transcript,
   durationSeconds,
   isRetry,
   exemplarFallback,
   activitySlug,
+  weeklyFocus = "",
 }) {
   const pillarsIn = parsed?.pillars || {};
   const highlightIn = parsed?.highlighted_phrase || {};
@@ -174,24 +242,23 @@ function normalizeFeedback(parsed, {
   }
 
   const scored = computeActivityScore(activitySlug, measureScores);
-  const mapped = measuresToPillars(activitySlug, measureScores, {
-    executive_score: pillarsIn.executive_score,
-    clarity_score: pillarsIn.clarity_score,
-    impact_score: pillarsIn.impact_score,
-    engagement_score: pillarsIn.engagement_score,
-  });
+  // Ignore Gemini's invented pillar scores — only activity measures feed Progress.
+  const mapped = measuresToPillars(activitySlug, measureScores);
 
-  const executive = clampScore(mapped.executive_score, 2);
-  const clarity = clampScore(mapped.clarity_score, 2);
-  const impact = clampScore(mapped.impact_score, 2);
-  const engagement = clampScore(mapped.engagement_score, 2);
+  const toPillar = (v) => (v == null ? null : clampScore(v, 3));
+  const executive = toPillar(mapped.executive_score); // Structure
+  const clarity = toPillar(mapped.clarity_score);
+  const impact = toPillar(mapped.impact_score); // Conciseness
+  const engagement = toPillar(mapped.engagement_score);
 
   const overall = scored.ok
     ? scored.overall_score
-    : clampScore(
-        parsed?.overall_score,
-        (executive + clarity + impact + engagement) / 4
-      );
+    : overallFromPillars({
+        executive_score: executive,
+        clarity_score: clarity,
+        impact_score: impact,
+        engagement_score: engagement,
+      }) ?? clampScore(parsed?.overall_score, 3);
 
   const emptySpeech = words.length < 8;
   const rawPhrase = String(highlightIn.phrase || "").trim();
@@ -218,6 +285,8 @@ function normalizeFeedback(parsed, {
       action_verb_pct: Number(pillarsIn.action_verb_pct) || 50,
       is_monotone: Boolean(pillarsIn.is_monotone) || words.length < 20,
     },
+    // Sparse evidence for Progress rolling averages (12-month plan).
+    pillar_contributions: mapped.pillar_contributions || {},
     activity_measures: scored.measures.map((m) => ({
       key: m.key,
       label: m.label,
@@ -226,40 +295,51 @@ function normalizeFeedback(parsed, {
       included: m.included,
       effective_weight: Math.round(m.effective_weight * 1000) / 1000,
       is_heaviest: m.is_heaviest,
+      pillar: m.pillar || null,
+      diagnostic: Boolean(m.diagnostic),
     })),
     scoring: {
-      engine: "weighted_cap_v1",
+      engine: "hakkiri_12m_v1",
       activity_slug: activitySlug || "think_fast",
       capped: Boolean(scored.capped),
       withhold_judgement: Boolean(scored.withhold_judgement),
       reason: scored.reason,
       overall_score_raw: scored.overall_score_raw ?? overall,
       heaviest_key: scored.heaviest_key,
+      pillar_contributions: mapped.pillar_contributions || {},
+      diagnostic_measures: mapped.diagnostic_measures || [],
     },
-    one_strength: String(parsed?.one_strength || "").trim() ||
+    one_strength: toUkEnglish(String(parsed?.one_strength || "").trim()) ||
       (emptySpeech
         ? "Recording started — next, speak a full answer to the prompt."
         : "You got words on record under time pressure."),
-    one_specific_improvement: String(parsed?.one_specific_improvement || "").trim() ||
+    one_specific_improvement: toUkEnglish(String(parsed?.one_specific_improvement || "").trim()) ||
       (emptySpeech
         ? "Speak your answer out loud for most of the minute: open with the point, then one reason."
         : "Lead with the conclusion in the first sentence, then add one concrete reason."),
     highlighted_phrase: {
       timestamp_range: String(highlightIn.timestamp_range || "00:05 - 00:15"),
-      phrase: snippet,
-      critique: String(highlightIn.critique || "").trim() ||
+      phrase: toUkEnglish(snippet),
+      critique: toUkEnglish(String(highlightIn.critique || "").trim()) ||
         (emptySpeech
           ? "We could not hear a usable answer. Hold the phone closer and speak clearly next time."
           : "Tighten the opening so the decision lands first."),
     },
-    retry_instruction: String(parsed?.retry_instruction || "").trim() ||
-      "Open with your bottom-line answer in under 5 seconds, then support it with one example.",
-    exemplar_response: trimExemplarResponse(
+    retry_instruction: (() => {
+      const base =
+        toUkEnglish(String(parsed?.retry_instruction || "").trim()) ||
+        "Open with your bottom-line answer in under 5 seconds, then support it with one example.";
+      if (!weeklyFocus) return base;
+      if (/this week'?s focus/i.test(base)) return base;
+      return `${base} This week's focus: ${weeklyFocus}.`;
+    })(),
+    exemplar_response: toUkEnglish(trimExemplarResponse(
       String(parsed?.exemplar_response || exemplarFallback || "").trim(),
       activitySlug
-    ),
+    )),
     is_coached_retry: Boolean(isRetry),
     withhold_judgement: Boolean(scored.withhold_judgement),
+    weekly_focus: weeklyFocus || undefined,
   };
 }
 
@@ -471,6 +551,7 @@ function buildScorePromptParts({
 }) {
   const system = [
     "You are Hakkiri, an executive communication coach.",
+    "LANGUAGE & SPELLING: Always use British / UK English spelling across all text outputs (e.g. synchronisation, organisation, prioritise, summarise, analyse, behaviour, colour, practise [verb] / practice [noun], programme, etc.). Never use American English spellings.",
     "Score ONLY from the user's spoken transcript against the practice prompt.",
     slug === "debate_me"
       ? "For Debate Me: weigh how well they answered the coach pushback (answers_objection), plus reasoning and delivery across opening + rebuttal."
@@ -527,7 +608,13 @@ function buildScorePromptParts({
     `"""`,
     "For Think Fast: structure = clear point order; latency = time-to-main-point / stalls; fillers = um/uh/so density.",
     "highlighted_phrase.phrase MUST quote words that appear in the transcript (or note empty).",
-    "Choose one improvement: the lowest measure the user can fix on a retry. Make retry_instruction one specific action.",
+    "COACHING TONE & STYLE (CRITICAL):",
+    "- Make your feedback encouraging, clear, warm, and natural — never robotic, clinical, or overly academic.",
+    "- Avoid rigid jargon like 'concrete scenario or mechanism', 'filler habits', or 'rather than speaking only in general terms'. Speak like a supportive British executive coach.",
+    "- one_strength: Celebrate what they did well with genuine warmth and specificity in 1 short sentence.",
+    "- one_specific_improvement: Keep it simple, positive, and easy to grasp. Suggest one practical adjustment in a natural, encouraging way (e.g. 'Next time, try anchoring with a real-world example, like how a daily standup keeps multiple teams aligned.').",
+    "- retry_instruction: Give one encouraging, bite-sized action to try on their very next attempt (e.g. 'On your next take, try naming one clear example upfront.').",
+    "- highlighted_phrase.critique: Keep it helpful, constructive, and kind.",
     "exemplar_response rules:",
     hasCatalogExemplar
       ? "- Catalog exemplar is already provided. Set exemplar_response to \"\" (empty). Do NOT rewrite it."
@@ -561,6 +648,7 @@ async function analyzeSpeechWithGemini({
   isRetry = false,
   audioBase64,
   audioMimeType,
+  weeklyFocus = "",
 } = {}) {
   const key = geminiApiKey();
   if (!key) {
@@ -665,6 +753,7 @@ async function analyzeSpeechWithGemini({
             isRetry,
             exemplarFallback: exemplarResponse,
             activitySlug: slug,
+            weeklyFocus,
           }),
         };
       }
@@ -723,6 +812,7 @@ async function analyzeSpeechWithGemini({
       isRetry,
       exemplarFallback: exemplarResponse,
       activitySlug: slug,
+      weeklyFocus,
     }),
   };
 }
@@ -1044,6 +1134,8 @@ async function generateDynamicPromptWithGemini({
   careerType = "general",
   difficulty = "intermediary",
   excludeTitles = [],
+  weeklyFocus = "",
+  chapterTitle = "",
 }) {
   const key = geminiApiKey();
   if (!key) {
@@ -1077,6 +1169,9 @@ async function generateDynamicPromptWithGemini({
         "promptText = 1 short sentence preferred, 2 max. Never a paragraph. Never nested clauses.",
         "Do NOT open with long 'Act as a Principal … resistant to …' role essays.",
         "Match difficulty strictly: beginner=simple, intermediary=solid workplace, professional=sharp trade-off — length still short.",
+        weeklyFocus
+          ? `This week's coaching focus (shape the scenario lightly toward this skill, do NOT replace personalisation): "${weeklyFocus}".${chapterTitle ? ` Chapter: ${chapterTitle}.` : ""}`
+          : "",
         excludeList.length
           ? `Do NOT repeat or closely resemble these existing topics: ${excludeList.join(" | ")}`
           : "",
@@ -1590,4 +1685,5 @@ module.exports = {
   synthesizeCoachSpeech,
   createLiveSessionToken,
   DEFAULT_COACH_INSTRUCTION,
+  toUkEnglish,
 };

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/assessment_model.dart';
 import '../models/activity_model.dart';
+import '../models/journey_model.dart';
 import '../models/session_model.dart';
 import '../core/services/analytics_service.dart';
 import '../core/services/apple_auth_service.dart';
@@ -290,7 +291,35 @@ class AppStateProvider extends ChangeNotifier {
   int reflectionFocusAreasCompleted = 0;
   int _reflectionRangeDays = 28;
 
+  /// 12-month journey shell (chapter + weekly focus).
+  JourneySnapshot? journey;
+
   List<ReflectionNote> get reflectionNotes => List.unmodifiable(_reflectionNotes);
+
+  void _applyJourney(dynamic raw) {
+    if (raw is Map) {
+      journey = JourneySnapshot.fromJson(Map<String, dynamic>.from(raw));
+    }
+  }
+
+  Future<void> loadJourney() async {
+    if (!_api.isLoggedIn) return;
+    try {
+      final data = await _api.getJourney();
+      _applyJourney(data['journey']);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[Hakkiri] loadJourney failed: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchChapterReview() async {
+    return _api.getChapterReview();
+  }
+
+  Future<Map<String, dynamic>> fetchWeeklyReview() async {
+    return _api.getWeeklyReview();
+  }
 
   void _applyReflections(Map<String, dynamic> data) {
     final rows = <ReflectionNote>[];
@@ -672,6 +701,7 @@ class AppStateProvider extends ChangeNotifier {
     if (!hasPendingLocalAssessment) {
       isOnboarded = _api.isOnboardedCached || isOnboarded;
     }
+    isSubscribed = _api.isSubscribedCached || isSubscribed;
     if (userId.isNotEmpty) {
       unawaited(AnalyticsService.instance.syncUserProfile(
         userId: userId,
@@ -1151,6 +1181,27 @@ class AppStateProvider extends ChangeNotifier {
     final mappedVoice = _mapVoiceForApi(voiceProfile);
     final mappedConfidence = _mapConfidenceForApi(confidence);
     final mappedGoal = _mapGoalForApi(goal);
+
+    // Always mirror what we just saved so UI updates immediately
+    final careerChanged = answers.careerType != careerType;
+    answers.careerStage = careerStage;
+    answers.careerType = careerType;
+    answers.confidence = mappedConfidence;
+    answers.roadblock = roadblock;
+    answers.primaryGoal = mappedGoal;
+
+    // Keep coach id locally if user had one; otherwise store API voice bucket.
+    final coachLike = voiceProfile.trim().toLowerCase();
+    if (voiceLabels.containsKey(coachLike)) {
+      answers.voiceProfile = coachLike;
+    } else {
+      answers.voiceProfile = mappedVoice;
+    }
+
+    // Recompute assessment plan & today queue immediately from user's selection
+    computeAssessmentPlan();
+    _syncTodayQueueFromPersonalizedPlan();
+
     final data = await _api.updateProfile({
       'full_name': name.trim(),
       'voice_profile': mappedVoice,
@@ -1159,48 +1210,22 @@ class AppStateProvider extends ChangeNotifier {
       'speaking_confidence': mappedConfidence,
       'primary_roadblock': roadblock,
       'primary_goal': mappedGoal,
+      'initial_drills': personalizedPlan?.initialDrills,
     });
     if (name.trim().length >= 2) {
       fullName = name.trim();
       await _api.persistSessionFields(fullName: fullName);
     }
-    // Always mirror what we just saved so UI updates even if a stale
-    // guest-pending flag would skip _applyProfile.
-    final careerChanged = answers.careerType != careerType;
-    final focusChanged = answers.roadblock != roadblock ||
-        answers.primaryGoal != mappedGoal;
-    answers.careerStage = careerStage;
-    answers.careerType = careerType;
-    answers.confidence = mappedConfidence;
-    answers.roadblock = roadblock;
-    answers.primaryGoal = mappedGoal;
-    // Keep coach id locally if user had one; otherwise store API voice bucket.
-    final coachLike = voiceProfile.trim().toLowerCase();
-    if (voiceLabels.containsKey(coachLike)) {
-      answers.voiceProfile = coachLike;
-    } else {
-      answers.voiceProfile = mappedVoice;
-    }
-    computeAssessmentPlan();
+
     final profile = (data['profile'] as Map<String, dynamic>?) ?? {};
     _applyProfile(profile, force: true);
-    // Goal / challenge change → recompute drills and refresh Today queue.
-    if (focusChanged) {
-      computeAssessmentPlan();
-      _syncTodayQueueFromPersonalizedPlan();
-      try {
-        await refreshFromApi();
-        // Keep the vote-based set if bootstrap still returns a stale queue.
-        final refreshed = todayDrillSlugs;
-        final expected = personalizedPlan?.initialDrills ?? const <String>[];
-        if (expected.isNotEmpty &&
-            (refreshed.isEmpty || refreshed.first != expected.first)) {
-          _syncTodayQueueFromPersonalizedPlan();
-        }
-      } catch (_) {
-        _syncTodayQueueFromPersonalizedPlan();
-      }
-    }
+
+    // Refresh from API to get any server updates, but guarantee today's queue reflects new plan
+    try {
+      await refreshFromApi();
+    } catch (_) {}
+    _syncTodayQueueFromPersonalizedPlan();
+
     // Career change → drop the old track's prompt so the next drill refetches.
     if (careerChanged) {
       selectedPrompt = null;
@@ -1322,6 +1347,7 @@ class AppStateProvider extends ChangeNotifier {
     _reflectionNotes.clear();
     reflectionPracticeSessions = 0;
     reflectionFocusAreasCompleted = 0;
+    journey = null;
     challenges = [];
     todayQueue = [];
     todayPrimary = null;
@@ -1361,6 +1387,7 @@ class AppStateProvider extends ChangeNotifier {
     _reflectionNotes.clear();
     reflectionPracticeSessions = 0;
     reflectionFocusAreasCompleted = 0;
+    journey = null;
     challenges = [];
     todayQueue = [];
     todayPrimary = null;
@@ -1516,6 +1543,7 @@ class AppStateProvider extends ChangeNotifier {
     subscriptionPriceFormatted =
         (subscription['price_label'] ?? subscriptionPriceFormatted).toString();
     isSubscribed = subscription['can_practise'] == true;
+    unawaited(_api.persistSubscribed(isSubscribed));
     final end = subscription['current_period_end'] ?? subscription['trial_end'];
     if (end != null) {
       final date = DateTime.tryParse(end.toString());
@@ -1639,6 +1667,8 @@ class AppStateProvider extends ChangeNotifier {
       if (reflectionsBlock is Map<String, dynamic>) {
         _applyReflections(reflectionsBlock);
       }
+
+      _applyJourney(data['journey']);
 
       _applyActivityLevels(
         (data['activity_levels'] as Map?)?.map(
@@ -2376,7 +2406,7 @@ class AppStateProvider extends ChangeNotifier {
     final confidence = answers.confidence ?? 'fairly';
     final careerType = answers.careerType ?? 'corporate_finance';
 
-    // 1. Tally votes from Goal & Challenge (Question 6 & 7)
+    // 1. Tally votes from Goal & Challenge (Question 6 & 7) + Work Environment track
     final Map<String, int> votes = {
       'think_fast': 0,
       'connect_the_dots': 0,
@@ -2387,8 +2417,35 @@ class AppStateProvider extends ChangeNotifier {
       'debate_me': 0,
     };
 
-    void addVote(String slug) {
-      votes[slug] = (votes[slug] ?? 0) + 1;
+    void addVote(String slug, [int count = 1]) {
+      votes[slug] = (votes[slug] ?? 0) + count;
+    }
+
+    // Work environment / Career track weighting:
+    switch (careerType) {
+      case 'corporate_finance':
+        addVote('cut_it_in_half', 2);
+        addVote('one_minute_expert', 2);
+        break;
+      case 'tech_product':
+        addVote('explain_it_simply', 2);
+        addVote('think_fast', 1);
+        addVote('cut_it_in_half', 1);
+        break;
+      case 'sales_marketing':
+        addVote('debate_me', 2);
+        addVote('storytelling_gym', 2);
+        break;
+      case 'healthcare_edu':
+        addVote('explain_it_simply', 2);
+        addVote('connect_the_dots', 2);
+        break;
+      case 'other':
+      default:
+        addVote('think_fast', 2);
+        addVote('debate_me', 1);
+        addVote('cut_it_in_half', 1);
+        break;
     }
 
     // Goal votes (Question 7)
@@ -3032,6 +3089,8 @@ class AppStateProvider extends ChangeNotifier {
       'transcript': transcript,
       'duration_seconds': durationSeconds,
       'is_coached_retry': isRetry,
+      if ((journey?.weeklyFocus ?? '').isNotEmpty)
+        'weekly_focus': journey!.weeklyFocus,
       if (audioBase64 != null && audioBase64.isNotEmpty) ...{
         'audio_base64': audioBase64,
         'audio_mime_type': audioMimeType,

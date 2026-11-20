@@ -167,6 +167,14 @@ const bootstrap = async (req, res) => {
     console.error("coaching prompt skipped:", err.message);
   }
 
+  let journey = null;
+  try {
+    const { journeyPayload } = require("./journeyController");
+    journey = await journeyPayload(userId);
+  } catch (err) {
+    console.error("journey bootstrap skipped:", err.message);
+  }
+
   return success(res, "Bootstrap.", {
     user: userJson(req.user),
     profile: profileJson(profile),
@@ -177,6 +185,7 @@ const bootstrap = async (req, res) => {
     daily_anchor: dailyAnchor,
     coaching_prompt: coachingPrompt,
     activity_levels: activityLevels,
+    journey,
     challenges: CHALLENGES.map((item) => challengeView(item, bySlug.get(item.slug))),
     sessions: {
       total: recentSessions.length,

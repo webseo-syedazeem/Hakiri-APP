@@ -274,6 +274,17 @@ const nextPrompt = async (req, res) => {
     seed: `${userId || "guest"}:${activitySlug}:${difficulty}:${Date.now()}:${Math.random()}`,
   });
 
+  let weeklyFocus = "";
+  let chapterTitle = "";
+  if (userId) {
+    try {
+      const { journeyPayload } = require("./journeyController");
+      const journey = await journeyPayload(userId);
+      weeklyFocus = String(journey?.weekly_focus || "").trim();
+      chapterTitle = String(journey?.chapter?.title || "").trim();
+    } catch (_) {}
+  }
+
   let aiError = null;
   if (!forceStatic && isGeminiConfigured()) {
     try {
@@ -283,6 +294,8 @@ const nextPrompt = async (req, res) => {
           careerType: career,
           difficulty,
           excludeTitles: [...excludeCodes, ...excludeTexts].slice(0, 12),
+          weeklyFocus,
+          chapterTitle,
         }),
         new Promise((_, reject) =>
           setTimeout(

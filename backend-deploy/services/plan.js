@@ -138,7 +138,7 @@ const TRACK_LABEL = {
 };
 
 /** Goal + challenge votes → top 3 drills (matches Flutter computeAssessmentPlan). */
-function drillsFromFocus(roadblock, goal) {
+function drillsFromFocus(roadblock, goal, careerType) {
   const votes = {
     think_fast: 0,
     connect_the_dots: 0,
@@ -148,9 +148,31 @@ function drillsFromFocus(roadblock, goal) {
     one_minute_expert: 0,
     debate_me: 0,
   };
-  const bump = (slug) => {
-    if (votes[slug] != null) votes[slug] += 1;
+  const bump = (slug, count = 1) => {
+    if (votes[slug] != null) votes[slug] += count;
   };
+
+  switch (String(careerType || "")) {
+    case "corporate_finance":
+      bump("cut_it_in_half", 2);
+      bump("one_minute_expert", 2);
+      break;
+    case "tech_product":
+      bump("explain_it_simply", 2);
+      bump("think_fast", 1);
+      bump("cut_it_in_half", 1);
+      break;
+    case "sales_marketing":
+      bump("debate_me", 2);
+      bump("storytelling_gym", 2);
+      break;
+    case "healthcare_edu":
+      bump("explain_it_simply", 2);
+      bump("connect_the_dots", 2);
+      break;
+    default:
+      break;
+  }
 
   switch (String(goal || "")) {
     case "authority":
@@ -226,7 +248,9 @@ function drillsFromFocus(roadblock, goal) {
 function buildPlan(answers) {
   const roadblock = answers.primaryRoadblock || "blank_pressure";
   const goal = answers.primaryGoal || "calmer_confident";
-  const drills = drillsFromFocus(roadblock, goal);
+  const drills = Array.isArray(answers.initialDrills) && answers.initialDrills.length
+    ? answers.initialDrills.slice(0, 3)
+    : drillsFromFocus(roadblock, goal, answers.careerType);
   const track = answers.careerType || "general";
   return {
     headline: "Your first month of speaking practice",

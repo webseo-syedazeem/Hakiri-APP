@@ -75,39 +75,27 @@ const seedCatalog = async () => {
             { ordered: false }
           ),
         ]);
+
+        // Keep Think Fast + One Minute Expert prep at 5s (product copy).
+        await Promise.all([
+          Activity.updateOne(
+            { slug: "think_fast" },
+            { $set: { prepDurationSeconds: 5 } }
+          ),
+          Activity.updateOne(
+            { slug: "one_minute_expert" },
+            { $set: { prepDurationSeconds: 5 } }
+          ),
+          Prompt.updateMany(
+            { activitySlug: "think_fast" },
+            { $set: { prepSeconds: 5 } }
+          ),
+          Prompt.updateMany(
+            { activitySlug: "one_minute_expert" },
+            { $set: { prepSeconds: 5 } }
+          ),
+        ]);
       }
-
-      // Keep Think Fast + One Minute Expert prep at 5s (product copy).
-      await Promise.all([
-        Activity.updateOne(
-          { slug: "think_fast" },
-          { $set: { prepDurationSeconds: 5 } }
-        ),
-        Activity.updateOne(
-          { slug: "one_minute_expert" },
-          { $set: { prepDurationSeconds: 5 } }
-        ),
-        Prompt.updateMany(
-          { activitySlug: "think_fast" },
-          { $set: { prepSeconds: 5 } }
-        ),
-        Prompt.updateMany(
-          { activitySlug: "one_minute_expert" },
-          { $set: { prepSeconds: 5 } }
-        ),
-      ]);
-
-      // Upsert prompt industry tags / new finance prompts without full reseed.
-      await Prompt.bulkWrite(
-        PROMPTS.map((prompt) => ({
-          updateOne: {
-            filter: { code: prompt.code },
-            update: { $set: prompt },
-            upsert: true,
-          },
-        })),
-        { ordered: false }
-      );
       seedDone = true;
     } catch (error) {
       seedPromise = null;

@@ -42,7 +42,7 @@ class _ProfileSectionScreenState extends State<ProfileSectionScreen> {
 
   String get _title {
     if (_isGoals) return 'Your Focus';
-    if (_isContext) return 'Practice context';
+    if (_isContext) return 'Work environment';
     return 'Daily practice';
   }
 
@@ -114,7 +114,7 @@ class _ProfileSectionScreenState extends State<ProfileSectionScreen> {
             ? 'Daily practice set to $_dailyMinutes minutes.'
             : _isGoals
                 ? 'Focus updated.'
-                : 'Practice context updated.',
+                : 'Work environment updated.',
       );
     } on HakkiriApiException catch (e) {
       if (!mounted) return;

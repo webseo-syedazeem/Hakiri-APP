@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../core/constants/app_colors.dart';
 
 class HakkiriBottomNav extends StatelessWidget {
   final int currentIndex;
@@ -17,7 +16,7 @@ class HakkiriBottomNav extends StatelessWidget {
       {
         'label': 'Today',
         'icon': Icons.home_outlined,
-        'activeIcon': Icons.home_filled,
+        'activeIcon': Icons.home_rounded,
       },
       {
         'label': 'Progress',
@@ -26,8 +25,8 @@ class HakkiriBottomNav extends StatelessWidget {
       },
       {
         'label': 'Practice',
-        'icon': Icons.outlined_flag_rounded,
-        'activeIcon': Icons.flag_rounded,
+        'icon': Icons.school_outlined,
+        'activeIcon': Icons.school_rounded,
       },
       {
         'label': 'Profile',
@@ -42,8 +41,10 @@ class HakkiriBottomNav extends StatelessWidget {
 
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.background,
-        border: Border(top: BorderSide(color: AppColors.surfaceBorderLight, width: 1)),
+        color: Colors.white,
+        border: Border(
+          top: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+        ),
       ),
       padding: EdgeInsets.only(top: 8, bottom: bottomPad),
       child: Row(
@@ -54,34 +55,34 @@ class HakkiriBottomNav extends StatelessWidget {
 
           return InkWell(
             onTap: () => onTap(index),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(16),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    isSelected ? (item['activeIcon'] as IconData) : (item['icon'] as IconData),
-                    color: isSelected ? AppColors.royalBlue : AppColors.textMuted,
-                    size: 24,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item['label'] as String,
-                    style: TextStyle(
-                      color: isSelected ? AppColors.textPrimary : AppColors.textMuted,
-                      fontSize: 11,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isSelected ? const Color(0xFFEFF6FF) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Icon(
+                      isSelected
+                          ? (item['activeIcon'] as IconData)
+                          : (item['icon'] as IconData),
+                      color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+                      size: 22,
                     ),
                   ),
                   const SizedBox(height: 3),
-                  // Royal blue dot indicator below active tab
-                  Container(
-                    width: 4,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isSelected ? AppColors.royalBlue : Colors.transparent,
+                  Text(
+                    item['label'] as String,
+                    style: TextStyle(
+                      color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                      fontSize: 11,
+                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                      fontFamily: 'Inter',
                     ),
                   ),
                 ],
