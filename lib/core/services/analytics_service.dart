@@ -23,6 +23,7 @@ class AnalyticsService {
     return _observer!;
   }
 
+
   /// Initializes Firebase Analytics and enables collection.
   Future<void> init() async {
     try {
